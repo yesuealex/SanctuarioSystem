@@ -1,0 +1,389 @@
+/* =========================================================
+   CROPS PAGE
+   ========================================================= */
+
+.records-section {
+    width: 100%;
+    margin-top: 10px;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.records-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+.records-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2f4f2f;
+}
+
+.records-subtitle {
+    margin: 4px 0 0;
+    font-size: 0.8rem;
+    color: #777;
+}
+
+
+/* =========================================================
+   HEADER BUTTONS
+   ========================================================= */
+
+.records-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.add-btn,
+.archive-view-btn {
+    height: 38px;
+    padding: 0 13px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    border: none;
+    border-radius: 7px;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.add-btn {
+    background: #2f6b2f;
+    color: white;
+}
+
+.add-btn:hover {
+    background: #244f24;
+}
+
+.archive-view-btn {
+    background: #f1f5f9;
+    color: #444;
+}
+
+.archive-view-btn:hover {
+    background: #e2e8f0;
+}
+
+.add-btn .material-symbols-rounded,
+.archive-view-btn .material-symbols-rounded {
+    font-size: 18px;
+}
+
+
+/* =========================================================
+   TOOLBAR
+   ========================================================= */
+
+.records-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+
+/* =========================================================
+   DROPDOWN
+   ========================================================= */
+
+.records-select {
+    height: 40px;
+
+    min-width: 150px;
+
+    padding: 0 12px;
+
+    border: 1px solid #ddd;
+    border-radius: 7px;
+
+    background: white;
+    color: #333;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.82rem;
+
+    outline: none;
+    cursor: pointer;
+}
+
+.records-select:focus {
+    border-color: #2f6b2f;
+}
+
+
+/* =========================================================
+   SEARCH
+   ========================================================= */
+
+.search-box {
+    height: 40px;
+    width: 300px;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 0 12px;
+
+    box-sizing: border-box;
+
+    background: white;
+
+    border: 1px solid #ddd;
+    border-radius: 7px;
+}
+
+.search-box .material-symbols-rounded {
+    font-size: 20px;
+    color: #777;
+}
+
+.search-box input {
+    width: 100%;
+
+    border: none;
+    outline: none;
+
+    background: transparent;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.82rem;
+
+    color: #333;
+}
+
+.search-box input::placeholder {
+    color: #999;
+}
+
+
+/* =========================================================
+   TABLE CONTAINER
+   ========================================================= */
+
+.table-container {
+    width: 100%;
+
+    overflow-x: auto;
+
+    background: white;
+
+    border-radius: 10px;
+
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.table-container table {
+    width: 100%;
+
+    min-width: 950px;
+
+    border-collapse: collapse;
+
+    margin: 0;
+
+    background: white;
+}
+
+
+/* =========================================================
+   TABLE HEADER
+   ========================================================= */
+
+.table-container th {
+    padding: 12px 10px;
+
+    background: #f1f5f9;
+
+    border-bottom: 1px solid #e5e7eb;
+
+    color: #444;
+
+    text-align: left;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   TABLE BODY
+   ========================================================= */
+
+.table-container td {
+    padding: 11px 10px;
+
+    border-bottom: 1px solid #eee;
+
+    color: #444;
+
+    text-align: left;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+
+    white-space: nowrap;
+}
+
+.table-container tbody tr:hover {
+    background: #f9fafb;
+}
+
+.table-container tbody tr:last-child td {
+    border-bottom: none;
+}
+
+
+/* =========================================================
+   ACTION BUTTONS
+   ========================================================= */
+
+.action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.action-icon {
+    width: 32px;
+    height: 32px;
+
+    padding: 0;
+
+    border: none;
+    border-radius: 7px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+
+    transition: 0.2s ease;
+}
+
+.action-icon .material-symbols-rounded {
+    font-size: 18px;
+}
+
+
+/* EDIT */
+
+.edit-icon {
+    background: #e8f5e9;
+    color: #2f6b2f;
+}
+
+.edit-icon:hover {
+    background: #2f6b2f;
+    color: white;
+}
+
+
+/* ARCHIVE */
+
+.archive-icon {
+    background: #fff4df;
+    color: #b7791f;
+}
+
+.archive-icon:hover {
+    background: #b7791f;
+    color: white;
+}
+
+
+/* =========================================================
+   NO RECORDS
+   ========================================================= */
+
+.no-records {
+    padding: 35px 20px !important;
+
+    text-align: center !important;
+
+    color: #888 !important;
+
+    font-size: 0.85rem !important;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+
+    .records-header {
+        align-items: flex-start;
+    }
+
+    .records-actions {
+        flex-wrap: wrap;
+    }
+
+    .records-toolbar {
+        flex-wrap: wrap;
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    .records-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .records-actions {
+        width: 100%;
+    }
+
+    .add-btn,
+    .archive-view-btn {
+        flex: 1;
+    }
+
+    .records-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .records-select,
+    .search-box {
+        width: 100%;
+    }
+
+}

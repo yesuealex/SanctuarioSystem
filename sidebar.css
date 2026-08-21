@@ -1,0 +1,546 @@
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
+.sidebar {
+    position: fixed;
+
+    top: 0;
+    left: 0;
+
+    width: 250px;
+    height: 100vh;
+
+    background: #2e5129;
+
+    display: flex;
+    flex-direction: column;
+
+    padding: 20px 14px;
+
+    box-sizing: border-box;
+
+    z-index: 1000;
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   SIDEBAR TOP
+   ========================================================= */
+
+.sidebar-top {
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+
+    min-height: 0;
+}
+
+
+/* =========================================================
+   LOGO
+   ========================================================= */
+
+.sidebar-logo-container {
+    width: 100%;
+
+    display: flex;
+
+    justify-content: center;
+    align-items: center;
+
+    padding: 8px 0 25px;
+}
+
+
+.sidebar-logo {
+    width: 145px;
+    height: auto;
+
+    display: block;
+
+    object-fit: contain;
+}
+
+
+/* =========================================================
+   MENU
+   ========================================================= */
+
+.menu {
+    list-style: none;
+
+    padding: 0;
+    margin: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 30px;
+}
+
+
+/* =========================================================
+   NORMAL MENU ITEMS
+   ========================================================= */
+
+.menu > li:not(.menu-dropdown) {
+
+    min-height: 48px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 20px;
+
+    padding: 0 15px;
+
+    box-sizing: border-box;
+
+    border-radius: 30px;
+
+    background: transparent;
+
+    border: none;
+
+    color: #ffffff;
+
+    cursor: pointer;
+
+    font-size: 15px;
+
+    font-weight: 500;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+
+/* =========================================================
+   NORMAL MENU ICON
+   ========================================================= */
+
+.menu > li:not(.menu-dropdown)
+.material-symbols-rounded {
+
+    font-size: 23px;
+
+    flex-shrink: 0;
+}
+
+
+/* =========================================================
+   NORMAL MENU HOVER
+   ========================================================= */
+
+.menu > li:not(.menu-dropdown):hover {
+
+    background: rgba(255, 255, 255, 0.12);
+}
+
+
+/* =========================================================
+   NORMAL MENU ACTIVE
+   ========================================================= */
+
+.menu > li:not(.menu-dropdown).active {
+
+    background: #edd966;
+
+    color: #2e5129;
+
+    font-weight: 600;
+
+    box-shadow:
+        0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+
+/* =========================================================
+   FARM RECORDS CONTAINER
+   ========================================================= */
+
+.menu > li.menu-dropdown {
+
+    width: 100%;
+
+    margin: 0;
+
+    padding: 0;
+
+    background: transparent;
+
+    border: none;
+
+    border-radius: 30px;
+
+    box-shadow: none;
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   FARM RECORDS HEADER
+   ========================================================= */
+
+.sidebar-records-header {
+
+    width: 100%;
+
+    min-height: 48px;
+
+    margin: 0;
+
+    padding: 0 15px;
+
+    box-sizing: border-box;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    /*
+       IMPORTANT:
+       This is the normal sidebar green.
+       It does NOT use the top-right dropdown color.
+    */
+
+    background: #2e5129;
+
+    border: none;
+
+    border-radius: 30px;
+
+    box-shadow: none;
+
+    color: #ffffff;
+
+    font-family: inherit;
+
+    font-size: 15px;
+
+    font-weight: 500;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+
+/* =========================================================
+   RECORDS LEFT SIDE
+   ========================================================= */
+
+.sidebar-records-left {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
+}
+
+
+/* =========================================================
+   RECORDS ICON
+   ========================================================= */
+
+.sidebar-records-left
+.material-symbols-rounded {
+
+    font-size: 23px;
+
+    flex-shrink: 0;
+}
+
+
+/* =========================================================
+   RECORDS ARROW
+   ========================================================= */
+
+.sidebar-records-arrow {
+
+    font-size: 22px !important;
+
+    transition:
+        transform 0.25s ease;
+}
+
+
+/* =========================================================
+   RECORDS HOVER
+   ========================================================= */
+
+.menu-dropdown:not(.active-parent)
+.sidebar-records-header:hover {
+
+    background: rgba(255, 255, 255, 0.12);
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   RECORDS ACTIVE
+   ========================================================= */
+
+.menu-dropdown.active-parent
+.sidebar-records-header {
+
+    background: #edd966;
+
+    color: #2e5129;
+
+    font-weight: 600;
+
+    box-shadow:
+        0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+
+/* =========================================================
+   RECORDS ACTIVE HOVER
+   ========================================================= */
+
+.menu-dropdown.active-parent
+.sidebar-records-header:hover {
+
+    background: #f8e67d ;
+
+    color: #2e5129;
+}
+
+
+/* =========================================================
+   RECORDS SUBMENU
+   ========================================================= */
+
+.sidebar-records-submenu {
+
+    list-style: none;
+
+    width: 100%;
+
+    margin: 0;
+
+    padding: 4px 0;
+
+    box-sizing: border-box;
+
+    max-height: 0;
+
+    overflow: hidden;
+
+    opacity: 0;
+
+    background: transparent;
+
+    border: none;
+
+    box-shadow: none;
+
+    transition:
+        max-height 0.25s ease,
+        opacity 0.2s ease;
+}
+
+
+/* =========================================================
+   SUBMENU OPEN
+   ========================================================= */
+
+.menu-dropdown.open
+.sidebar-records-submenu {
+
+    max-height: 150px;
+
+    opacity: 1;
+}
+
+
+/* =========================================================
+   SUBMENU ITEMS
+   ========================================================= */
+
+.sidebar-records-submenu > li {
+
+    min-height: 42px;
+
+    margin: 3px 8px 3px 15px;
+
+    padding: 0 12px;
+
+    box-sizing: border-box;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    background: transparent;
+
+    border: none;
+
+    border-radius: 30px;
+
+    box-shadow: none;
+
+    color: rgba(255, 255, 255, 0.9);
+
+    font-size: 14px;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+
+/* =========================================================
+   SUBMENU ICONS
+   ========================================================= */
+
+.sidebar-records-submenu
+.material-symbols-rounded {
+
+    font-size: 20px;
+}
+
+
+/* =========================================================
+   SUBMENU HOVER
+   ========================================================= */
+
+.sidebar-records-submenu > li:hover {
+
+    background: rgba(255, 255, 255, 0.12);
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   SUBMENU ACTIVE
+   ========================================================= */
+
+.sidebar-records-submenu > li.sub-active {
+
+    background: rgba(255, 255, 255, 0.18);
+
+    color: #ffffff;
+
+    font-weight: 600;
+}
+
+
+/* =========================================================
+   RECORDS ARROW ROTATION
+   ========================================================= */
+
+.menu-dropdown.open
+.sidebar-records-arrow {
+
+    transform: rotate(180deg);
+}
+
+
+/* =========================================================
+   SIDEBAR FOOTER
+   ========================================================= */
+
+.sidebar-footer {
+
+    margin-top: auto;
+
+    padding-top: 15px;
+}
+
+
+/* =========================================================
+   LOGOUT
+   ========================================================= */
+
+.logout-link {
+
+    min-height: 48px;
+
+    width: 100%;
+
+    padding: 0 15px;
+
+    box-sizing: border-box;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
+
+    border-radius: 12px;
+
+    background: transparent;
+
+    border: none;
+
+    color: #da4141;
+
+    text-decoration: none;
+
+    font-size: 15px;
+
+    font-weight: 500;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+
+/* =========================================================
+   LOGOUT ICON
+   ========================================================= */
+
+.logout-link
+.material-symbols-rounded {
+
+    font-size: 23px;
+}
+
+
+/* =========================================================
+   LOGOUT HOVER
+   ========================================================= */
+
+.logout-link:hover {
+
+    background: rgba(255, 255, 255, 0.12);
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+
+    .sidebar {
+
+        width: 220px;
+
+    }
+
+}

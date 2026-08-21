@@ -1,0 +1,528 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded');
+
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
+}
+
+body{
+    background:#f5f7f8;
+    color:#222;
+    overflow-x:hidden;
+}
+
+/* ===================================
+   LAYOUT
+=================================== */
+
+.layout{
+    display:flex;
+    min-height:100vh;
+}
+
+.dashboard{
+    margin-left:250px;
+    width:calc(100% - 250px);
+    padding:30px;
+}
+
+/* ===========================
+   HERO SECTION
+=========================== */
+
+.hero-container {
+    background:linear-gradient(135deg,#4F7D3A,#7EB26D);
+    border-radius:22px;
+    padding:35px;
+    margin-bottom:30px;
+    color:#fff;
+    box-shadow:0 15px 30px rgba(0,0,0,.12);
+}
+
+/* top row */
+
+.hero-text{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    margin-bottom:30px;
+}
+
+.hero-text h2{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    font-size:34px;
+    color:#fff;
+    margin:0;
+}
+
+.hero-text h2 span{
+    font-size:38px;
+    color:#FFD54F;
+}
+
+.hero-text p{
+    margin-top:8px;
+    font-size:16px;
+    color:rgba(255,255,255,.9);
+}
+
+.hero-date{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 16px;
+    background:rgba(255,255,255,.15);
+    border-radius:30px;
+    backdrop-filter:blur(5px);
+    font-weight:600;
+}
+
+/* cards */
+
+.hero-cards{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:20px;
+}
+
+.hero-card{
+    background:#fff;
+    border-radius:18px;
+    padding:20px;
+
+    display:flex;
+    align-items:center;
+    gap:18px;
+
+    transition:.25s;
+    box-shadow:0 10px 20px rgba(0,0,0,.12);
+}
+
+.hero-card:hover{
+    transform:translateY(-5px);
+}
+
+.hero-icon{
+    width:65px;
+    height:65px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+}
+
+.hero-icon span{
+    color:white;
+    font-size:34px;
+}
+
+.green{
+    background:#2E7D32;
+}
+
+.yellow{
+    background:#FBC02D;
+}
+
+.lime{
+    background:#7CB342;
+}
+
+.olive{
+    background:#9E9D24;
+}
+
+.hero-info span{
+    display:block;
+    color:#666;
+    font-size:14px;
+}
+
+.hero-info h3{
+    font-size:40px;
+    color:#222;
+    margin-top:3px;
+}
+
+.top-grid {
+    display: grid;
+
+    grid-template-columns: 2fr 1fr;
+
+    gap: 16px;
+
+    margin-bottom: 25px;
+
+    align-items: stretch;
+}
+
+
+/* ===========================
+   MAP
+=========================== */
+
+.map-box{
+
+    background:#fff;
+    border-radius:18px;
+    padding:15px;
+    box-shadow:0 8px 18px rgba(0,0,0,.08);
+}
+
+.svg-wrapper{
+
+    position:relative;
+
+    width:100%;
+
+    height:500px;
+
+    overflow:hidden;
+
+    border-radius:15px;
+
+    border:1px solid #ddd;
+
+    background:#f7f7f7;
+
+    cursor:grab;
+
+    user-select:none;
+}
+
+#farmMap{
+
+    width:100%;
+
+    height:100%;
+
+    display:block;
+
+    transform-origin:0 0;
+
+    will-change:transform;
+}
+
+.marker{
+
+    cursor:pointer;
+}
+
+/* =========================================
+   BAR + PIE CHARTS
+========================================= */
+
+.dashboard-charts {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    min-width: 0;
+    width: 100%;
+}
+
+
+.chart-box {
+    background-color: #ffffff;
+
+    border-radius: 10px;
+
+    padding: 14px;
+
+    width: 100%;
+
+    box-sizing: border-box;
+
+    border: 1px solid #eeeeee;
+
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+    overflow: hidden;
+
+    flex: 1;
+}
+
+
+/* =========================================
+   CHART TITLE
+========================================= */
+
+.chart-box h3 {
+    margin: 0 0 8px 0;
+
+    color: #3e642f;
+
+    font-size: 24px;
+    font-weight: 700;
+}
+
+
+/* =========================================
+   BAR GRAPH
+========================================= */
+
+.bar-chart {
+    position: relative;
+    width: 100%;
+    height: 240px;
+}
+
+
+/* =========================================
+   PIE HEADER
+========================================= */
+
+.pie-header {
+    margin-bottom: 3px;
+}
+
+
+#plotSelector {
+    background: #416735;
+    color: #fff;
+
+    border: none;
+    border-radius: 7px;
+
+    padding: 6px 12px;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+
+/* =========================================
+   PIE CONTENT
+========================================= */
+
+.pie-content {
+    display: grid;
+
+    grid-template-columns: 1fr 1.2fr;
+
+    align-items: center;
+
+    gap: 5px;
+
+    height: calc(100% - 40px);
+}
+
+
+/* =========================================
+   PIE CHART
+========================================= */
+
+.pie-chart {
+    position: relative;
+    width: 100%;
+    height: 220px;
+}
+
+
+/* =========================================
+   PIE LEGEND
+========================================= */
+
+.pie-legend {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 20px;
+
+    margin: 0;
+    padding: 0;
+
+    list-style: none;
+
+    font-size: 16px;
+}
+
+
+.pie-legend div {
+    display: grid;
+
+    grid-template-columns: 14px 1fr auto;
+
+    align-items: center;
+
+    gap: 8px;
+}
+
+
+/* LEGEND SQUARE */
+
+.legend {
+    width: 14px;
+    height: 14px;
+
+    display: block;
+}
+
+
+.legend.growing {
+    background: #f1d778;
+}
+
+
+.legend.soon {
+    background: #ed9f69;
+}
+
+
+.legend.ready {
+    background: #95bd87;
+}
+
+
+/* =========================================
+   TABLET
+========================================= */
+
+@media (max-width: 900px) {
+
+    .dashboard-charts {
+        height: auto;
+    }
+
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 600px) {
+
+    .pie-content {
+        grid-template-columns: 1fr;
+    }
+
+    .pie-chart {
+        height: 220px;
+    }
+
+}
+
+/* ===================================
+   POPUP
+=================================== */
+
+.map-popup{
+    position:absolute;
+    background:#fff;
+    border-left:5px solid #2E7D32;
+    padding:12px;
+    border-radius:12px;
+    box-shadow:0 10px 25px rgba(0,0,0,.18);
+    max-width:240px;
+    z-index:999;
+    font-size:14px;
+}
+
+.hidden{
+    display:none;
+}
+
+/* ===================================
+   LIST
+=================================== */
+
+.list{
+
+    list-style:none;
+}
+
+.list li{
+
+    padding:10px 0;
+
+    border-bottom:1px solid #eee;
+}
+
+.tag{
+
+    background:#d1fae5;
+
+    color:#065f46;
+
+    padding:2px 8px;
+
+    border-radius:20px;
+
+    font-size:12px;
+
+    font-weight:600;
+}
+
+.warning li{
+
+    color:#b45309;
+}
+
+/* ===================================
+   BOTTOM GRID
+=================================== */
+
+.bottom-grid{
+
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:20px;
+}
+
+/* ===================================
+   MOBILE
+=================================== */
+
+@media(max-width:1200px){
+
+.hero-cards{
+grid-template-columns:repeat(2,1fr);
+}
+
+}
+
+@media(max-width:900px){
+
+.dashboard{
+
+margin-left:0;
+
+width:100%;
+}
+
+.hero-cards{
+
+grid-template-columns:1fr;
+}
+
+.top-grid,
+.bottom-grid{
+
+grid-template-columns:1fr;
+}
+
+.sidebar{
+
+position:relative;
+
+width:100%;
+
+height:auto;
+}
+
+}
+

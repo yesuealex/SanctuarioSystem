@@ -1,0 +1,288 @@
+/* =========================
+   RECORDS PAGE
+   ========================= */
+
+body {
+    font-family: 'Poppins', Arial, sans-serif;
+    background: #ffffff;
+    color: #2e5f2e;
+}
+
+#recordContainer {
+    margin-top: 30px;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+    overflow-x: auto;
+    background: #f9fbe7;
+    padding: 10px;
+    border: 2px solid #4CAF50;
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+}
+
+h2,
+h3 {
+    color: #3e6f3e;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Poppins', Arial, sans-serif;
+}
+
+th,
+td {
+    border: 1px solid #a5d6a7;
+    padding: 8px 10px;
+    text-align: center;
+}
+
+th {
+    background-color: #c8e6c9;
+    color: #1b5e20;
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background-color: #e8f5e9;
+}
+
+tr:hover {
+    background-color: #d0f0c0;
+}
+
+td[contenteditable="true"] {
+    background-color: #ffffcc;
+}
+
+
+/* =========================
+   ADD BUTTON
+   ========================= */
+
+.add-btn {
+    display: inline-block;
+    margin: 10px 0;
+    padding: 8px 14px;
+    background: #2f6b2f;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    font-family: 'Poppins', Arial, sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.add-btn:hover {
+    background: #244f24;
+}
+
+
+/* =========================
+   ACTION ICONS
+   ========================= */
+
+.action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.action-icon {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: none;
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.action-icon .material-symbols-rounded {
+    font-size: 19px;
+}
+
+.edit-icon {
+    background: #e8f5e9;
+    color: #2f6b2f;
+}
+
+.edit-icon:hover {
+    background: #2f6b2f;
+    color: #ffffff;
+}
+
+.delete-icon {
+    background: #fdecec;
+    color: #d32f2f;
+}
+
+.delete-icon:hover {
+    background: #d32f2f;
+    color: #ffffff;
+}
+
+
+/* =========================
+   MODALS
+   ========================= */
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.edit-modal {
+    width: 90%;
+    max-width: 850px;
+    height: 85vh;
+    background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+}
+
+.edit-modal iframe {
+    width: 100%;
+    height: calc(100% - 55px);
+    display: block;
+    border: none;
+}
+
+.modal-header {
+    height: 55px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 18px;
+    background: #ffffff;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #2f6b2f;
+}
+
+.close-modal {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: none;
+    background: #f1f1f1;
+    color: #333;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.close-modal:hover {
+    background: #e5e5e5;
+}
+
+
+/* DELETE CONFIRMATION */
+
+.delete-modal {
+    width: 90%;
+    max-width: 420px;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+}
+
+.delete-icon-large {
+    width: 55px;
+    height: 55px;
+    margin: 0 auto 15px;
+    border-radius: 50%;
+    background: #fdecec;
+    color: #d32f2f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-icon-large .material-symbols-rounded {
+    font-size: 28px;
+}
+
+.delete-modal h3 {
+    margin: 0 0 8px;
+}
+
+.delete-modal p {
+    color: #666;
+    margin: 0 0 20px;
+    font-size: 0.9rem;
+}
+
+.delete-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.cancel-btn,
+.confirm-delete-btn {
+    border: none;
+    padding: 9px 18px;
+    border-radius: 7px;
+    font-family: 'Poppins', Arial, sans-serif;
+    cursor: pointer;
+}
+
+.cancel-btn {
+    background: #eeeeee;
+    color: #333333;
+}
+
+.cancel-btn:hover {
+    background: #dddddd;
+}
+
+.confirm-delete-btn {
+    background: #d32f2f;
+    color: #ffffff;
+}
+
+.confirm-delete-btn:hover {
+    background: #b71c1c;
+}
+
+
+/* =========================
+   RESPONSIVE MODAL
+   ========================= */
+
+@media (max-width: 700px) {
+    .edit-modal {
+        width: 96%;
+        height: 90vh;
+    }
+
+    .modal-overlay {
+        padding: 10px;
+    }
+}

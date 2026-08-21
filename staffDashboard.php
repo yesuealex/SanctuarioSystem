@@ -1,0 +1,176 @@
+<?php
+session_start();
+include 'db.php';
+
+/* SECURITY CHECK */
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+if ($_SESSION['role'] !== 'staff') {
+    header("Location: adminDashboard.php");
+    exit();
+}
+
+/* DATA */
+$crops = $conn->query("SELECT * FROM crops ORDER BY date_transplanted DESC");
+$livestock = $conn->query("SELECT * FROM livestocks ORDER BY livestock_id DESC");
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff Dashboard</title>
+
+<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:wght@400" rel="stylesheet">
+
+<style>
+.dashboard {
+    margin-left: 260px;
+    padding: 25px;
+}
+
+/* CARDS */
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.card {
+    background: #fff;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    border-left: 4px solid #2f6b2f;
+}
+
+/* TABLE */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+th, td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9rem;
+}
+
+th {
+    background: #f1f5f9;
+}
+
+/* STATUS BADGE */
+.badge {
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.good { background: #dcfce7; color: #166534; }
+.warn { background: #fef9c3; color: #854d0e; }
+.danger { background: #fee2e2; color: #991b1b; }
+</style>
+</head>
+
+<body>
+
+<div class="layout">
+
+<?php include 'sidebar.php'; ?>
+
+<main class="dashboard">
+
+<h2>Staff Dashboard</h2>
+<p>Welcome, <?= htmlspecialchars($_SESSION['name']); ?> 👩‍🌾</p>
+
+<!-- AUTO SUMMARY -->
+<div class="cards" id="summary">
+    <div class="card">
+        <h3>Total Crops</h3>
+        <p id="cropCount">Loading...</p>
+    </div>
+
+    <div class="card">
+        <h3>Livestock</h3>
+        <p id="livestockCount">Loading...</p>
+    </div>
+</div>
+
+<!-- CROPS -->
+<h3 style="margin-top:20px;">Crops Monitoring</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Crop</th>
+            <th>Area</th>
+            <th>Planted</th>
+            <th>Harvest</th>
+        </tr>
+    </thead>
+    <tbody id="cropTable">
+        <?php while ($c = $crops->fetch_assoc()): ?>
+        <tr>
+            <td><?= $c['crop_name'] ?></td>
+            <td><?= $c['transplanted_area'] ?></td>
+            <td><?= $c['date_transplanted'] ?></td>
+            <td><?= $c['expected_harvest'] ?></td>
+        </tr>
+        <?php endwhile; ?>
+    </tbody>
+</table>
+
+<!-- LIVESTOCK -->
+<h3 style="margin-top:20px;">Livestock</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Type</th>
+            <th>Age</th>
+            <th>Number</th>
+            <th>Feeding</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php while ($l = $livestock->fetch_assoc()): ?>
+        <tr>
+            <td><?= $l['type'] ?></td>
+            <td><?= $l['age'] ?></td>
+            <td><?= $l['number'] ?></td>
+            <td><?= $l['feeding_schedule'] ?></td>
+        </tr>
+        <?php endwhile; ?>
+    </tbody>
+</table>
+
+</main>
+</div>
+
+<!-- AUTO REFRESH SCRIPT -->
+<script>
+async function loadSummary() {
+    const res = await fetch("staff_summary.php");
+    const data = await res.json();
+
+    document.getElementById("cropCount").innerText = data.crops;
+    document.getElementById("livestockCount").innerText = data.livestock;
+}
+
+loadSummary();
+setInterval(loadSummary, 5000); // auto update every 5 seconds
+</script>
+
+</body>
+</html>
