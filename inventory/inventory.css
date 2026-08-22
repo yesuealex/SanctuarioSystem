@@ -815,7 +815,7 @@ button {
 
 .inventory-request {
 
-    padding: 9px 16px 10px;
+    padding: 14px 18px 15px;
 
     border-bottom: 1px solid #d9d9d9;
 
@@ -829,6 +829,8 @@ button {
 }
 
 
+/* Request title + status */
+
 .request-heading {
 
     display: flex;
@@ -837,29 +839,31 @@ button {
 
     justify-content: space-between;
 
-    gap: 10px;
+    gap: 12px;
 
-    margin-bottom: 2px;
+    margin-bottom: 5px;
 
 }
 
 
 .request-heading > span:first-child {
 
-    font-size: 15px;
+    font-size: 16px;
 
     font-weight: 500;
 
 }
 
 
+/* Status */
+
 .request-status {
 
-    padding: 3px 10px;
+    padding: 5px 12px;
 
-    border-radius: 12px;
+    border-radius: 14px;
 
-    font-size: 10px;
+    font-size: 11px;
 
     font-weight: 500;
 
@@ -884,16 +888,20 @@ button {
 }
 
 
+/* Requested By */
+
 .request-user {
 
-    margin-bottom: 3px;
+    margin-bottom: 9px;
 
     color: #8b8b8b;
 
-    font-size: 11px;
+    font-size: 12px;
 
 }
 
+
+/* Buttons */
 
 .request-buttons {
 
@@ -901,22 +909,26 @@ button {
 
     align-items: center;
 
-    gap: 6px;
+    gap: 8px;
 
 }
 
 
 .request-buttons button {
 
-    min-width: 50px;
+    min-width: 62px;
 
-    height: 20px;
+    height: 27px;
+
+    padding: 0 12px;
 
     border: none;
 
-    border-radius: 12px;
+    border-radius: 14px;
 
-    font-size: 9px;
+    font-size: 10px;
+
+    font-weight: 500;
 
 }
 
@@ -957,126 +969,34 @@ button {
 }
 
 
+/* Button hover */
 
-/* ================================================================
-   LOW STOCK ALERT
-================================================================ */
+.request-approve:hover {
 
-.stock-alert {
-
-    padding: 15px 16px;
-
-    display: flex;
-
-    align-items: flex-start;
-
-    gap: 13px;
-
-    border-bottom: 1px solid #d9d9d9;
+    background: #b9e9cd;
 
 }
 
 
-.stock-alert:last-child {
+.request-reject:hover {
 
-    border-bottom: none;
-
-}
-
-
-.alert-circle {
-
-    width: 18px;
-
-    height: 18px;
-
-    flex-shrink: 0;
-
-    border-radius: 50%;
-
-    background: #cf4848;
-
-    color: white;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 10px;
-
-    font-weight: 600;
+    background: #c9c9c9;
 
 }
 
 
-.alert-name {
+.request-reject.red:hover {
 
-    color: #222;
-
-    font-size: 15px;
-
-    font-weight: 500;
-
-    line-height: 1.2;
+    background: #edbebe;
 
 }
 
 
-.alert-description {
+.request-view:hover {
 
-    margin-top: 3px;
-
-    color: #969696;
-
-    font-size: 12px;
+    background: #777;
 
 }
-
-
-
-/* ================================================================
-   RECENT ACTIVITIES
-================================================================ */
-
-.activity-item {
-
-    padding: 11px 16px;
-
-    border-bottom: 1px solid #dedede;
-
-}
-
-
-.activity-item:last-child {
-
-    border-bottom: none;
-
-}
-
-
-.activity-text {
-
-    color: #222;
-
-    font-size: 14px;
-
-    line-height: 1.3;
-
-}
-
-
-.activity-time {
-
-    margin-top: 3px;
-
-    color: #999;
-
-    font-size: 11px;
-
-}
-
 
 
 /* ================================================================

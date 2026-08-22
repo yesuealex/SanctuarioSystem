@@ -38,29 +38,25 @@ $cropsResult = $conn->query("
 
     <title>Crops Records</title>
 
-
     <!-- MAIN CSS -->
-
     <link
         rel="stylesheet"
         href="../style.css"
     >
 
+    <!-- SIDEBAR -->
     <link
         rel="stylesheet"
         href="../sidebar.css"
     >
 
     <!-- CROPS CSS -->
-
     <link
         rel="stylesheet"
         href="crops.css"
     >
 
-
     <!-- GOOGLE FONT -->
-
     <link
         rel="preconnect"
         href="https://fonts.googleapis.com"
@@ -77,9 +73,7 @@ $cropsResult = $conn->query("
         rel="stylesheet"
     >
 
-
     <!-- MATERIAL ICONS -->
-
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:wght@400"
         rel="stylesheet"
@@ -90,20 +84,15 @@ $cropsResult = $conn->query("
 
 <body>
 
-
 <div class="layout">
 
 
-    <!-- =====================================================
-         SIDEBAR
-         ===================================================== -->
+    <!-- SIDEBAR -->
 
     <?php include '../sidebar.php'; ?>
 
 
-    <!-- =====================================================
-         MAIN CONTENT
-         ===================================================== -->
+    <!-- MAIN CONTENT -->
 
     <main class="dashboard">
 
@@ -113,72 +102,94 @@ $cropsResult = $conn->query("
         <?php include '../topRightBar.php'; ?>
 
 
-        <!-- =================================================
-             PAGE TITLE
-             ================================================= -->
+        <!-- PAGE TITLE -->
 
-        <h2>Farm Records</h2>
-
-
-        <!-- =================================================
-             CROPS SECTION
-             ================================================= -->
-
-        <section class="records-section">
+        <h2 class="page-title">
+            CROPS RECORDS
+        </h2>
 
 
-            <!-- =================================================
-                 HEADER
-                 ================================================= -->
+        <!-- CROPS RECORDS -->
 
-            <div class="records-header">
+        <section class="crop-records">
 
 
-                <div>
+            <!-- =====================================================
+                 TOP CONTROLS
+                 ===================================================== -->
 
-                    <h3>
-                        Crops
-                    </h3>
+            <div class="crop-topbar">
 
-                    <p class="records-subtitle">
-                        Manage active crop records
-                    </p>
+
+                <!-- LEFT SIDE -->
+
+                <div class="crop-filters">
+
+
+                    <!-- CATEGORY -->
+
+                    <select
+                        id="cropPlotFilter"
+                        class="crop-select"
+                        onchange="filterCropRecords()"
+                    >
+
+                        <option value="all">
+                            All
+                        </option>
+
+                        <option value="nursery">
+                            Nursery
+                        </option>
+
+                        <option value="plot a">
+                            Plot A
+                        </option>
+
+                        <option value="plot b">
+                            Plot B
+                        </option>
+
+                        <option value="plot c">
+                            Plot C
+                        </option>
+
+                    </select>
+
+
+                    <!-- SEARCH -->
+
+                    <div class="crop-search">
+
+                        <span class="material-symbols-rounded">
+                            search
+                        </span>
+
+                        <input
+                            type="text"
+                            id="cropSearch"
+                            placeholder="Search here..."
+                            onkeyup="filterCropRecords()"
+                        >
+
+                    </div>
+
 
                 </div>
 
 
-                <!-- =================================================
-                     HEADER ACTIONS
-                     ================================================= -->
+                <!-- RIGHT SIDE -->
 
-                <div class="records-actions">
+                <div class="crop-actions">
 
 
                     <?php if ($role === 'admin'): ?>
-
-
-                        <!-- ARCHIVED CROPS -->
-
-                        <button
-                            type="button"
-                            class="archive-view-btn"
-                            onclick="location.href='archived_crops.php'"
-                        >
-
-                            <span class="material-symbols-rounded">
-                                inventory_2
-                            </span>
-
-                            Archived Crops
-
-                        </button>
-
 
                         <!-- ADD CROP -->
 
                         <button
                             type="button"
-                            class="add-btn"
+                            class="add-crop-btn"
                             onclick="openEditModal(
                                 'add_crop.php',
                                 'Add Crop'
@@ -194,6 +205,22 @@ $cropsResult = $conn->query("
                         </button>
 
 
+                        <!-- ARCHIVED -->
+
+                        <button
+                            type="button"
+                            class="archived-crops-btn"
+                            onclick="location.href='archived_crops.php'"
+                        >
+
+                            View Archived Crops
+
+                            <span class="material-symbols-rounded">
+                                chevron_right
+                            </span>
+
+                        </button>
+
                     <?php endif; ?>
 
 
@@ -202,70 +229,11 @@ $cropsResult = $conn->query("
             </div>
 
 
-            <!-- =================================================
-                 FILTER / SEARCH
-                 ================================================= -->
-
-            <div class="records-toolbar">
-
-
-                <!-- PLOT DROPDOWN -->
-
-                <select
-                    id="cropPlotFilter"
-                    class="records-select"
-                    onchange="filterCropRecords()"
-                >
-
-                    <option value="all">
-                        All Locations
-                    </option>
-
-                    <option value="nursery">
-                        Nursery
-                    </option>
-
-                    <option value="plot a">
-                        Plot A
-                    </option>
-
-                    <option value="plot b">
-                        Plot B
-                    </option>
-
-                    <option value="plot c">
-                        Plot C
-                    </option>
-
-                </select>
-
-
-                <!-- SEARCH -->
-
-                <div class="search-box">
-
-                    <span class="material-symbols-rounded">
-                        search
-                    </span>
-
-                    <input
-                        type="text"
-                        id="cropSearch"
-                        placeholder="Search crops..."
-                        onkeyup="filterCropRecords()"
-                    >
-
-                </div>
-
-
-            </div>
-
-
-            <!-- =================================================
+            <!-- =====================================================
                  TABLE
-                 ================================================= -->
+                 ===================================================== -->
 
-            <div class="table-container">
+            <div class="crop-table-wrapper">
 
 
                 <table id="cropTable">
@@ -276,50 +244,52 @@ $cropsResult = $conn->query("
                         <tr>
 
                             <th>
-                                Crop Name
+                                RECIPIENT
                             </th>
 
                             <th>
-                                Plot
+                                CROP
                             </th>
 
                             <th>
-                                Staff
+                                VARIETY
                             </th>
 
                             <th>
-                                Variety
+                                NO. OF<br>PLANTS
                             </th>
 
                             <th>
-                                Pieces
+                                DATE OF<br>SOWING
                             </th>
 
                             <th>
-                                Germination
+                                GERMINATION<br>RATE
                             </th>
 
                             <th>
-                                Area
+                                TARGET<br>TRANSPLANT DATE
                             </th>
 
                             <th>
-                                Transplanted
+                                TARGET<br>AREA
                             </th>
 
                             <th>
-                                Harvest
+                                SEEDLINGS<br>RECEIVED
                             </th>
 
+                            <th>
+                                DATE<br>TRANSPLANTED
+                            </th>
 
                             <?php if ($role === 'admin'): ?>
 
                                 <th>
-                                    Action
+                                    ACTION
                                 </th>
 
                             <?php endif; ?>
-
 
                         </tr>
 
@@ -329,188 +299,203 @@ $cropsResult = $conn->query("
                     <tbody>
 
 
-                        <?php if ($cropsResult && $cropsResult->num_rows > 0): ?>
+                    <?php if ($cropsResult && $cropsResult->num_rows > 0): ?>
 
 
-                            <?php while ($row = $cropsResult->fetch_assoc()): ?>
+                        <?php while ($row = $cropsResult->fetch_assoc()): ?>
 
 
-                                <tr class="crop-row">
+                            <tr class="crop-row">
 
 
-                                    <!-- CROP NAME -->
+                                <!-- RECIPIENT -->
 
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['crop_name']
-                                        ) ?>
-                                    </td>
-
-
-                                    <!-- PLOT -->
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['plot_code']
-                                        ) ?>
-                                    </td>
-
-
-                                    <!-- STAFF -->
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['staff_name']
-                                        ) ?>
-                                    </td>
-
-
-                                    <!-- VARIETY -->
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['variety']
-                                        ) ?>
-                                    </td>
-
-
-                                    <!-- PIECES -->
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['pcs']
-                                        ) ?>
-                                    </td>
-
-
-                                    <!-- GERMINATION -->
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['germination_rate']
-                                        ) ?>%
-                                    </td>
-
-
-                                    <!-- AREA -->
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['transplanted_area']
-                                        ) ?>
-                                    </td>
-
-
-                                    <!-- DATE TRANSPLANTED -->
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['date_transplanted']
-                                        ) ?>
-                                    </td>
-
-
-                                    <!-- EXPECTED HARVEST -->
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['expected_harvest']
-                                        ) ?>
-                                    </td>
-
-
-                                    <!-- ACTION -->
-
-                                    <?php if ($role === 'admin'): ?>
-
-
-                                        <td>
-
-                                            <div class="action-buttons">
-
-
-                                                <!-- EDIT -->
-
-                                                <button
-                                                    type="button"
-                                                    class="action-icon edit-icon"
-                                                    title="Edit Crop"
-                                                    onclick="openEditModal(
-                                                        'edit_crop.php?id=<?= intval($row['crop_id']) ?>',
-                                                        'Edit Crop'
-                                                    )"
-                                                >
-
-                                                    <span class="material-symbols-rounded">
-                                                        edit
-                                                    </span>
-
-                                                </button>
-
-
-                                                <!-- ARCHIVE -->
-
-                                                <button
-                                                    type="button"
-                                                    class="action-icon archive-icon"
-                                                    title="Archive Crop"
-                                                    onclick="openArchiveModal(
-                                                        'archive_crop.php?id=<?= intval($row['crop_id']) ?>',
-                                                        '<?= htmlspecialchars(
-                                                            $row['crop_name'],
-                                                            ENT_QUOTES
-                                                        ) ?>'
-                                                    )"
-                                                >
-
-                                                    <span class="material-symbols-rounded">
-                                                        archive
-                                                    </span>
-
-                                                </button>
-
-
-                                            </div>
-
-                                        </td>
-
-
-                                    <?php endif; ?>
-
-
-                                </tr>
-
-
-                            <?php endwhile; ?>
-
-
-                        <?php else: ?>
-
-
-                            <!-- NO RECORDS -->
-
-                            <tr>
-
-                                <td
-                                    colspan="<?= $role === 'admin' ? '10' : '9' ?>"
-                                    class="no-records"
-                                >
-
-                                    No active crop records found.
-
+                                <td>
+                                    <?= htmlspecialchars(
+                                        $row['recipient'] ?? ''
+                                    ) ?>
                                 </td>
+
+
+                                <!-- CROP -->
+
+                                <td>
+                                    <?= htmlspecialchars(
+                                        $row['crop_name'] ?? ''
+                                    ) ?>
+                                </td>
+
+
+                                <!-- VARIETY -->
+
+                                <td>
+                                    <?= htmlspecialchars(
+                                        $row['variety'] ?? ''
+                                    ) ?>
+                                </td>
+
+
+                                <!-- NO. OF PLANTS -->
+
+                                <td>
+                                    <?= htmlspecialchars(
+                                        $row['pcs'] ?? ''
+                                    ) ?>
+                                </td>
+
+
+                                <!-- DATE OF SOWING -->
+
+                                <td>
+                                    <?= !empty($row['date_sowing'])
+                                        ? date(
+                                            'm/d/y',
+                                            strtotime($row['date_sowing'])
+                                        )
+                                        : ''
+                                    ?>
+                                </td>
+
+
+                                <!-- GERMINATION -->
+
+                                <td>
+                                    <?= htmlspecialchars(
+                                        $row['germination_rate'] ?? ''
+                                    ) ?>%
+                                </td>
+
+
+                                <!-- TARGET TRANSPLANT DATE -->
+
+                                <td>
+                                    <?= !empty($row['target_transplant_date'])
+                                        ? date(
+                                            'm/d/y',
+                                            strtotime($row['target_transplant_date'])
+                                        )
+                                        : ''
+                                    ?>
+                                </td>
+
+
+                                <!-- TARGET AREA -->
+
+                                <td>
+                                    <?= htmlspecialchars(
+                                        $row['target_area'] ?? ''
+                                    ) ?>
+                                </td>
+
+
+                                <!-- SEEDLINGS RECEIVED -->
+
+                                <td>
+                                    <?= htmlspecialchars(
+                                        $row['seedlings_received'] ?? ''
+                                    ) ?>PCS
+                                </td>
+
+
+                                <!-- DATE TRANSPLANTED -->
+
+                                <td>
+                                    <?= !empty($row['date_transplanted'])
+                                        ? date(
+                                            'm/d/y',
+                                            strtotime($row['date_transplanted'])
+                                        )
+                                        : ''
+                                    ?>
+                                </td>
+
+
+                                <!-- ACTION -->
+
+                                <?php if ($role === 'admin'): ?>
+
+                                    <td>
+
+                                        <div class="action-buttons">
+
+
+                                            <!-- EDIT -->
+
+                                            <button
+                                                type="button"
+                                                class="action-icon edit-icon"
+                                                title="Edit Crop"
+                                                onclick="openEditModal(
+                                                    'edit_crop.php?id=<?= intval($row['crop_id']) ?>',
+                                                    'Edit Crop'
+                                                )"
+                                            >
+
+                                                <span class="material-symbols-rounded">
+                                                    edit
+                                                </span>
+
+                                            </button>
+
+
+                                            <!-- ARCHIVE -->
+
+                                            <button
+                                                type="button"
+                                                class="action-icon archive-icon"
+                                                title="Archive Crop"
+                                                onclick="openArchiveModal(
+                                                    'archive_crop.php?id=<?= intval($row['crop_id']) ?>',
+                                                    '<?= htmlspecialchars(
+                                                        $row['crop_name'] ?? '',
+                                                        ENT_QUOTES
+                                                    ) ?>'
+                                                )"
+                                            >
+
+                                                <span class="material-symbols-rounded">
+                                                    delete
+                                                </span>
+
+                                            </button>
+
+
+                                        </div>
+
+                                    </td>
+
+                                <?php endif; ?>
+
 
                             </tr>
 
 
-                        <?php endif; ?>
+                        <?php endwhile; ?>
+
+
+                    <?php else: ?>
+
+
+                        <tr>
+
+                            <td
+                                colspan="<?= $role === 'admin' ? '11' : '10' ?>"
+                                class="no-records"
+                            >
+
+                                No active crop records found.
+
+                            </td>
+
+                        </tr>
+
+
+                    <?php endif; ?>
 
 
                     </tbody>
 
-
                 </table>
-
 
             </div>
 
@@ -519,7 +504,6 @@ $cropsResult = $conn->query("
 
 
     </main>
-
 
 </div>
 
@@ -533,17 +517,13 @@ $cropsResult = $conn->query("
     id="editModal"
 >
 
-
     <div class="edit-modal">
 
-
         <div class="modal-header">
-
 
             <h3 id="editModalTitle">
                 Record
             </h3>
-
 
             <button
                 type="button"
@@ -557,18 +537,14 @@ $cropsResult = $conn->query("
 
             </button>
 
-
         </div>
-
 
         <iframe
             id="editFrame"
             title="Crop form"
         ></iframe>
 
-
     </div>
-
 
 </div>
 
@@ -582,76 +558,56 @@ $cropsResult = $conn->query("
     id="archiveModal"
 >
 
-
     <div class="delete-modal">
 
-
         <div class="delete-icon-large">
-
 
             <span class="material-symbols-rounded">
                 archive
             </span>
 
-
         </div>
-
 
         <h3>
             Archive Crop?
         </h3>
 
-
         <p id="archiveMessage">
             Are you sure you want to archive this crop?
         </p>
 
-
         <div class="delete-actions">
-
 
             <button
                 type="button"
                 class="cancel-btn"
                 onclick="closeArchiveModal()"
             >
-
                 Cancel
-
             </button>
-
 
             <button
                 type="button"
                 class="confirm-delete-btn"
                 onclick="confirmArchive()"
             >
-
                 Archive
-
             </button>
-
 
         </div>
 
-
     </div>
-
 
 </div>
 
 
 <script>
 
-
 /* =========================================================
    EDIT MODAL
    ========================================================= */
 
 function openEditModal(url, title) {
-
-    const modal =
-        document.getElementById('editModal');
 
     document.getElementById(
         'editModalTitle'
@@ -661,7 +617,9 @@ function openEditModal(url, title) {
         'editFrame'
     ).src = url;
 
-    modal.classList.add('active');
+    document
+        .getElementById('editModal')
+        .classList.add('active');
 
     document.body.style.overflow = 'hidden';
 
@@ -674,9 +632,9 @@ function closeEditModal() {
         .getElementById('editModal')
         .classList.remove('active');
 
-    document
-        .getElementById('editFrame')
-        .src = '';
+    document.getElementById(
+        'editFrame'
+    ).src = '';
 
     document.body.style.overflow = '';
 
@@ -694,14 +652,12 @@ function openArchiveModal(url, cropName) {
 
     archiveUrl = url;
 
-
     document.getElementById(
         'archiveMessage'
     ).textContent =
         'Are you sure you want to archive "' +
         cropName +
         '"?';
-
 
     document
         .getElementById('archiveModal')
@@ -728,9 +684,7 @@ function closeArchiveModal() {
 function confirmArchive() {
 
     if (archiveUrl) {
-
         window.location.href = archiveUrl;
-
     }
 
 }
@@ -742,7 +696,6 @@ function confirmArchive() {
 
 function filterCropRecords() {
 
-
     const search =
         document
             .getElementById('cropSearch')
@@ -750,13 +703,11 @@ function filterCropRecords() {
             .toLowerCase()
             .trim();
 
-
     const plot =
         document
             .getElementById('cropPlotFilter')
             .value
             .toLowerCase();
-
 
     const rows =
         document.querySelectorAll('.crop-row');
@@ -764,26 +715,29 @@ function filterCropRecords() {
 
     rows.forEach(function(row) {
 
-
         const text =
             row.textContent
                 .toLowerCase();
 
-
         const matchesSearch =
             text.includes(search);
 
+        /*
+        * Plot/location is not currently visible
+        * in the screenshot, so use the recipient/crop
+        * row text for search.
+        *
+        * The filter can be adjusted later if needed.
+        */
 
-        const plotCell =
-            row.children[1]
-                .textContent
-                .trim()
-                .toLowerCase();
+        let matchesPlot = true;
 
+        if (plot !== 'all') {
 
-        const matchesPlot =
-            plot === 'all' ||
-            plotCell === plot;
+            matchesPlot =
+                text.includes(plot);
+
+        }
 
 
         if (
@@ -799,15 +753,13 @@ function filterCropRecords() {
 
         }
 
-
     });
-
 
 }
 
 
 /* =========================================================
-   CLOSE EDIT MODAL OUTSIDE
+   CLOSE MODALS
    ========================================================= */
 
 document
@@ -817,18 +769,12 @@ document
         function(e) {
 
             if (e.target === this) {
-
                 closeEditModal();
-
             }
 
         }
     );
 
-
-/* =========================================================
-   CLOSE ARCHIVE MODAL OUTSIDE
-   ========================================================= */
 
 document
     .getElementById('archiveModal')
@@ -837,9 +783,7 @@ document
         function(e) {
 
             if (e.target === this) {
-
                 closeArchiveModal();
-
             }
 
         }
@@ -857,7 +801,6 @@ document.addEventListener(
         if (e.key === 'Escape') {
 
             closeEditModal();
-
             closeArchiveModal();
 
         }
@@ -865,9 +808,7 @@ document.addEventListener(
     }
 );
 
-
 </script>
-
 
 </body>
 

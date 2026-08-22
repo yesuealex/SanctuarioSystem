@@ -1,105 +1,36 @@
 /* =========================================================
-   CROPS PAGE
+   CROPS RECORDS PAGE
    ========================================================= */
 
-.records-section {
+.crop-records {
     width: 100%;
     margin-top: 10px;
 }
 
 
 /* =========================================================
-   HEADER
+   TOP BAR
    ========================================================= */
 
-.records-header {
+.crop-topbar {
     width: 100%;
+
     display: flex;
     align-items: center;
     justify-content: space-between;
+
     margin-bottom: 18px;
 }
 
-.records-header h3 {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #2f4f2f;
-}
-
-.records-subtitle {
-    margin: 4px 0 0;
-    font-size: 0.8rem;
-    color: #777;
-}
-
 
 /* =========================================================
-   HEADER BUTTONS
+   LEFT FILTERS
    ========================================================= */
 
-.records-actions {
+.crop-filters {
     display: flex;
     align-items: center;
     gap: 10px;
-}
-
-.add-btn,
-.archive-view-btn {
-    height: 38px;
-    padding: 0 13px;
-
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-
-    border: none;
-    border-radius: 7px;
-
-    font-family: 'Poppins', sans-serif;
-    font-size: 0.82rem;
-    font-weight: 500;
-
-    cursor: pointer;
-    transition: 0.2s ease;
-}
-
-.add-btn {
-    background: #2f6b2f;
-    color: white;
-}
-
-.add-btn:hover {
-    background: #244f24;
-}
-
-.archive-view-btn {
-    background: #f1f5f9;
-    color: #444;
-}
-
-.archive-view-btn:hover {
-    background: #e2e8f0;
-}
-
-.add-btn .material-symbols-rounded,
-.archive-view-btn .material-symbols-rounded {
-    font-size: 18px;
-}
-
-
-/* =========================================================
-   TOOLBAR
-   ========================================================= */
-
-.records-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    width: 100%;
-    margin-bottom: 12px;
 }
 
 
@@ -107,7 +38,7 @@
    DROPDOWN
    ========================================================= */
 
-.records-select {
+.crop-select {
     height: 40px;
 
     min-width: 150px;
@@ -115,7 +46,7 @@
     padding: 0 12px;
 
     border: 1px solid #ddd;
-    border-radius: 7px;
+    border-radius: 20px;
 
     background: white;
     color: #333;
@@ -125,9 +56,11 @@
 
     outline: none;
     cursor: pointer;
+
+    box-sizing: border-box;
 }
 
-.records-select:focus {
+.crop-select:focus {
     border-color: #2f6b2f;
 }
 
@@ -136,7 +69,7 @@
    SEARCH
    ========================================================= */
 
-.search-box {
+.crop-search {
     height: 40px;
     width: 300px;
 
@@ -151,15 +84,15 @@
     background: white;
 
     border: 1px solid #ddd;
-    border-radius: 7px;
+    border-radius: 20px;
 }
 
-.search-box .material-symbols-rounded {
+.crop-search .material-symbols-rounded {
     font-size: 20px;
     color: #777;
 }
 
-.search-box input {
+.crop-search input {
     width: 100%;
 
     border: none;
@@ -173,16 +106,90 @@
     color: #333;
 }
 
-.search-box input::placeholder {
+.crop-search input::placeholder {
     color: #999;
 }
 
 
 /* =========================================================
-   TABLE CONTAINER
+   RIGHT ACTIONS
    ========================================================= */
 
-.table-container {
+.crop-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+
+/* =========================================================
+   ADD CROP BUTTON
+   ========================================================= */
+
+.add-crop-btn,
+.archived-crops-btn {
+    height: 38px;
+
+    padding: 0 13px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 6px;
+
+    border: none;
+    border-radius: 20px;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+
+    cursor: pointer;
+
+    transition: 0.2s ease;
+}
+
+
+/* ADD */
+
+.add-crop-btn {
+    background: #2f6b2f;
+    color: white;
+}
+
+.add-crop-btn:hover {
+    background: #244f24;
+}
+
+.add-crop-btn .material-symbols-rounded {
+    font-size: 18px;
+}
+
+
+/* =========================================================
+   ARCHIVED CROPS BUTTON
+   ========================================================= */
+
+.archived-crops-btn {
+    background: #f1f5f9;
+    color: #444;
+}
+
+.archived-crops-btn:hover {
+    background: #e2e8f0;
+}
+
+.archived-crops-btn .material-symbols-rounded {
+    font-size: 18px;
+}
+
+
+/* =========================================================
+   TABLE WRAPPER
+   ========================================================= */
+
+.crop-table-wrapper {
     width: 100%;
 
     overflow-x: auto;
@@ -191,7 +198,8 @@
 
     border-radius: 10px;
 
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 
@@ -199,7 +207,7 @@
    TABLE
    ========================================================= */
 
-.table-container table {
+.crop-table-wrapper table {
     width: 100%;
 
     min-width: 950px;
@@ -216,7 +224,7 @@
    TABLE HEADER
    ========================================================= */
 
-.table-container th {
+.crop-table-wrapper th {
     padding: 12px 10px;
 
     background: #f1f5f9;
@@ -239,7 +247,7 @@
    TABLE BODY
    ========================================================= */
 
-.table-container td {
+.crop-table-wrapper td {
     padding: 11px 10px;
 
     border-bottom: 1px solid #eee;
@@ -254,11 +262,11 @@
     white-space: nowrap;
 }
 
-.table-container tbody tr:hover {
+.crop-table-wrapper tbody tr:hover {
     background: #f9fafb;
 }
 
-.table-container tbody tr:last-child td {
+.crop-table-wrapper tbody tr:last-child td {
     border-bottom: none;
 }
 
@@ -271,6 +279,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+
     gap: 7px;
 }
 
@@ -297,7 +306,9 @@
 }
 
 
-/* EDIT */
+/* =========================================================
+   EDIT BUTTON
+   ========================================================= */
 
 .edit-icon {
     background: #e8f5e9;
@@ -310,7 +321,9 @@
 }
 
 
-/* ARCHIVE */
+/* =========================================================
+   ARCHIVE BUTTON
+   ========================================================= */
 
 .archive-icon {
     background: #fff4df;
@@ -342,17 +355,18 @@
    RESPONSIVE
    ========================================================= */
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
 
-    .records-header {
+    .crop-topbar {
         align-items: flex-start;
+        gap: 15px;
     }
 
-    .records-actions {
+    .crop-filters {
         flex-wrap: wrap;
     }
 
-    .records-toolbar {
+    .crop-actions {
         flex-wrap: wrap;
     }
 
@@ -361,28 +375,30 @@
 
 @media (max-width: 700px) {
 
-    .records-header {
+    .crop-topbar {
         flex-direction: column;
         align-items: stretch;
         gap: 12px;
     }
 
-    .records-actions {
+    .crop-filters {
         width: 100%;
-    }
-
-    .add-btn,
-    .archive-view-btn {
-        flex: 1;
-    }
-
-    .records-toolbar {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .records-select,
-    .search-box {
+    .crop-actions {
+        width: 100%;
+        display: flex;
+    }
+
+    .add-crop-btn,
+    .archived-crops-btn {
+        flex: 1;
+    }
+
+    .crop-select,
+    .crop-search {
         width: 100%;
     }
 

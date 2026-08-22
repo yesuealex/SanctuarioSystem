@@ -2,7 +2,6 @@
     box-sizing: border-box;
 }
 
-
 body {
     margin: 0;
     font-family: 'Poppins', sans-serif;
@@ -10,213 +9,224 @@ body {
     color: #222;
 }
 
-
 /* =========================================================
    PAGE
 ========================================================= */
 
 .farm-map-page {
-
     margin-left: 260px;
-
     min-height: 100vh;
-
     padding: 18px 28px 30px;
-
 }
-
 
 /* =========================================================
    TITLE
 ========================================================= */
 
 .farm-map-title-area {
-
-    margin: 18px 0;
-
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    width: 100%;
+    margin-bottom: 18px;
 }
 
 .farm-map-title-area h1 {
-
     margin: 0;
-
     color: #ffffff;
-
     font-size: 28px;
-
     font-weight: 700;
-
+    line-height: 1.2;
 }
 
 .farm-map-title-area p {
-
-    margin: 3px 0 0;
-
+    margin: 4px 0 0;
     color: #ffffff;
-
     font-size: 13px;
-
     font-style: italic;
-
 }
-
 
 /* =========================================================
    SUMMARY
 ========================================================= */
 
 .farm-summary {
-
-    background:linear-gradient(135deg,#4F7D3A,#7EB26D);
-
+    background: linear-gradient(135deg, #4F7D3A, #7EB26D);
     border-radius: 10px;
-
     padding: 15px 18px 12px;
-
     margin-bottom: 18px;
-
 }
-
 
 .summary-cards {
-
     display: grid;
-
-    grid-template-columns:
-        repeat(4, 1fr);
-
+    grid-template-columns: repeat(4, 1fr);
     gap: 25px;
-
 }
 
-
 .summary-card {
-
     background: white;
-
     border: 1px solid #ddd;
-
     border-radius: 9px;
-
     min-height: 100px;
 
     display: flex;
-
     align-items: center;
 
     padding: 12px 24px;
 
-    box-shadow:
-        0 2px 4px rgba(0,0,0,.08);
-
+    box-shadow: 0 2px 4px rgba(0, 0, 0, .08);
 }
 
-
 .summary-icon {
-
     width: 62px;
-
     height: 62px;
-
     min-width: 62px;
 
     border-radius: 50%;
 
     display: flex;
-
     align-items: center;
-
     justify-content: center;
 
     font-size: 31px;
-
     margin-right: 15px;
-
 }
-
 
 .summary-green {
-
     background: #356c2e;
-
     color: white;
-
 }
-
 
 .summary-yellow {
-
     background: #ffd500;
-
     color: white;
-
 }
-
 
 .summary-light-green {
-
     background: #91ce3d;
-
     color: white;
-
 }
-
 
 .summary-olive {
-
     background: #b3b600;
-
     color: white;
-
 }
-
 
 .summary-label {
-
     font-size: 14px;
-
     color: #555;
-
 }
 
-
 .summary-number {
-
     display: block;
 
     font-size: 34px;
-
     line-height: 1;
 
     font-weight: 700;
-
     color: #111;
-
 }
 
+/* =========================================================
+   MAP EDIT TOOLBAR
+========================================================= */
+
+.map-edit-toolbar-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.map-edit-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.map-edit-btn,
+.map-edit-controls button {
+    border: none;
+
+    padding: 9px 15px;
+
+    border-radius: 7px;
+
+    background: #6b8e23;
+    color: white;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        background-color .2s ease,
+        transform .15s ease,
+        opacity .2s ease;
+}
+
+.map-edit-btn:hover,
+.map-edit-controls button:hover {
+    transform: translateY(-1px);
+    opacity: .92;
+}
+
+.map-edit-btn.editing {
+    background: #8b6f35;
+}
+
+.map-edit-controls {
+    display: none;
+
+    align-items: center;
+    flex-wrap: wrap;
+
+    gap: 8px;
+}
+
+.map-edit-controls.show {
+    display: flex;
+}
+
+.map-edit-status {
+    display: inline-flex;
+    align-items: center;
+
+    min-height: 30px;
+
+    padding: 0 7px;
+
+    font-size: 11px;
+    font-weight: 600;
+
+    color: rgba(255, 255, 255, .9);
+}
 
 /* =========================================================
-   MAP LAYOUT
+   MAIN MAP LAYOUT
 ========================================================= */
 
 .farm-map-layout {
-
     display: grid;
 
     grid-template-columns:
-        minmax(0, 1fr) 405px;
+        minmax(0, 1fr)
+        405px;
 
     gap: 20px;
-
 }
-
 
 /* =========================================================
    MAP CARD
 ========================================================= */
 
 .map-card {
-
     background: white;
 
     border-radius: 10px;
@@ -228,24 +238,17 @@ body {
     overflow: hidden;
 
     box-shadow:
-        0 2px 5px rgba(0,0,0,.06);
-
+        0 2px 5px rgba(0, 0, 0, .06);
 }
 
-
 /* =========================================================
-   MAIN MAP CONTAINER
-
-   IMPORTANT:
-   This is the area that is draggable.
+   MAP CONTAINER
 ========================================================= */
 
 .map-container {
-
     position: relative;
 
     width: 100%;
-
     height: 640px;
 
     border-radius: 8px;
@@ -257,26 +260,31 @@ body {
     cursor: grab;
 
     user-select: none;
-
     -webkit-user-select: none;
 
-    touch-action: pan-y;
-
+    touch-action: none;
 }
-
 
 .map-container.dragging {
-
     cursor: grabbing;
-
 }
 
-
 /* =========================================================
-   MAIN MAP LAYER
-
-   ONLY THIS MOVES.
+   MAP LAYER
 ========================================================= */
+
+/*
+    IMPORTANT:
+
+    The map layer uses the actual image aspect ratio.
+
+    We DO NOT use:
+        width: 175%;
+        object-fit: cover;
+
+    because that causes parts of the farm image to be
+    cropped and exposes the #dce8d2 background.
+*/
 
 .main-map-layer {
     position: absolute;
@@ -284,10 +292,10 @@ body {
     left: 0;
     top: 0;
 
-    width: 175%;
     height: 100%;
+    width: max-content;
 
-    transform-origin: left center;
+    transform-origin: top left;
 
     will-change: transform;
 
@@ -298,38 +306,30 @@ body {
     cursor: grabbing;
 }
 
-
 /* =========================================================
-   FARM MAP
+   FARM MAP IMAGE
 ========================================================= */
 
 .farm-map-image {
-    position: absolute;
-
-    left: 0;
-    top: 0;
-
-    width: 100%;
-    height: 100%;
-
-    object-fit: cover;
-
     display: block;
+
+    height: 100%;
+    width: auto;
+
+    max-width: none;
 
     pointer-events: none;
 
     user-select: none;
-
+    -webkit-user-select: none;
     -webkit-user-drag: none;
 }
 
-
 /* =========================================================
-   MAIN MAP MARKERS
+   MAIN MARKERS
 ========================================================= */
 
 .main-marker {
-
     position: absolute;
 
     transform:
@@ -343,37 +343,35 @@ body {
 
     background: transparent;
 
+    padding: 0;
+
+    font-family: inherit;
+
+    user-select: none;
 }
 
-
 .main-marker img {
-
     width: 42px;
-
     height: 42px;
 
     object-fit: contain;
 
     display: block;
 
+    pointer-events: none;
 }
 
-
 .main-marker span {
-
     position: absolute;
 
     top: 44px;
-
     left: 50%;
 
-    transform:
-        translateX(-50%);
+    transform: translateX(-50%);
 
     white-space: nowrap;
 
     background: #315d2e;
-
     color: white;
 
     padding: 4px 8px;
@@ -381,36 +379,25 @@ body {
     border-radius: 5px;
 
     font-size: 11px;
-
     font-weight: 600;
 
     opacity: 0;
 
     pointer-events: none;
 
-    transition: .2s;
-
+    transition: opacity .2s ease;
 }
-
 
 .main-marker:hover span {
-
     opacity: 1;
-
 }
-
 
 /* =========================================================
    LIVESTOCK MARKERS
-
-   These stay on the MAIN MAP.
-   They do NOT enter the plot popup.
 ========================================================= */
 
 .livestock-marker {
-
     width: 42px;
-
     height: 42px;
 
     border-radius: 50%;
@@ -424,43 +411,38 @@ body {
     display: flex;
 
     align-items: center;
-
     justify-content: center;
 
     font-size: 20px;
 
     box-shadow:
-        0 2px 6px rgba(0,0,0,.25);
-
+        0 2px 6px rgba(0, 0, 0, .25);
 }
 
+.livestock-marker img {
+    width: 42px;
+    height: 42px;
+}
 
 .livestock-marker:hover {
-
     transform:
         translate(-50%, -50%)
-        scale(1.15);
-
+        scale(1.08);
 }
-
 
 /* =========================================================
    MAP HINT
 ========================================================= */
 
 .map-hint {
-
     position: absolute;
 
     left: 50%;
-
     bottom: 18px;
 
-    transform:
-        translateX(-50%);
+    transform: translateX(-50%);
 
-    background:
-        rgba(255,255,255,.95);
+    background: rgba(255, 255, 255, .95);
 
     padding: 8px 15px;
 
@@ -471,60 +453,139 @@ body {
     color: #555;
 
     box-shadow:
-        0 2px 5px rgba(0,0,0,.15);
+        0 2px 5px rgba(0, 0, 0, .15);
 
     z-index: 100;
 
     pointer-events: none;
 
+    white-space: nowrap;
 }
 
+.map-container.edit-mode .map-hint {
+    background: #5f8f45;
+    color: white;
+}
 
 /* =========================================================
-   POPUP OVERLAY
+   EDIT MODE
+========================================================= */
 
-   NOT DRAGGABLE
+.map-container.edit-mode {
+    cursor: crosshair;
+}
+
+.map-container.edit-mode .editable-marker {
+    cursor: grab;
+}
+
+.map-container.edit-mode .editable-marker:hover {
+    filter:
+        drop-shadow(
+            0 0 6px rgba(95, 143, 69, .8)
+        );
+}
+
+.map-container.edit-mode .editable-marker:active {
+    cursor: grabbing;
+}
+
+/* Marker edit indicator */
+
+.map-container.edit-mode
+.editable-marker::after {
+    content: "⋮";
+
+    position: absolute;
+
+    top: -8px;
+    right: -8px;
+
+    width: 18px;
+    height: 18px;
+
+    border-radius: 50%;
+
+    background: #5f8f45;
+    color: white;
+
+    font-size: 13px;
+    font-weight: bold;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    z-index: 100;
+}
+
+/* =========================================================
+   NEW MARKER
+========================================================= */
+
+.new-marker {
+    z-index: 50 !important;
+}
+
+.new-map-icon {
+    width: 38px;
+    height: 38px;
+
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: white;
+
+    border: 3px solid #5f8f45;
+
+    color: #5f8f45;
+
+    box-shadow:
+        0 3px 10px rgba(0, 0, 0, .2);
+}
+
+.new-map-icon i {
+    font-size: 17px;
+}
+
+/* =========================================================
+   POPUP OVERLAYS
 ========================================================= */
 
 .plot-overlay,
 .plant-overlay,
 .nursery-overlay {
-
     position: absolute;
 
     inset: 0;
 
     background:
-        rgba(0,0,0,.35);
+        rgba(0, 0, 0, .35);
 
     z-index: 500;
 
     display: none;
 
     align-items: center;
-
     justify-content: center;
 
     padding: 20px;
-
 }
-
 
 .plot-overlay.show,
 .plant-overlay.show,
 .nursery-overlay.show {
-
     display: flex;
-
 }
-
 
 /* =========================================================
    PLOT POPUP
 ========================================================= */
 
 .plot-popup {
-
     width: min(850px, 95%);
 
     max-height: 92%;
@@ -536,27 +597,22 @@ body {
     overflow: hidden;
 
     box-shadow:
-        0 15px 45px rgba(0,0,0,.3);
+        0 15px 45px rgba(0, 0, 0, .3);
 
     position: relative;
-
 }
-
 
 /* =========================================================
    CLOSE BUTTON
 ========================================================= */
 
 .popup-close {
-
     position: absolute;
 
     right: 12px;
-
     top: 10px;
 
     width: 34px;
-
     height: 34px;
 
     border: none;
@@ -564,7 +620,6 @@ body {
     border-radius: 50%;
 
     background: white;
-
     color: #555;
 
     font-size: 18px;
@@ -574,45 +629,31 @@ body {
     z-index: 1000;
 
     box-shadow:
-        0 2px 5px rgba(0,0,0,.15);
-
+        0 2px 5px rgba(0, 0, 0, .15);
 }
-
 
 .popup-close:hover {
-
     background: #315d2e;
-
     color: white;
-
 }
-
 
 /* =========================================================
    POPUP MAP
-
-   NOT DRAGGABLE
 ========================================================= */
 
 .popup-map {
-
     position: relative;
 
     width: 100%;
-
     height: 430px;
 
     overflow: hidden;
 
     background: #ddd;
-
 }
 
-
 .popup-map > img {
-
     width: 100%;
-
     height: 100%;
 
     object-fit: cover;
@@ -622,25 +663,20 @@ body {
     pointer-events: none;
 
     user-select: none;
-
     -webkit-user-drag: none;
-
 }
 
-
 /* =========================================================
-   PLANT MARKERS INSIDE POPUP
+   PLANT MARKERS
 ========================================================= */
 
 .plant-marker {
-
     position: absolute;
 
     transform:
         translate(-50%, -50%);
 
     width: 32px;
-
     height: 32px;
 
     border-radius: 50%;
@@ -652,7 +688,6 @@ body {
     color: #315d2e;
 
     font-size: 11px;
-
     font-weight: 700;
 
     cursor: pointer;
@@ -660,36 +695,26 @@ body {
     z-index: 20;
 
     box-shadow:
-        0 2px 7px rgba(0,0,0,.3);
-
+        0 2px 7px rgba(0, 0, 0, .3);
 }
 
-
 .plant-marker:hover {
-
     transform:
         translate(-50%, -50%)
         scale(1.2);
-
 }
 
-
 .plant-marker::after {
-
-    content:
-        attr(data-number);
+    content: attr(data-number);
 
     position: absolute;
 
     left: 50%;
-
     top: -28px;
 
-    transform:
-        translateX(-50%);
+    transform: translateX(-50%);
 
     background: #315d2e;
-
     color: white;
 
     padding: 3px 7px;
@@ -699,94 +724,69 @@ body {
     font-size: 10px;
 
     white-space: nowrap;
-
 }
-
 
 /* =========================================================
    PLOT INFORMATION
 ========================================================= */
 
 .plot-info {
-
     padding: 18px 22px 22px;
-
 }
 
-
 .plot-info h2 {
-
     margin: 0;
 
     color: #315d2e;
 
     font-size: 24px;
-
 }
 
-
 .plot-info p {
-
     margin: 3px 0 15px;
 
     color: #777;
 
     font-size: 13px;
-
 }
-
 
 .plot-stat-grid {
-
     display: grid;
 
-    grid-template-columns:
-        1fr 1fr;
+    grid-template-columns: 1fr 1fr;
 
     gap: 12px;
-
 }
 
-
 .plot-stat {
-
     background: #f1f7ee;
 
     padding: 12px;
 
     border-radius: 7px;
-
 }
 
-
 .plot-stat span {
-
     display: block;
 
     font-size: 12px;
 
     color: #777;
-
 }
 
-
 .plot-stat strong {
-
     display: block;
 
     font-size: 23px;
 
     color: #315d2e;
-
 }
-
 
 /* =========================================================
    CROP DETAILS
 ========================================================= */
 
 .plant-details {
-
     position: relative;
 
     width: min(520px, 94%);
@@ -798,92 +798,66 @@ body {
     padding: 30px;
 
     box-shadow:
-        0 15px 45px rgba(0,0,0,.3);
-
+        0 15px 45px rgba(0, 0, 0, .3);
 }
 
-
 .plant-details-icon {
-
     width: 60px;
-
     height: 60px;
 
     border-radius: 50%;
 
     background: #356c2e;
-
     color: white;
 
     display: flex;
-
     align-items: center;
-
     justify-content: center;
 
     font-size: 27px;
 
     margin-bottom: 12px;
-
 }
 
-
 .plant-details h2 {
-
     margin: 0;
 
     color: #315d2e;
-
 }
 
-
 .crop-variety {
-
     margin: 3px 0 20px;
 
     color: #888;
 
     font-size: 13px;
-
 }
-
 
 .crop-details-grid {
-
     display: grid;
 
-    grid-template-columns:
-        1fr 1fr;
+    grid-template-columns: 1fr 1fr;
 
     gap: 12px;
-
 }
 
-
 .crop-details-grid > div {
-
     background: #f5f8f3;
 
     padding: 11px;
 
     border-radius: 7px;
-
 }
 
-
 .crop-details-grid span {
-
     display: block;
 
     font-size: 11px;
 
     color: #777;
-
 }
 
-
 .crop-details-grid strong {
-
     display: block;
 
     margin-top: 3px;
@@ -891,16 +865,13 @@ body {
     color: #315d2e;
 
     font-size: 13px;
-
 }
-
 
 /* =========================================================
    NURSERY POPUP
 ========================================================= */
 
 .nursery-popup {
-
     position: relative;
 
     width: min(750px, 94%);
@@ -912,58 +883,42 @@ body {
     padding: 30px;
 
     box-shadow:
-        0 15px 45px rgba(0,0,0,.3);
-
+        0 15px 45px rgba(0, 0, 0, .3);
 }
 
-
 .nursery-popup h2 {
-
     margin: 0;
 
     color: #315d2e;
-
 }
 
-
 .nursery-popup p {
-
     margin: 3px 0 25px;
 
     color: #777;
 
     font-size: 13px;
-
 }
 
-
 .nursery-row {
-
     display: grid;
 
-    grid-template-columns:
-        90px 1fr;
+    grid-template-columns: 90px 1fr;
 
     align-items: center;
 
     gap: 10px;
 
     margin-bottom: 15px;
-
 }
 
-
 .nursery-row > span {
-
     font-size: 12px;
 
     font-weight: 600;
-
 }
 
-
 .nursery-track {
-
     position: relative;
 
     height: 20px;
@@ -978,47 +933,32 @@ body {
             #ddd calc(12.5% - 1px),
             #ddd 12.5%
         );
-
 }
 
-
 .nursery-bar {
-
     position: absolute;
 
     height: 20px;
 
     border-radius: 10px;
-
 }
-
 
 .nursery-bar.sowing,
 .sowing {
-
     background: #94bf88;
-
 }
-
 
 .nursery-bar.transplant,
 .transplant {
-
     background: #f0d45b;
-
 }
-
 
 .nursery-bar.harvest,
 .harvest {
-
     background: #ed9a60;
-
 }
 
-
 .nursery-legend {
-
     display: flex;
 
     gap: 18px;
@@ -1026,93 +966,71 @@ body {
     margin-top: 25px;
 
     font-size: 11px;
-
 }
 
-
 .nursery-legend span {
-
     display: flex;
 
     align-items: center;
 
     gap: 5px;
-
 }
 
-
 .nursery-legend i {
-
     width: 13px;
-
     height: 13px;
 
     border-radius: 2px;
-
 }
-
 
 /* =========================================================
    RIGHT PANEL
 ========================================================= */
 
 .farm-side-panel {
-
     display: flex;
 
     flex-direction: column;
 
     gap: 15px;
-
 }
 
-
 .farm-panel {
-
     background: white;
 
     border-radius: 10px;
 
     box-shadow:
-        0 2px 5px rgba(0,0,0,.06);
+        0 2px 5px rgba(0, 0, 0, .06);
 
     overflow: hidden;
-
 }
 
-
 .panel-header {
-
     display: flex;
 
     align-items: center;
-
     justify-content: space-between;
+
+    gap: 10px;
 
     padding: 15px 20px;
 
     border-bottom: 1px solid #ddd;
-
 }
 
-
 .panel-title {
-
     font-size: 17px;
 
     font-weight: 700;
 
     color: #315d2e;
-
 }
 
-
 .plot-select {
-
     border: none;
 
     background: #315d2e;
-
     color: white;
 
     padding: 7px 10px;
@@ -1121,40 +1039,30 @@ body {
 
     font-family: inherit;
 
+    cursor: pointer;
 }
-
 
 /* =========================================================
    HARVEST
 ========================================================= */
 
 .harvest-item {
-
     padding: 13px 20px;
 
     border-bottom: 1px solid #ddd;
-
 }
-
 
 .harvest-item:last-child {
-
     border-bottom: none;
-
 }
 
-
 .harvest-item strong {
-
     display: block;
 
     font-size: 16px;
-
 }
 
-
 .harvest-item span {
-
     display: block;
 
     color: #777;
@@ -1162,83 +1070,130 @@ body {
     font-size: 11px;
 
     margin-top: 2px;
-
 }
-
 
 /* =========================================================
    PLOT PANEL
 ========================================================= */
 
 .plot-panel-content {
-
     padding: 20px;
-
 }
 
-
 .plot-panel-content h2 {
-
     margin: 0;
 
     color: #315d2e;
-
 }
 
-
 .plot-panel-content p {
-
     margin: 3px 0 15px;
 
     color: #777;
 
     font-size: 12px;
-
 }
-
 
 .plot-panel-grid {
-
     display: grid;
 
-    grid-template-columns:
-        1fr 1fr;
+    grid-template-columns: 1fr 1fr;
 
     gap: 10px;
-
 }
 
-
 .plot-panel-grid > div {
-
     background: #f1f7ee;
 
     padding: 12px;
 
     border-radius: 7px;
-
 }
 
-
 .plot-panel-grid small {
-
     display: block;
 
     color: #777;
-
 }
 
-
 .plot-panel-grid strong {
-
     display: block;
 
     font-size: 22px;
 
     color: #315d2e;
-
 }
 
+/* =========================================================
+   EDIT BUTTONS
+========================================================= */
+
+.edit-btn,
+.edit-button {
+    display: inline-flex !important;
+
+    align-items: center;
+    justify-content: center;
+
+    background: #315d2e !important;
+    color: #ffffff !important;
+
+    border: none !important;
+    outline: none;
+
+    padding: 8px 16px;
+
+    min-width: 70px;
+
+    border-radius: 6px;
+
+    font-family: 'Poppins', sans-serif;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+    line-height: 1.2;
+
+    text-decoration: none !important;
+
+    cursor: pointer;
+
+    transition:
+        background-color .2s ease,
+        transform .15s ease,
+        box-shadow .2s ease;
+}
+
+.edit-btn:hover,
+.edit-button:hover,
+a.edit-btn:hover {
+    background: #254a23 !important;
+
+    color: #ffffff !important;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 3px 7px rgba(0, 0, 0, .15);
+}
+
+.edit-btn:active,
+.edit-button:active {
+    background: #1e3d1c !important;
+
+    color: #ffffff !important;
+
+    transform: translateY(0);
+}
+
+.edit-btn:focus,
+.edit-button:focus {
+    outline: none;
+
+    box-shadow:
+        0 0 0 3px rgba(49, 93, 46, .2);
+}
 
 /* =========================================================
    RESPONSIVE
@@ -1247,89 +1202,85 @@ body {
 @media (max-width: 1200px) {
 
     .farm-map-layout {
-
         grid-template-columns: 1fr;
-
     }
 
     .summary-cards {
-
         gap: 15px;
-
     }
 
 }
 
+@media (max-width: 900px) {
+
+    .farm-map-page {
+        margin-left: 0;
+        padding: 15px;
+    }
+
+    .farm-map-title-area {
+        flex-direction: column;
+    }
+
+    .map-edit-toolbar-wrapper {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .summary-cards {
+        grid-template-columns: 1fr 1fr;
+    }
+
+}
 
 @media (max-width: 800px) {
 
-    .farm-map-page {
-
-        margin-left: 0;
-
-        padding: 15px;
-
-    }
-
-
-    .summary-cards {
-
-        grid-template-columns:
-            1fr 1fr;
-
-    }
-
-
     .map-container {
-
         height: 550px;
-
     }
-
 
     .popup-map {
-
         height: 350px;
-
     }
 
 }
-
 
 @media (max-width: 550px) {
 
     .summary-cards {
-
         grid-template-columns: 1fr;
-
     }
-
 
     .farm-map-title-area h1 {
-
         font-size: 22px;
-
     }
-
 
     .map-container {
-
         height: 450px;
-
     }
-
 
     .popup-map {
-
         height: 280px;
-
     }
 
-
     .crop-details-grid {
-
         grid-template-columns: 1fr;
+    }
 
+    .plot-stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .nursery-row {
+        grid-template-columns: 70px 1fr;
+    }
+
+    .map-edit-toolbar {
+        justify-content: flex-start;
+    }
+
+    .map-edit-controls {
+        width: 100%;
     }
 
 }
