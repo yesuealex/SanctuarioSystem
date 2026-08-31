@@ -60,7 +60,7 @@ body {
 
 .summary-cards {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 25px;
 }
 
@@ -588,13 +588,14 @@ body {
 .plot-popup {
     width: min(850px, 95%);
 
-    max-height: 92%;
+    max-height: 92vh;
 
     background: white;
 
     border-radius: 12px;
 
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
 
     box-shadow:
         0 15px 45px rgba(0, 0, 0, .3);
@@ -1128,6 +1129,10 @@ body {
    EDIT BUTTONS
 ========================================================= */
 
+/* =========================================================
+   PLOT / BED EDIT BUTTONS
+========================================================= */
+
 .edit-btn,
 .edit-button {
     display: inline-flex !important;
@@ -1135,29 +1140,34 @@ body {
     align-items: center;
     justify-content: center;
 
+    width: auto;
+    min-width: 80px;
+    min-height: 36px;
+
+    padding: 8px 16px;
+
     background: #315d2e !important;
     color: #ffffff !important;
 
     border: none !important;
-    outline: none;
-
-    padding: 8px 16px;
-
-    min-width: 70px;
-
     border-radius: 6px;
 
+    outline: none;
+
     font-family: 'Poppins', sans-serif;
-
     font-size: 13px;
-
     font-weight: 600;
-
     line-height: 1.2;
 
     text-decoration: none !important;
 
     cursor: pointer;
+
+    position: relative;
+    z-index: 1001;
+
+    opacity: 1 !important;
+    visibility: visible !important;
 
     transition:
         background-color .2s ease,
@@ -1169,7 +1179,6 @@ body {
 .edit-button:hover,
 a.edit-btn:hover {
     background: #254a23 !important;
-
     color: #ffffff !important;
 
     transform: translateY(-1px);
@@ -1181,7 +1190,6 @@ a.edit-btn:hover {
 .edit-btn:active,
 .edit-button:active {
     background: #1e3d1c !important;
-
     color: #ffffff !important;
 
     transform: translateY(0);

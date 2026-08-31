@@ -14,9 +14,6 @@ $totalCrops = $conn->query("SELECT COUNT(*) AS total FROM crops")->fetch_assoc()
 /* TOTAL PLOTS */
 $totalPlots = $conn->query("SELECT COUNT(*) AS total FROM plots")->fetch_assoc()['total'];
 
-/* ACTIVE STAFF */
-$totalStaff = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role = 'staff'")->fetch_assoc()['total'];
-
 /* HARVEST READY */
 $harvestReady = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE status = 'ready'")->fetch_assoc()['total'];
 
@@ -191,19 +188,6 @@ $logs = $conn->query("
         </div>
 
 
-        <!-- Staff -->
-        <div class="hero-card">
-
-            <div class="hero-icon olive">
-                <span class="material-symbols-rounded">groups</span>
-            </div>
-
-            <div class="hero-info">
-                <span>Active Staff</span>
-                <h3><?= $totalStaff ?></h3>
-            </div>
-
-        </div>
 
     </div>
 

@@ -65,13 +65,12 @@ $completedRequests = 0;
 |--------------------------------------------------------------------------
 | MAINTENANCE REQUEST COUNTS
 |--------------------------------------------------------------------------
-| If the table is not yet available, the page will still load.
-|--------------------------------------------------------------------------
 */
 
 try {
 
-    // Total
+    /* TOTAL */
+
     $result = $conn->query("
         SELECT COUNT(*) AS total
         FROM maintenance_requests
@@ -83,7 +82,8 @@ try {
     }
 
 
-    // Pending
+    /* PENDING */
+
     $result = $conn->query("
         SELECT COUNT(*) AS total
         FROM maintenance_requests
@@ -96,7 +96,8 @@ try {
     }
 
 
-    // Ongoing
+    /* ONGOING */
+
     $result = $conn->query("
         SELECT COUNT(*) AS total
         FROM maintenance_requests
@@ -109,7 +110,8 @@ try {
     }
 
 
-    // Completed
+    /* COMPLETED */
+
     $result = $conn->query("
         SELECT COUNT(*) AS total
         FROM maintenance_requests
@@ -143,7 +145,9 @@ try {
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Maintenance Management | Sanctuario Nature Farm</title>
+    <title>
+        Maintenance Management | Sanctuario Nature Farm
+    </title>
 
 
     <!-- =================================================
@@ -198,7 +202,7 @@ try {
 
 
     <!-- =================================================
-         ADMIN MAINTENANCE CSS
+         MAINTENANCE CSS
          ================================================= -->
 
     <link
@@ -236,160 +240,179 @@ try {
         <?php include '../topRightBar.php'; ?>
 
 
-        <!-- =================================================
-             PAGE HEADER
-             ================================================= -->
-
-        <section class="maintenance-header">
-
-            <div>
-
-                <span class="page-label">
-                    ADMINISTRATION
-                </span>
-
-                <h1>
-                    Maintenance Management
-                </h1>
-
-                <p>
-                    Monitor, assign, and manage farm maintenance activities.
-                </p>
-
-            </div>
-
-
-            <a
-                href="addMaintenance.php"
-                class="add-maintenance-btn"
-            >
-
-                <span class="material-symbols-rounded">
-                    add
-                </span>
-
-                New Request
-
-            </a>
-
-        </section>
 
 
         <!-- =================================================
-             SUMMARY CARDS
+             MAINTENANCE HERO SUMMARY
              ================================================= -->
 
-        <section class="maintenance-cards">
+        <section class="maintenance-hero">
 
 
-            <!-- TOTAL -->
+            <!-- HERO TOP -->
 
-            <div class="maintenance-card">
+            <div class="maintenance-hero-top">
 
-                <div class="card-icon">
+
+                <!-- TITLE -->
+
+                <div class="maintenance-hero-title">
 
                     <span class="material-symbols-rounded">
                         construction
                     </span>
 
+                    <h2>
+                        Maintenance Overview
+                    </h2>
+
                 </div>
 
-                <div class="card-info">
 
-                    <span>
-                        Total Requests
+                <!-- DATE -->
+
+                <div class="maintenance-date">
+
+                    <span class="material-symbols-rounded">
+                        calendar_month
                     </span>
 
-                    <strong>
-                        <?= $totalRequests ?>
-                    </strong>
+                    <?= date('F j, Y') ?>
 
                 </div>
 
             </div>
 
 
-            <!-- PENDING -->
+            <!-- DESCRIPTION -->
 
-            <div class="maintenance-card">
+            <p class="maintenance-hero-description">
 
-                <div class="card-icon pending">
+                Here's what's happening with maintenance activities
+                around Sanctuario Nature Farm today.
 
-                    <span class="material-symbols-rounded">
-                        pending_actions
-                    </span>
-
-                </div>
-
-                <div class="card-info">
-
-                    <span>
-                        Pending
-                    </span>
-
-                    <strong>
-                        <?= $pendingRequests ?>
-                    </strong>
-
-                </div>
-
-            </div>
+            </p>
 
 
-            <!-- ONGOING -->
+            <!-- =================================================
+                 SUMMARY CARDS INSIDE HERO
+                 ================================================= -->
 
-            <div class="maintenance-card">
+            <div class="maintenance-hero-cards">
 
-                <div class="card-icon ongoing">
 
-                    <span class="material-symbols-rounded">
-                        engineering
-                    </span>
+                <!-- TOTAL -->
 
-                </div>
+                <div class="maintenance-hero-card">
 
-                <div class="card-info">
+                    <div class="maintenance-hero-icon total">
 
-                    <span>
-                        Ongoing
-                    </span>
+                        <span class="material-symbols-rounded">
+                            construction
+                        </span>
 
-                    <strong>
-                        <?= $ongoingRequests ?>
-                    </strong>
+                    </div>
+
+                    <div class="maintenance-hero-info">
+
+                        <span>
+                            Total Requests
+                        </span>
+
+                        <strong>
+                            <?= $totalRequests ?>
+                        </strong>
+
+                    </div>
 
                 </div>
 
-            </div>
 
+                <!-- PENDING -->
 
-            <!-- COMPLETED -->
+                <div class="maintenance-hero-card">
 
-            <div class="maintenance-card">
+                    <div class="maintenance-hero-icon pending">
 
-                <div class="card-icon completed">
+                        <span class="material-symbols-rounded">
+                            pending_actions
+                        </span>
 
-                    <span class="material-symbols-rounded">
-                        task_alt
-                    </span>
+                    </div>
+
+                    <div class="maintenance-hero-info">
+
+                        <span>
+                            Pending Requests
+                        </span>
+
+                        <strong>
+                            <?= $pendingRequests ?>
+                        </strong>
+
+                    </div>
 
                 </div>
 
-                <div class="card-info">
 
-                    <span>
-                        Completed
-                    </span>
+                <!-- ONGOING -->
 
-                    <strong>
-                        <?= $completedRequests ?>
-                    </strong>
+                <div class="maintenance-hero-card">
+
+                    <div class="maintenance-hero-icon ongoing">
+
+                        <span class="material-symbols-rounded">
+                            engineering
+                        </span>
+
+                    </div>
+
+                    <div class="maintenance-hero-info">
+
+                        <span>
+                            Ongoing
+                        </span>
+
+                        <strong>
+                            <?= $ongoingRequests ?>
+                        </strong>
+
+                    </div>
 
                 </div>
+
+
+                <!-- COMPLETED -->
+
+                <div class="maintenance-hero-card">
+
+                    <div class="maintenance-hero-icon completed">
+
+                        <span class="material-symbols-rounded">
+                            task_alt
+                        </span>
+
+                    </div>
+
+                    <div class="maintenance-hero-info">
+
+                        <span>
+                            Completed
+                        </span>
+
+                        <strong>
+                            <?= $completedRequests ?>
+                        </strong>
+
+                    </div>
+
+                </div>
+
 
             </div>
 
         </section>
+
 
 
         <!-- =================================================
@@ -444,7 +467,8 @@ try {
                             LIMIT 6
                         ";
 
-                        $requestResult = $conn->query($requestQuery);
+                        $requestResult =
+                            $conn->query($requestQuery);
 
 
                         if (
@@ -453,7 +477,8 @@ try {
                         ):
 
                             while (
-                                $request = $requestResult->fetch_assoc()
+                                $request =
+                                $requestResult->fetch_assoc()
                             ):
 
                                 $status =
@@ -472,8 +497,11 @@ try {
 
                     ?>
 
+
                         <div class="request-item">
 
+
+                            <!-- ICON -->
 
                             <div class="request-icon">
 
@@ -483,6 +511,8 @@ try {
 
                             </div>
 
+
+                            <!-- DETAILS -->
 
                             <div class="request-details">
 
@@ -509,7 +539,9 @@ try {
 
                                 <small>
 
-                                    Request #<?= htmlspecialchars(
+                                    Request #
+
+                                    <?= htmlspecialchars(
                                         $request['request_id']
                                         ?? '—'
                                     ) ?>
@@ -518,6 +550,8 @@ try {
 
                             </div>
 
+
+                            <!-- STATUS -->
 
                             <span
                                 class="status <?= htmlspecialchars(
@@ -541,6 +575,7 @@ try {
 
                     ?>
 
+
                         <div class="empty-state">
 
                             <span class="material-symbols-rounded">
@@ -557,6 +592,7 @@ try {
 
                         </div>
 
+
                     <?php
 
                         endif;
@@ -564,6 +600,7 @@ try {
                     } catch (Exception $e) {
 
                     ?>
+
 
                         <div class="empty-state">
 
@@ -581,6 +618,7 @@ try {
 
                         </div>
 
+
                     <?php } ?>
 
                 </div>
@@ -588,8 +626,9 @@ try {
             </div>
 
 
+
             <!-- =================================================
-                 ADMIN ACTIONS
+                 MANAGEMENT
                  ================================================= -->
 
             <div class="maintenance-panel">
@@ -755,104 +794,8 @@ try {
 
             </div>
 
-        </section>
-
-
-        <!-- =================================================
-             QUICK ACTIONS
-             ================================================= -->
-
-        <section class="quick-section">
-
-
-            <h2>
-                Quick Actions
-            </h2>
-
-
-            <div class="quick-grid">
-
-
-                <a
-                    href="addMaintenance.php"
-                    class="quick-card"
-                >
-
-                    <span class="material-symbols-rounded">
-                        add_circle
-                    </span>
-
-                    <div>
-
-                        <strong>
-                            Create Request
-                        </strong>
-
-                        <small>
-                            Add a new maintenance request
-                        </small>
-
-                    </div>
-
-                </a>
-
-
-                <a
-                    href="assignMaintenance.php"
-                    class="quick-card"
-                >
-
-                    <span class="material-symbols-rounded">
-                        assignment_ind
-                    </span>
-
-                    <div>
-
-                        <strong>
-                            Assign Task
-                        </strong>
-
-                        <small>
-                            Assign work to maintenance staff
-                        </small>
-
-                    </div>
-
-                </a>
-
-
-                <a
-                    href="maintenanceHistory.php"
-                    class="quick-card"
-                >
-
-                    <span class="material-symbols-rounded">
-                        history
-                    </span>
-
-                    <div>
-
-                        <strong>
-                            View History
-                        </strong>
-
-                        <small>
-                            Review completed maintenance
-                        </small>
-
-                    </div>
-
-                </a>
-
-
-            </div>
 
         </section>
-
-
-    </main>
-
-</div>
 
 
 </body>

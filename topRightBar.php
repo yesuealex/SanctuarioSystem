@@ -149,8 +149,7 @@ body{margin:0;font-family:Poppins,sans-serif;background:#f8f9ff}
 
             <div class="dropdown-divider"></div>
 
-            <a href="profile.php"><span class="material-symbols-rounded">person</span>My Profile</a>
-            <a href="settings.php"><span class="material-symbols-rounded">settings</span>Settings</a>
+            <a href="accountSettings/accountSettings.php"><span class="material-symbols-rounded">settings</span>Account Settings</a>
 
             <div class="dropdown-divider"></div>
 

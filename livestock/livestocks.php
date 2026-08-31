@@ -327,7 +327,7 @@ $livestockResult = $conn->query("
                     <button
                         type="button"
                         class="archived-livestock-btn"
-                        onclick="location.href='archived_livestock.php'"
+                        onclick="location.href='archived_livestocks.php'"
                     >
 
                         View Archived Livestock
