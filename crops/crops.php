@@ -1,18 +1,37 @@
 <?php
+
 session_start();
 
 include '../db.php';
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login.php");
-    exit();
-}
-
-$role = $_SESSION['role'] ?? 'staff';
 
 /*
 |--------------------------------------------------------------------------
-| Get active crop records
+| LOGIN CHECK
+|--------------------------------------------------------------------------
+*/
+
+if (!isset($_SESSION['user_id'])) {
+
+    header("Location: ../login.php");
+
+    exit();
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| USER ROLE
+|--------------------------------------------------------------------------
+*/
+
+$role = $_SESSION['role'] ?? 'staff';
+
+
+/*
+|--------------------------------------------------------------------------
+| GET ACTIVE CROP RECORDS
 |--------------------------------------------------------------------------
 */
 
@@ -22,77 +41,96 @@ $cropsResult = $conn->query("
     WHERE archived = 0
     ORDER BY crop_id DESC
 ");
+
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-    <title>Crops Records</title>
+<title>
+    Crops Records
+</title>
 
-    <!-- MAIN CSS -->
-    <link
-        rel="stylesheet"
-        href="../style.css"
-    >
 
-    <!-- SIDEBAR -->
-    <link
-        rel="stylesheet"
-        href="../sidebar.css"
-    >
+<!-- MAIN CSS -->
 
-    <!-- CROPS CSS -->
-    <link
-        rel="stylesheet"
-        href="crops.css"
-    >
+<link
+    rel="stylesheet"
+    href="../style.css"
+>
 
-    <!-- GOOGLE FONT -->
-    <link
-        rel="preconnect"
-        href="https://fonts.googleapis.com"
-    >
 
-    <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossorigin
-    >
+<!-- SIDEBAR -->
 
-    <link
-        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-    >
+<link
+    rel="stylesheet"
+    href="../sidebar.css"
+>
 
-    <!-- MATERIAL ICONS -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:wght@400"
-        rel="stylesheet"
-    >
+
+<!-- CROPS CSS -->
+
+<link
+    rel="stylesheet"
+    href="crops.css"
+>
+
+
+<!-- GOOGLE FONT -->
+
+<link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+>
+
+<link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+>
+
+<link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+>
+
+
+<!-- MATERIAL ICONS -->
+
+<link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:wght@400"
+    rel="stylesheet"
+>
 
 </head>
 
 
 <body>
 
+
 <div class="layout">
 
 
-    <!-- SIDEBAR -->
+    <!-- =====================================================
+         SIDEBAR
+         ===================================================== -->
 
     <?php include '../sidebar.php'; ?>
 
 
-    <!-- MAIN CONTENT -->
+    <!-- =====================================================
+         MAIN CONTENT
+         ===================================================== -->
 
     <main class="dashboard">
 
@@ -109,24 +147,26 @@ $cropsResult = $conn->query("
         </h2>
 
 
-        <!-- CROPS RECORDS -->
+        <!-- =====================================================
+             CROP RECORDS
+             ===================================================== -->
 
         <section class="crop-records">
 
 
-            <!-- =====================================================
+            <!-- =================================================
                  TOP CONTROLS
-                 ===================================================== -->
+                 ================================================= -->
 
             <div class="crop-topbar">
 
 
-                <!-- LEFT SIDE -->
+                <!-- LEFT -->
 
                 <div class="crop-filters">
 
 
-                    <!-- CATEGORY -->
+                    <!-- FILTER -->
 
                     <select
                         id="cropPlotFilter"
@@ -178,22 +218,20 @@ $cropsResult = $conn->query("
                 </div>
 
 
-                <!-- RIGHT SIDE -->
+                <!-- RIGHT -->
 
                 <div class="crop-actions">
 
 
                     <?php if ($role === 'admin'): ?>
 
+
                         <!-- ADD CROP -->
 
                         <button
                             type="button"
                             class="add-crop-btn"
-                            onclick="openEditModal(
-                                'add_crop.php',
-                                'Add Crop'
-                            )"
+                            onclick="openEditModal('add_crop.php', 'Add Crop')"
                         >
 
                             <span class="material-symbols-rounded">
@@ -221,17 +259,19 @@ $cropsResult = $conn->query("
 
                         </button>
 
+
                     <?php endif; ?>
 
 
                 </div>
 
+
             </div>
 
 
-            <!-- =====================================================
+            <!-- =================================================
                  TABLE
-                 ===================================================== -->
+                 ================================================= -->
 
             <div class="crop-table-wrapper">
 
@@ -245,6 +285,10 @@ $cropsResult = $conn->query("
 
                             <th>
                                 RECIPIENT
+                            </th>
+
+                            <th>
+                                PLOT
                             </th>
 
                             <th>
@@ -283,6 +327,18 @@ $cropsResult = $conn->query("
                                 DATE<br>TRANSPLANTED
                             </th>
 
+                            <th>
+                                EXPECTED<br>HARVEST
+                            </th>
+
+                            <th>
+                                STATUS
+                            </th>
+
+                            <th>
+                                TRANSPLANTED<br>AREA
+                            </th>
+
                             <?php if ($role === 'admin'): ?>
 
                                 <th>
@@ -299,10 +355,15 @@ $cropsResult = $conn->query("
                     <tbody>
 
 
-                    <?php if ($cropsResult && $cropsResult->num_rows > 0): ?>
+                    <?php if (
+                        $cropsResult &&
+                        $cropsResult->num_rows > 0
+                    ): ?>
 
 
-                        <?php while ($row = $cropsResult->fetch_assoc()): ?>
+                        <?php while (
+                            $row = $cropsResult->fetch_assoc()
+                        ): ?>
 
 
                             <tr class="crop-row">
@@ -311,108 +372,193 @@ $cropsResult = $conn->query("
                                 <!-- RECIPIENT -->
 
                                 <td>
+
                                     <?= htmlspecialchars(
                                         $row['recipient'] ?? ''
                                     ) ?>
+
+                                </td>
+
+
+                                <!-- PLOT -->
+
+                                <td>
+
+                                    <?= htmlspecialchars(
+                                        $row['plot_id'] ?? ''
+                                    ) ?>
+
                                 </td>
 
 
                                 <!-- CROP -->
 
                                 <td>
+
                                     <?= htmlspecialchars(
                                         $row['crop_name'] ?? ''
                                     ) ?>
+
                                 </td>
 
 
                                 <!-- VARIETY -->
 
                                 <td>
+
                                     <?= htmlspecialchars(
                                         $row['variety'] ?? ''
                                     ) ?>
+
                                 </td>
 
 
-                                <!-- NO. OF PLANTS -->
+                                <!-- PLANTS -->
 
                                 <td>
+
                                     <?= htmlspecialchars(
                                         $row['pcs'] ?? ''
                                     ) ?>
+
                                 </td>
 
 
-                                <!-- DATE OF SOWING -->
+                                <!-- DATE SOWING -->
 
                                 <td>
-                                    <?= !empty($row['date_sowing'])
+
+                                    <?= !empty(
+                                        $row['date_sowing']
+                                    )
                                         ? date(
                                             'm/d/y',
-                                            strtotime($row['date_sowing'])
+                                            strtotime(
+                                                $row['date_sowing']
+                                            )
                                         )
                                         : ''
                                     ?>
+
                                 </td>
 
 
                                 <!-- GERMINATION -->
 
                                 <td>
+
                                     <?= htmlspecialchars(
                                         $row['germination_rate'] ?? ''
                                     ) ?>%
+
                                 </td>
 
 
-                                <!-- TARGET TRANSPLANT DATE -->
+                                <!-- TARGET TRANSPLANT -->
 
                                 <td>
-                                    <?= !empty($row['target_transplant_date'])
+
+                                    <?= !empty(
+                                        $row['target_transplant_date']
+                                    )
                                         ? date(
                                             'm/d/y',
-                                            strtotime($row['target_transplant_date'])
+                                            strtotime(
+                                                $row['target_transplant_date']
+                                            )
                                         )
                                         : ''
                                     ?>
+
                                 </td>
 
 
                                 <!-- TARGET AREA -->
 
                                 <td>
+
                                     <?= htmlspecialchars(
                                         $row['target_area'] ?? ''
                                     ) ?>
+
                                 </td>
 
 
                                 <!-- SEEDLINGS RECEIVED -->
 
                                 <td>
+
                                     <?= htmlspecialchars(
                                         $row['seedlings_received'] ?? ''
                                     ) ?>PCS
+
                                 </td>
 
 
                                 <!-- DATE TRANSPLANTED -->
 
                                 <td>
-                                    <?= !empty($row['date_transplanted'])
+
+                                    <?= !empty(
+                                        $row['date_transplanted']
+                                    )
                                         ? date(
                                             'm/d/y',
-                                            strtotime($row['date_transplanted'])
+                                            strtotime(
+                                                $row['date_transplanted']
+                                            )
                                         )
                                         : ''
                                     ?>
+
+                                </td>
+
+
+                                <!-- EXPECTED HARVEST -->
+
+                                <td>
+
+                                    <?= !empty(
+                                        $row['expected_harvest']
+                                    )
+                                        ? date(
+                                            'm/d/y',
+                                            strtotime(
+                                                $row['expected_harvest']
+                                            )
+                                        )
+                                        : ''
+                                    ?>
+
+                                </td>
+
+
+                                <!-- STATUS -->
+
+                                <td>
+
+                                    <?= htmlspecialchars(
+                                        $row['status'] ?? ''
+                                    ) ?>
+
+                                </td>
+
+
+                                <!-- TRANSPLANTED AREA -->
+
+                                <td>
+
+                                    <?= htmlspecialchars(
+                                        $row['transplanted_area'] ?? ''
+                                    ) ?>
+
                                 </td>
 
 
                                 <!-- ACTION -->
 
                                 <?php if ($role === 'admin'): ?>
+
 
                                     <td>
 
@@ -464,6 +610,7 @@ $cropsResult = $conn->query("
 
                                     </td>
 
+
                                 <?php endif; ?>
 
 
@@ -479,7 +626,7 @@ $cropsResult = $conn->query("
                         <tr>
 
                             <td
-                                colspan="<?= $role === 'admin' ? '11' : '10' ?>"
+                                colspan="<?= $role === 'admin' ? '15' : '14' ?>"
                                 class="no-records"
                             >
 
@@ -495,7 +642,9 @@ $cropsResult = $conn->query("
 
                     </tbody>
 
+
                 </table>
+
 
             </div>
 
@@ -505,11 +654,12 @@ $cropsResult = $conn->query("
 
     </main>
 
+
 </div>
 
 
 <!-- =========================================================
-     EDIT MODAL
+     EDIT / ADD MODAL
      ========================================================= -->
 
 <div
@@ -517,18 +667,25 @@ $cropsResult = $conn->query("
     id="editModal"
 >
 
+
     <div class="edit-modal">
 
+
+        <!-- HEADER -->
+
         <div class="modal-header">
+
 
             <h3 id="editModalTitle">
                 Record
             </h3>
 
+
             <button
                 type="button"
                 class="close-modal"
                 onclick="closeEditModal()"
+                title="Close"
             >
 
                 <span class="material-symbols-rounded">
@@ -537,14 +694,20 @@ $cropsResult = $conn->query("
 
             </button>
 
+
         </div>
+
+
+        <!-- IFRAME -->
 
         <iframe
             id="editFrame"
             title="Crop form"
         ></iframe>
 
+
     </div>
+
 
 </div>
 
@@ -558,7 +721,9 @@ $cropsResult = $conn->query("
     id="archiveModal"
 >
 
+
     <div class="delete-modal">
+
 
         <div class="delete-icon-large">
 
@@ -568,73 +733,128 @@ $cropsResult = $conn->query("
 
         </div>
 
+
         <h3>
             Archive Crop?
         </h3>
 
+
         <p id="archiveMessage">
+
             Are you sure you want to archive this crop?
+
         </p>
 
+
         <div class="delete-actions">
+
 
             <button
                 type="button"
                 class="cancel-btn"
                 onclick="closeArchiveModal()"
             >
+
                 Cancel
+
             </button>
+
 
             <button
                 type="button"
                 class="confirm-delete-btn"
                 onclick="confirmArchive()"
             >
+
                 Archive
+
             </button>
+
 
         </div>
 
+
     </div>
+
 
 </div>
 
 
+<!-- =========================================================
+     JAVASCRIPT
+     ========================================================= -->
+
 <script>
 
+
 /* =========================================================
-   EDIT MODAL
+   EDIT / ADD MODAL
    ========================================================= */
 
 function openEditModal(url, title) {
 
-    document.getElementById(
-        'editModalTitle'
-    ).textContent = title;
+    const modal =
+        document.getElementById('editModal');
 
-    document.getElementById(
-        'editFrame'
-    ).src = url;
+    const frame =
+        document.getElementById('editFrame');
 
-    document
-        .getElementById('editModal')
-        .classList.add('active');
+    const modalTitle =
+        document.getElementById('editModalTitle');
+
+
+    if (
+        !modal ||
+        !frame ||
+        !modalTitle
+    ) {
+
+        console.error(
+            'Edit modal elements were not found.'
+        );
+
+        return;
+
+    }
+
+
+    modalTitle.textContent = title;
+
+    frame.src = url;
+
+    modal.classList.add('active');
 
     document.body.style.overflow = 'hidden';
 
 }
 
 
+/* =========================================================
+   CLOSE EDIT / ADD MODAL
+   ========================================================= */
+
 function closeEditModal() {
 
-    document
-        .getElementById('editModal')
-        .classList.remove('active');
+    const modal =
+        document.getElementById('editModal');
 
-    document.getElementById(
-        'editFrame'
-    ).src = '';
+    const frame =
+        document.getElementById('editFrame');
+
+
+    if (modal) {
+
+        modal.classList.remove('active');
+
+    }
+
+
+    if (frame) {
+
+        frame.src = '';
+
+    }
+
 
     document.body.style.overflow = '';
 
@@ -648,31 +868,66 @@ function closeEditModal() {
 let archiveUrl = '';
 
 
-function openArchiveModal(url, cropName) {
+function openArchiveModal(
+    url,
+    cropName
+) {
 
     archiveUrl = url;
 
-    document.getElementById(
-        'archiveMessage'
-    ).textContent =
-        'Are you sure you want to archive "' +
-        cropName +
-        '"?';
 
-    document
-        .getElementById('archiveModal')
-        .classList.add('active');
+    const message =
+        document.getElementById(
+            'archiveMessage'
+        );
+
+
+    const modal =
+        document.getElementById(
+            'archiveModal'
+        );
+
+
+    if (message) {
+
+        message.textContent =
+            'Are you sure you want to archive "' +
+            cropName +
+            '"?';
+
+    }
+
+
+    if (modal) {
+
+        modal.classList.add('active');
+
+    }
+
 
     document.body.style.overflow = 'hidden';
 
 }
 
 
+/* =========================================================
+   CLOSE ARCHIVE MODAL
+   ========================================================= */
+
 function closeArchiveModal() {
 
-    document
-        .getElementById('archiveModal')
-        .classList.remove('active');
+    const modal =
+        document.getElementById(
+            'archiveModal'
+        );
+
+
+    if (modal) {
+
+        modal.classList.remove('active');
+
+    }
+
 
     archiveUrl = '';
 
@@ -681,10 +936,17 @@ function closeArchiveModal() {
 }
 
 
+/* =========================================================
+   CONFIRM ARCHIVE
+   ========================================================= */
+
 function confirmArchive() {
 
     if (archiveUrl) {
-        window.location.href = archiveUrl;
+
+        window.location.href =
+            archiveUrl;
+
     }
 
 }
@@ -696,98 +958,145 @@ function confirmArchive() {
 
 function filterCropRecords() {
 
+    const searchInput =
+        document.getElementById(
+            'cropSearch'
+        );
+
+
+    const plotFilter =
+        document.getElementById(
+            'cropPlotFilter'
+        );
+
+
+    if (
+        !searchInput ||
+        !plotFilter
+    ) {
+
+        return;
+
+    }
+
+
     const search =
-        document
-            .getElementById('cropSearch')
-            .value
+        searchInput.value
             .toLowerCase()
             .trim();
 
+
     const plot =
-        document
-            .getElementById('cropPlotFilter')
-            .value
+        plotFilter.value
             .toLowerCase();
 
+
     const rows =
-        document.querySelectorAll('.crop-row');
+        document.querySelectorAll(
+            '.crop-row'
+        );
 
 
-    rows.forEach(function(row) {
+    rows.forEach(
+        function(row) {
 
-        const text =
-            row.textContent
-                .toLowerCase();
+            const text =
+                row.textContent
+                    .toLowerCase();
 
-        const matchesSearch =
-            text.includes(search);
 
-        /*
-        * Plot/location is not currently visible
-        * in the screenshot, so use the recipient/crop
-        * row text for search.
-        *
-        * The filter can be adjusted later if needed.
-        */
+            const matchesSearch =
+                text.includes(search);
 
-        let matchesPlot = true;
 
-        if (plot !== 'all') {
+            let matchesPlot = true;
 
-            matchesPlot =
-                text.includes(plot);
+
+            if (plot !== 'all') {
+
+                matchesPlot =
+                    text.includes(plot);
+
+            }
+
+
+            if (
+                matchesSearch &&
+                matchesPlot
+            ) {
+
+                row.style.display = '';
+
+            } else {
+
+                row.style.display = 'none';
+
+            }
 
         }
-
-
-        if (
-            matchesSearch &&
-            matchesPlot
-        ) {
-
-            row.style.display = '';
-
-        } else {
-
-            row.style.display = 'none';
-
-        }
-
-    });
+    );
 
 }
 
 
 /* =========================================================
-   CLOSE MODALS
+   CLOSE EDIT MODAL WHEN CLICKING OUTSIDE
    ========================================================= */
 
-document
-    .getElementById('editModal')
-    .addEventListener(
-        'click',
-        function(e) {
+const editModal =
+    document.getElementById(
+        'editModal'
+    );
 
-            if (e.target === this) {
+
+if (editModal) {
+
+    editModal.addEventListener(
+        'click',
+        function(event) {
+
+            if (
+                event.target === this
+            ) {
+
                 closeEditModal();
+
             }
 
         }
     );
 
+}
 
-document
-    .getElementById('archiveModal')
-    .addEventListener(
+
+/* =========================================================
+   CLOSE ARCHIVE MODAL WHEN CLICKING OUTSIDE
+   ========================================================= */
+
+const archiveModal =
+    document.getElementById(
+        'archiveModal'
+    );
+
+
+if (archiveModal) {
+
+    archiveModal.addEventListener(
         'click',
-        function(e) {
+        function(event) {
 
-            if (e.target === this) {
+            if (
+                event.target === this
+            ) {
+
                 closeArchiveModal();
+
             }
 
         }
     );
+
+}
 
 
 /* =========================================================
@@ -796,11 +1105,14 @@ document
 
 document.addEventListener(
     'keydown',
-    function(e) {
+    function(event) {
 
-        if (e.key === 'Escape') {
+        if (
+            event.key === 'Escape'
+        ) {
 
             closeEditModal();
+
             closeArchiveModal();
 
         }
@@ -808,7 +1120,9 @@ document.addEventListener(
     }
 );
 
+
 </script>
+
 
 </body>
 

@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 
 include '../db.php';
@@ -51,34 +52,59 @@ $nameSql = "
 
 if ($selectedType !== '') {
 
-    $safeType = $conn->real_escape_string($selectedType);
+    $stmtType = $conn->prepare("
+        SELECT livestock_id, name, type
+        FROM livestocks
+        WHERE archived = 0
+        AND LOWER(type) = LOWER(?)
+        ORDER BY name ASC
+    ");
 
-    $nameSql .= "
-        AND LOWER(type) = LOWER('$safeType')
+    $stmtType->bind_param(
+        "s",
+        $selectedType
+    );
+
+    $stmtType->execute();
+
+    $nameResult = $stmtType->get_result();
+
+} else {
+
+    $nameSql = "
+        SELECT livestock_id, name, type
+        FROM livestocks
+        WHERE archived = 0
+        ORDER BY name ASC
     ";
+
+    $nameResult = $conn->query($nameSql);
+
 }
-
-$nameSql .= "
-    ORDER BY name ASC
-";
-
-$nameResult = $conn->query($nameSql);
 
 
 // =========================================================
 // AUTOMATICALLY SELECT FIRST LIVESTOCK
 // =========================================================
 
-if ($selectedLivestockId === 0 && $nameResult && $nameResult->num_rows > 0) {
+if (
+    $selectedLivestockId === 0
+    &&
+    $nameResult
+    &&
+    $nameResult->num_rows > 0
+) {
 
-    $firstLivestock = $nameResult->fetch_assoc();
+    $firstLivestock =
+        $nameResult->fetch_assoc();
 
-    $selectedLivestockId = intval(
-        $firstLivestock['livestock_id']
-    );
+    $selectedLivestockId =
+        intval(
+            $firstLivestock['livestock_id']
+        );
 
-    // Reset pointer
     $nameResult->data_seek(0);
+
 }
 
 
@@ -105,9 +131,14 @@ if ($selectedLivestockId > 0) {
 
     $stmt->execute();
 
-    $profileResult = $stmt->get_result();
+    $profileResult =
+        $stmt->get_result();
 
-    if ($profileResult && $profileResult->num_rows > 0) {
+    if (
+        $profileResult
+        &&
+        $profileResult->num_rows > 0
+    ) {
 
         $livestockProfile =
             $profileResult->fetch_assoc();
@@ -115,6 +146,7 @@ if ($selectedLivestockId > 0) {
     }
 
     $stmt->close();
+
 }
 
 
@@ -130,7 +162,9 @@ $livestockResult = $conn->query("
 ");
 
 ?>
+
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -142,7 +176,9 @@ $livestockResult = $conn->query("
     content="width=device-width, initial-scale=1.0"
 >
 
-<title>Livestock Records</title>
+<title>
+    Livestock Records
+</title>
 
 
 <!-- MAIN CSS -->
@@ -152,10 +188,16 @@ $livestockResult = $conn->query("
     href="../style.css"
 >
 
+
+<!-- SIDEBAR -->
+
 <link
     rel="stylesheet"
     href="../sidebar.css"
 >
+
+
+<!-- LIVESTOCK CSS -->
 
 <link
     rel="stylesheet"
@@ -198,12 +240,16 @@ $livestockResult = $conn->query("
 <div class="layout">
 
 
-    <!-- SIDEBAR -->
+    <!-- =====================================================
+         SIDEBAR
+         ===================================================== -->
 
     <?php include '../sidebar.php'; ?>
 
 
-    <!-- MAIN -->
+    <!-- =====================================================
+         MAIN
+         ===================================================== -->
 
     <main class="dashboard">
 
@@ -233,7 +279,7 @@ $livestockResult = $conn->query("
         <div class="livestock-top-controls">
 
 
-            <!-- TYPE DROPDOWN -->
+            <!-- TYPE -->
 
             <select
                 class="livestock-type-select"
@@ -244,16 +290,28 @@ $livestockResult = $conn->query("
                     All Livestock
                 </option>
 
+
                 <?php if ($typeResult): ?>
 
-                    <?php while ($typeRow = $typeResult->fetch_assoc()): ?>
+                    <?php while (
+                        $typeRow =
+                        $typeResult->fetch_assoc()
+                    ): ?>
 
                         <option
-                            value="<?= htmlspecialchars($typeRow['type']) ?>"
-                            <?= strtolower($selectedType) === strtolower($typeRow['type']) ? 'selected' : '' ?>
+                            value="<?= htmlspecialchars(
+                                $typeRow['type'],
+                                ENT_QUOTES
+                            ) ?>"
+                            <?= strtolower($selectedType) ===
+                                strtolower($typeRow['type'])
+                                ? 'selected'
+                                : '' ?>
                         >
 
-                            <?= htmlspecialchars($typeRow['type']) ?>
+                            <?= htmlspecialchars(
+                                $typeRow['type']
+                            ) ?>
 
                         </option>
 
@@ -271,16 +329,31 @@ $livestockResult = $conn->query("
                 onchange="changeLivestock(this.value)"
             >
 
-                <?php if ($nameResult && $nameResult->num_rows > 0): ?>
+                <?php if (
+                    $nameResult
+                    &&
+                    $nameResult->num_rows > 0
+                ): ?>
 
-                    <?php while ($nameRow = $nameResult->fetch_assoc()): ?>
+                    <?php while (
+                        $nameRow =
+                        $nameResult->fetch_assoc()
+                    ): ?>
 
                         <option
-                            value="<?= intval($nameRow['livestock_id']) ?>"
-                            <?= intval($nameRow['livestock_id']) === $selectedLivestockId ? 'selected' : '' ?>
+                            value="<?= intval(
+                                $nameRow['livestock_id']
+                            ) ?>"
+                            <?= intval(
+                                $nameRow['livestock_id']
+                            ) === $selectedLivestockId
+                                ? 'selected'
+                                : '' ?>
                         >
 
-                            <?= htmlspecialchars($nameRow['name']) ?>
+                            <?= htmlspecialchars(
+                                $nameRow['name']
+                            ) ?>
 
                         </option>
 
@@ -370,7 +443,9 @@ $livestockResult = $conn->query("
                             type="button"
                             class="edit-profile-btn"
                             onclick="openEditModal(
-                                'edit_livestock.php?id=<?= intval($livestockProfile['livestock_id']) ?>',
+                                'edit_livestock.php?id=<?= intval(
+                                    $livestockProfile['livestock_id']
+                                ) ?>',
                                 'Edit Livestock Profile'
                             )"
                         >
@@ -393,7 +468,7 @@ $livestockResult = $conn->query("
                 <div class="profile-grid">
 
 
-                    <!-- DATE OF BIRTH -->
+                    <!-- DOB -->
 
                     <div class="profile-item">
 
@@ -405,11 +480,17 @@ $livestockResult = $conn->query("
 
                             <?php
 
-                            if (!empty($livestockProfile['dob'])) {
+                            if (
+                                !empty(
+                                    $livestockProfile['dob']
+                                )
+                            ) {
 
                                 echo date(
                                     'F d, Y',
-                                    strtotime($livestockProfile['dob'])
+                                    strtotime(
+                                        $livestockProfile['dob']
+                                    )
                                 );
 
                             } else {
@@ -434,9 +515,12 @@ $livestockResult = $conn->query("
                         </span>
 
                         <strong>
+
                             <?= htmlspecialchars(
-                                $livestockProfile['name'] ?? '-'
+                                $livestockProfile['name']
+                                ?? '-'
                             ) ?>
+
                         </strong>
 
                     </div>
@@ -451,9 +535,12 @@ $livestockResult = $conn->query("
                         </span>
 
                         <strong>
+
                             <?= htmlspecialchars(
-                                $livestockProfile['breed'] ?? '-'
+                                $livestockProfile['breed']
+                                ?? '-'
                             ) ?>
+
                         </strong>
 
                     </div>
@@ -470,7 +557,8 @@ $livestockResult = $conn->query("
                         <strong>
 
                             <?= htmlspecialchars(
-                                $livestockProfile['age'] ?? '-'
+                                $livestockProfile['age']
+                                ?? '-'
                             ) ?>
 
                         </strong>
@@ -478,7 +566,7 @@ $livestockResult = $conn->query("
                     </div>
 
 
-                    <!-- ESTIMATED WEIGHT -->
+                    <!-- WEIGHT -->
 
                     <div class="profile-item">
 
@@ -492,14 +580,20 @@ $livestockResult = $conn->query("
 
                             if (
                                 isset(
-                                    $livestockProfile['estimated_weight']
+                                    $livestockProfile[
+                                        'estimated_weight'
+                                    ]
                                 )
                                 &&
-                                $livestockProfile['estimated_weight'] !== ''
+                                $livestockProfile[
+                                    'estimated_weight'
+                                ] !== ''
                             ) {
 
                                 echo htmlspecialchars(
-                                    $livestockProfile['estimated_weight']
+                                    $livestockProfile[
+                                        'estimated_weight'
+                                    ]
                                 );
 
                                 echo ' kg';
@@ -530,13 +624,21 @@ $livestockResult = $conn->query("
                             <?php
 
                             if (
-                                isset($livestockProfile['for_sale'])
+                                isset(
+                                    $livestockProfile[
+                                        'for_sale'
+                                    ]
+                                )
                                 &&
                                 (
-                                    $livestockProfile['for_sale'] === '1'
+                                    $livestockProfile[
+                                        'for_sale'
+                                    ] === '1'
                                     ||
                                     strtolower(
-                                        $livestockProfile['for_sale']
+                                        $livestockProfile[
+                                            'for_sale'
+                                        ]
                                     ) === 'yes'
                                 )
                             ) {
@@ -598,7 +700,9 @@ $livestockResult = $conn->query("
                         type="button"
                         class="add-record-btn"
                         onclick="openEditModal(
-                            'add_livestock_record.php?livestock_id=<?= intval($selectedLivestockId) ?>',
+                            'add_livestock.php?livestock_id=<?= intval(
+                                $selectedLivestockId
+                            ) ?>',
                             'Add Livestock Record'
                         )"
                     >
@@ -607,7 +711,7 @@ $livestockResult = $conn->query("
                             add
                         </span>
 
-                        Add Record
+                        Add Livestock
 
                     </button>
 
@@ -697,13 +801,14 @@ $livestockResult = $conn->query("
 
                     </select>
 
+
                 </div>
 
             </div>
 
 
             <!-- =================================================
-                 LIVESTOCK TABLE
+                 TABLE
                  ================================================= -->
 
             <div class="livestock-table-container">
@@ -754,165 +859,201 @@ $livestockResult = $conn->query("
                     <tbody>
 
 
-                        <?php if (
-                            $livestockResult
-                            &&
-                            $livestockResult->num_rows > 0
+                    <?php if (
+                        $livestockResult
+                        &&
+                        $livestockResult->num_rows > 0
+                    ): ?>
+
+
+                        <?php while (
+                            $row =
+                            $livestockResult->fetch_assoc()
                         ): ?>
 
 
-                            <?php while (
-                                $row =
-                                $livestockResult->fetch_assoc()
-                            ): ?>
+                            <tr class="livestock-row">
 
 
-                                <tr class="livestock-row">
+                                <!-- TYPE -->
 
+                                <td>
 
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['type'] ?? '-'
-                                        ) ?>
-                                    </td>
-
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['name'] ?? '-'
-                                        ) ?>
-                                    </td>
-
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['age'] ?? '-'
-                                        ) ?>
-                                    </td>
-
-
-                                    <td>
-
-                                        <?php
-
-                                        if (
-                                            isset(
-                                                $row['estimated_weight']
-                                            )
-                                            &&
-                                            $row['estimated_weight'] !== ''
-                                        ) {
-
-                                            echo htmlspecialchars(
-                                                $row['estimated_weight']
-                                            );
-
-                                            echo ' kg';
-
-                                        } else {
-
-                                            echo '-';
-
-                                        }
-
-                                        ?>
-
-                                    </td>
-
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['sex'] ?? '-'
-                                        ) ?>
-                                    </td>
-
-
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $row['feeding_schedule'] ?? '-'
-                                        ) ?>
-                                    </td>
-
-
-                                    <?php if ($role === 'admin'): ?>
-
-                                        <td>
-
-                                            <div class="action-buttons">
-
-
-                                                <!-- EDIT -->
-
-                                                <button
-                                                    type="button"
-                                                    class="action-icon edit-icon"
-                                                    title="Edit"
-                                                    onclick="openEditModal(
-                                                        'edit_livestock.php?id=<?= intval($row['livestock_id']) ?>',
-                                                        'Edit Livestock'
-                                                    )"
-                                                >
-
-                                                    <span class="material-symbols-rounded">
-                                                        edit
-                                                    </span>
-
-                                                </button>
-
-
-                                                <!-- ARCHIVE -->
-
-                                                <button
-                                                    type="button"
-                                                    class="action-icon archive-icon"
-                                                    title="Archive"
-                                                    onclick="openArchiveModal(
-                                                        'archive_livestock.php?id=<?= intval($row['livestock_id']) ?>',
-                                                        '<?= htmlspecialchars(
-                                                            $row['name'] ?? 'this livestock',
-                                                            ENT_QUOTES
-                                                        ) ?>'
-                                                    )"
-                                                >
-
-                                                    <span class="material-symbols-rounded">
-                                                        archive
-                                                    </span>
-
-                                                </button>
-
-
-                                            </div>
-
-                                        </td>
-
-                                    <?php endif; ?>
-
-
-                                </tr>
-
-
-                            <?php endwhile; ?>
-
-
-                        <?php else: ?>
-
-
-                            <tr>
-
-                                <td
-                                    colspan="<?= $role === 'admin' ? '7' : '6' ?>"
-                                    class="no-records"
-                                >
-
-                                    No livestock records found.
+                                    <?= htmlspecialchars(
+                                        $row['type'] ?? '-'
+                                    ) ?>
 
                                 </td>
+
+
+                                <!-- NAME -->
+
+                                <td>
+
+                                    <?= htmlspecialchars(
+                                        $row['name'] ?? '-'
+                                    ) ?>
+
+                                </td>
+
+
+                                <!-- AGE -->
+
+                                <td>
+
+                                    <?= htmlspecialchars(
+                                        $row['age'] ?? '-'
+                                    ) ?>
+
+                                </td>
+
+
+                                <!-- WEIGHT -->
+
+                                <td>
+
+                                    <?php
+
+                                    if (
+                                        isset(
+                                            $row[
+                                                'estimated_weight'
+                                            ]
+                                        )
+                                        &&
+                                        $row[
+                                            'estimated_weight'
+                                        ] !== ''
+                                    ) {
+
+                                        echo htmlspecialchars(
+                                            $row[
+                                                'estimated_weight'
+                                            ]
+                                        );
+
+                                        echo ' kg';
+
+                                    } else {
+
+                                        echo '-';
+
+                                    }
+
+                                    ?>
+
+                                </td>
+
+
+                                <!-- SEX -->
+
+                                <td>
+
+                                    <?= htmlspecialchars(
+                                        $row['sex'] ?? '-'
+                                    ) ?>
+
+                                </td>
+
+
+                                <!-- FEEDING -->
+
+                                <td>
+
+                                    <?= htmlspecialchars(
+                                        $row[
+                                            'feeding_schedule'
+                                        ] ?? '-'
+                                    ) ?>
+
+                                </td>
+
+
+                                <!-- ACTION -->
+
+                                <?php if ($role === 'admin'): ?>
+
+                                    <td>
+
+                                        <div class="action-buttons">
+
+
+                                            <!-- EDIT -->
+
+                                            <button
+                                                type="button"
+                                                class="action-icon edit-icon"
+                                                title="Edit"
+                                                data-edit-url="edit_livestock.php?id=<?= intval(
+                                                    $row['livestock_id']
+                                                ) ?>"
+                                                data-edit-title="Edit Livestock"
+                                            >
+
+                                                <span class="material-symbols-rounded">
+                                                    edit
+                                                </span>
+
+                                            </button>
+
+
+                                            <!-- ARCHIVE -->
+
+                                            <button
+                                                type="button"
+                                                class="action-icon archive-icon livestock-archive-btn"
+                                                title="Archive"
+                                                data-archive-url="archived_livestocks.php?id=<?= intval(
+                                                    $row['livestock_id']
+                                                ) ?>"
+                                                data-livestock-name="<?= htmlspecialchars(
+                                                    $row['name']
+                                                        ?? 'this livestock',
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>"
+                                            >
+
+                                                <span class="material-symbols-rounded">
+                                                    archive
+                                                </span>
+
+                                            </button>
+
+
+                                        </div>
+
+                                    </td>
+
+                                <?php endif; ?>
+
 
                             </tr>
 
 
-                        <?php endif; ?>
+                        <?php endwhile; ?>
+
+
+                    <?php else: ?>
+
+
+                        <tr>
+
+                            <td
+                                colspan="<?= $role === 'admin'
+                                    ? '7'
+                                    : '6' ?>"
+                                class="no-records"
+                            >
+
+                                No livestock records found.
+
+                            </td>
+
+                        </tr>
+
+
+                    <?php endif; ?>
 
 
                     </tbody>
@@ -920,6 +1061,7 @@ $livestockResult = $conn->query("
                 </table>
 
             </div>
+
 
         </div>
 
@@ -940,11 +1082,13 @@ $livestockResult = $conn->query("
 
     <div class="edit-modal">
 
+
         <div class="modal-header">
 
             <h3 id="editModalTitle">
                 Edit Livestock
             </h3>
+
 
             <button
                 type="button"
@@ -966,6 +1110,7 @@ $livestockResult = $conn->query("
             title="Livestock Form"
         ></iframe>
 
+
     </div>
 
 </div>
@@ -981,6 +1126,7 @@ $livestockResult = $conn->query("
 >
 
     <div class="archive-modal">
+
 
         <div class="archive-icon-large">
 
@@ -1003,31 +1149,47 @@ $livestockResult = $conn->query("
 
         <div class="archive-actions">
 
+
             <button
                 type="button"
                 class="cancel-btn"
                 onclick="closeArchiveModal()"
             >
+
                 Cancel
+
             </button>
 
 
             <button
                 type="button"
                 class="confirm-archive-btn"
-                onclick="confirmArchive()"
+                id="confirmArchiveBtn"
             >
+
                 Archive
+
             </button>
 
+
         </div>
+
 
     </div>
 
 </div>
 
 
+<!-- =========================================================
+     JAVASCRIPT
+     ========================================================= -->
+
 <script>
+
+
+// =========================================================
+// GLOBAL ARCHIVE URL
+// =========================================================
 
 let archiveUrl = '';
 
@@ -1043,13 +1205,14 @@ function changeLivestockType(type) {
         window.location.href =
             'livestocks.php';
 
-    } else {
-
-        window.location.href =
-            'livestocks.php?type=' +
-            encodeURIComponent(type);
+        return;
 
     }
+
+
+    window.location.href =
+        'livestocks.php?type=' +
+        encodeURIComponent(type);
 
 }
 
@@ -1064,14 +1227,21 @@ function changeLivestock(id) {
         return;
     }
 
-    const type =
+
+    const params =
         new URLSearchParams(
             window.location.search
-        ).get('type');
+        );
+
+
+    const type =
+        params.get('type');
+
 
     let url =
         'livestocks.php?livestock_id=' +
         encodeURIComponent(id);
+
 
     if (type) {
 
@@ -1080,6 +1250,7 @@ function changeLivestock(id) {
             encodeURIComponent(type);
 
     }
+
 
     window.location.href = url;
 
@@ -1092,26 +1263,47 @@ function changeLivestock(id) {
 
 function searchLivestock() {
 
+    const input =
+        document.getElementById(
+            'livestockSearch'
+        );
+
+
+    if (!input) {
+        return;
+    }
+
+
     const search =
-        document
-            .getElementById('livestockSearch')
-            .value
-            .toLowerCase();
+        input.value
+            .toLowerCase()
+            .trim();
+
 
     const rows =
         document.querySelectorAll(
             '.livestock-row'
         );
 
+
     rows.forEach(function(row) {
 
         const text =
-            row.textContent.toLowerCase();
+            row.textContent
+                .toLowerCase();
 
-        row.style.display =
+
+        if (
             text.includes(search)
-                ? ''
-                : 'none';
+        ) {
+
+            row.style.display = '';
+
+        } else {
+
+            row.style.display = 'none';
+
+        }
 
     });
 
@@ -1135,27 +1327,68 @@ function searchRecords() {
 
 function filterRecords() {
 
+    const searchInput =
+        document.getElementById(
+            'recordSearch'
+        );
+
+
+    const monthFilter =
+        document.getElementById(
+            'monthFilter'
+        );
+
+
+    if (!searchInput) {
+        return;
+    }
+
+
     const search =
-        document
-            .getElementById('recordSearch')
-            .value
-            .toLowerCase();
+        searchInput.value
+            .toLowerCase()
+            .trim();
+
+
+    const month =
+        monthFilter
+            ? monthFilter.value
+            : 'all';
+
 
     const rows =
         document.querySelectorAll(
             '.livestock-row'
         );
 
+
     rows.forEach(function(row) {
 
         const text =
-            row.textContent.toLowerCase();
+            row.textContent
+                .toLowerCase();
+
 
         const matchesSearch =
             text.includes(search);
 
+
+        /*
+        NOTE:
+        Month filtering can be connected
+        to a date column when the livestock
+        record date field is finalized.
+        */
+
+        const matchesMonth =
+            month === 'all'
+                ? true
+                : true;
+
+
         row.style.display =
-            matchesSearch
+            matchesSearch &&
+            matchesMonth
                 ? ''
                 : 'none';
 
@@ -1168,104 +1401,337 @@ function filterRecords() {
 // EDIT MODAL
 // =========================================================
 
-function openEditModal(url, title) {
+function openEditModal(
+    url,
+    title
+) {
 
-    document
-        .getElementById('editModalTitle')
-        .textContent = title;
-
-    document
-        .getElementById('editFrame')
-        .src = url;
-
-    document
-        .getElementById('editModal')
-        .classList.add('active');
-
-    document.body.style.overflow =
-        'hidden';
-
-}
+    const modal =
+        document.getElementById(
+            'editModal'
+        );
 
 
-function closeEditModal() {
-
-    document
-        .getElementById('editModal')
-        .classList.remove('active');
-
-    document
-        .getElementById('editFrame')
-        .src = '';
-
-    document.body.style.overflow =
-        '';
-
-}
+    const frame =
+        document.getElementById(
+            'editFrame'
+        );
 
 
-// =========================================================
-// ARCHIVE MODAL
-// =========================================================
-
-function openArchiveModal(url, name) {
-
-    archiveUrl = url;
-
-    document
-        .getElementById('archiveMessage')
-        .textContent =
-        'Are you sure you want to archive "' +
-        name +
-        '"?';
-
-    document
-        .getElementById('archiveModal')
-        .classList.add('active');
-
-    document.body.style.overflow =
-        'hidden';
-
-}
+    const modalTitle =
+        document.getElementById(
+            'editModalTitle'
+        );
 
 
-function closeArchiveModal() {
+    if (
+        !modal ||
+        !frame ||
+        !modalTitle
+    ) {
 
-    document
-        .getElementById('archiveModal')
-        .classList.remove('active');
+        console.error(
+            'Edit modal elements not found.'
+        );
 
-    archiveUrl = '';
-
-    document.body.style.overflow =
-        '';
-
-}
-
-
-function confirmArchive() {
-
-    if (archiveUrl) {
-
-        window.location.href =
-            archiveUrl;
+        return;
 
     }
 
+
+    modalTitle.textContent =
+        title;
+
+
+    frame.src =
+        url;
+
+
+    modal.classList.add(
+        'active'
+    );
+
+
+    document.body.style.overflow =
+        'hidden';
+
 }
 
 
 // =========================================================
-// CLICK OUTSIDE MODALS
+// CLOSE EDIT MODAL
+// =========================================================
+
+function closeEditModal() {
+
+    const modal =
+        document.getElementById(
+            'editModal'
+        );
+
+
+    const frame =
+        document.getElementById(
+            'editFrame'
+        );
+
+
+    if (modal) {
+
+        modal.classList.remove(
+            'active'
+        );
+
+    }
+
+
+    if (frame) {
+
+        frame.src = '';
+
+    }
+
+
+    document.body.style.overflow =
+        '';
+
+}
+
+
+// =========================================================
+// OPEN ARCHIVE MODAL
+// =========================================================
+
+function openArchiveModal(
+    url,
+    livestockName
+) {
+
+    archiveUrl =
+        url;
+
+
+    const modal =
+        document.getElementById(
+            'archiveModal'
+        );
+
+
+    const message =
+        document.getElementById(
+            'archiveMessage'
+        );
+
+
+    if (!modal) {
+
+        console.error(
+            'Archive modal not found.'
+        );
+
+        return;
+
+    }
+
+
+    if (message) {
+
+        message.textContent =
+            'Are you sure you want to archive "' +
+            livestockName +
+            '"?';
+
+    }
+
+
+    modal.classList.add(
+        'active'
+    );
+
+
+    document.body.style.overflow =
+        'hidden';
+
+}
+
+
+// =========================================================
+// CLOSE ARCHIVE MODAL
+// =========================================================
+
+function closeArchiveModal() {
+
+    const modal =
+        document.getElementById(
+            'archiveModal'
+        );
+
+
+    if (modal) {
+
+        modal.classList.remove(
+            'active'
+        );
+
+    }
+
+
+    archiveUrl = '';
+
+
+    document.body.style.overflow =
+        '';
+
+}
+
+
+// =========================================================
+// CONFIRM ARCHIVE
+// =========================================================
+
+function confirmArchive() {
+
+    if (!archiveUrl) {
+
+        console.error(
+            'No archive URL selected.'
+        );
+
+        return;
+
+    }
+
+
+    window.location.href =
+        archiveUrl;
+
+}
+
+
+// =========================================================
+// EDIT BUTTON EVENT LISTENERS
 // =========================================================
 
 document
-    .getElementById('editModal')
-    .addEventListener(
-        'click',
-        function(e) {
+    .querySelectorAll(
+        '.edit-icon'
+    )
+    .forEach(function(button) {
 
-            if (e.target === this) {
+        button.addEventListener(
+            'click',
+            function() {
+
+                const url =
+                    this.dataset.editUrl;
+
+                const title =
+                    this.dataset.editTitle
+                    || 'Edit Livestock';
+
+
+                if (url) {
+
+                    openEditModal(
+                        url,
+                        title
+                    );
+
+                }
+
+            }
+        );
+
+    });
+
+
+// =========================================================
+// ARCHIVE BUTTON EVENT LISTENERS
+// =========================================================
+
+document
+    .querySelectorAll(
+        '.livestock-archive-btn'
+    )
+    .forEach(function(button) {
+
+        button.addEventListener(
+            'click',
+            function() {
+
+                const url =
+                    this.dataset.archiveUrl;
+
+                const name =
+                    this.dataset.livestockName
+                    || 'this livestock';
+
+
+                if (!url) {
+
+                    console.error(
+                        'Archive URL is missing.'
+                    );
+
+                    return;
+
+                }
+
+
+                openArchiveModal(
+                    url,
+                    name
+                );
+
+            }
+        );
+
+    });
+
+
+// =========================================================
+// CONFIRM ARCHIVE BUTTON
+// =========================================================
+
+const confirmArchiveButton =
+    document.getElementById(
+        'confirmArchiveBtn'
+    );
+
+
+if (confirmArchiveButton) {
+
+    confirmArchiveButton.addEventListener(
+        'click',
+        function() {
+
+            confirmArchive();
+
+        }
+    );
+
+}
+
+
+// =========================================================
+// CLICK OUTSIDE EDIT MODAL
+// =========================================================
+
+const editModal =
+    document.getElementById(
+        'editModal'
+    );
+
+
+if (editModal) {
+
+    editModal.addEventListener(
+        'click',
+        function(event) {
+
+            if (
+                event.target === this
+            ) {
 
                 closeEditModal();
 
@@ -1274,14 +1740,28 @@ document
         }
     );
 
+}
 
-document
-    .getElementById('archiveModal')
-    .addEventListener(
+
+// =========================================================
+// CLICK OUTSIDE ARCHIVE MODAL
+// =========================================================
+
+const archiveModal =
+    document.getElementById(
+        'archiveModal'
+    );
+
+
+if (archiveModal) {
+
+    archiveModal.addEventListener(
         'click',
-        function(e) {
+        function(event) {
 
-            if (e.target === this) {
+            if (
+                event.target === this
+            ) {
 
                 closeArchiveModal();
 
@@ -1290,16 +1770,20 @@ document
         }
     );
 
+}
+
 
 // =========================================================
-// ESC
+// ESC KEY
 // =========================================================
 
 document.addEventListener(
     'keydown',
-    function(e) {
+    function(event) {
 
-        if (e.key === 'Escape') {
+        if (
+            event.key === 'Escape'
+        ) {
 
             closeEditModal();
 
@@ -1310,8 +1794,10 @@ document.addEventListener(
     }
 );
 
+
 </script>
 
 
 </body>
+
 </html>

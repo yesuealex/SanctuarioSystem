@@ -30,8 +30,8 @@ if (!$data) {
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $crop_name = trim($_POST['crop_name'] ?? '');
-    $plot_code = $_POST['plot_code'] ?? '';
-    $staff_name = trim($_POST['staff_name'] ?? '');
+    $plot_code = $_POST['plot_id'] ?? '';
+    $staff_name = trim($_POST['recipient'] ?? '');
     $variety = trim($_POST['variety'] ?? '');
     $pcs = intval($_POST['pcs'] ?? 0);
     $germination_rate = floatval($_POST['germination_rate'] ?? 0);
@@ -48,8 +48,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $stmt = $conn->prepare("
         UPDATE crops
         SET crop_name = ?,
-            plot_code = ?,
-            staff_name = ?,
+            plot_is = ?,
+            recipient = ?,
             variety = ?,
             pcs = ?,
             germination_rate = ?,
@@ -66,8 +66,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $stmt->bind_param(
         "ssssidsssi",
         $crop_name,
-        $plot_code,
-        $staff_name,
+        $plot_id,
+        $recipient,
         $variety,
         $pcs,
         $germination_rate,
@@ -230,8 +230,8 @@ body {
             <div class="form-group">
                 <label>Staff Name</label>
                 <input
-                    name="staff_name"
-                    value="<?= htmlspecialchars($data['staff_name']) ?>"
+                    name="recipient"
+                    value="<?= htmlspecialchars($data['recipient']) ?>"
                     required
                 >
             </div>
@@ -295,10 +295,10 @@ body {
             <div class="form-group">
                 <label>Plot Location</label>
                 <select name="plot_code" required>
-                    <option value="plot_a" <?= ($data['plot_code'] === 'plot_a') ? 'selected' : '' ?>>Plot A</option>
-                    <option value="plot_b" <?= ($data['plot_code'] === 'plot_b') ? 'selected' : '' ?>>Plot B</option>
-                    <option value="plot_c" <?= ($data['plot_code'] === 'plot_c') ? 'selected' : '' ?>>Plot C</option>
-                    <option value="livestock" <?= ($data['plot_code'] === 'livestock') ? 'selected' : '' ?>>Livestock</option>
+                    <option value="plot_a" <?= ($data['plot_id'] === 'plot_a') ? 'selected' : '' ?>>Plot A</option>
+                    <option value="plot_b" <?= ($data['plot_id'] === 'plot_b') ? 'selected' : '' ?>>Plot B</option>
+                    <option value="plot_c" <?= ($data['plot_id'] === 'plot_c') ? 'selected' : '' ?>>Plot C</option>
+                    <option value="livestock" <?= ($data['plot_id'] === 'livestock') ? 'selected' : '' ?>>Livestock</option>
                 </select>
             </div>
 

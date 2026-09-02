@@ -264,15 +264,20 @@ tr:hover {
 
 <tr>
 
-<th>Crop Name</th>
-<th>Plot</th>
-<th>Staff</th>
-<th>Variety</th>
-<th>Pieces</th>
-<th>Germination</th>
-<th>Area</th>
-<th>Transplanted</th>
-<th>Harvest</th>
+<th>RECIPIENT</th>
+<th>PLOT</th>
+<th>CROP</th>
+<th>VARIETY</th>
+<th>NO. OF<br>PLANTS</th>
+<th>DATE OF<br>SOWING</th>
+<th>GERMINATION<br>RATE</th>
+<th>TARGET<br>TRANSPLANT DATE</th>
+<th>TARGET<br>AREA</th>
+<th>SEEDLINGS<br>RECIEVED</th>
+<th>DATE<br>TRANSPLANTED</th>
+<th>EXPECTED<br>HARVEST</th>
+<th>STATUS</th>
+<th>TRANSPLANTED<br>AREA</th>
 
 <?php if ($role === 'admin'): ?>
 <th>Action</th>
@@ -292,15 +297,15 @@ tr:hover {
 <tr class="archive-row">
 
 <td>
+<?= htmlspecialchars($row['recipient']) ?>
+</td>
+
+<td>
+<?= htmlspecialchars($row['plot_id']) ?>
+</td>
+
+<td>
 <?= htmlspecialchars($row['crop_name']) ?>
-</td>
-
-<td>
-<?= htmlspecialchars($row['plot_code']) ?>
-</td>
-
-<td>
-<?= htmlspecialchars($row['staff_name']) ?>
 </td>
 
 <td>
@@ -312,11 +317,23 @@ tr:hover {
 </td>
 
 <td>
+<?= htmlspecialchars($row['date_sowing']) ?>
+</td>
+
+<td>
 <?= htmlspecialchars($row['germination_rate']) ?>%
 </td>
 
 <td>
-<?= htmlspecialchars($row['transplanted_area']) ?>
+<?= htmlspecialchars($row['target_transplant_date']) ?>
+</td>
+
+<td>
+<?= htmlspecialchars($row['target_area']) ?>
+</td>
+
+<td>
+<?= htmlspecialchars($row['seedlings_received']) ?>
 </td>
 
 <td>
@@ -326,6 +343,18 @@ tr:hover {
 <td>
 <?= htmlspecialchars($row['expected_harvest']) ?>
 </td>
+
+<td>
+<?= htmlspecialchars($row['status']) ?>
+</td>
+
+<td>
+<?= htmlspecialchars($row['transplanted_area']) ?>
+</td>
+
+
+
+
 
 
 <?php if ($role === 'admin'): ?>

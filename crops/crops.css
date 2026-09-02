@@ -3,8 +3,11 @@
    ========================================================= */
 
 .crop-records {
+
     width: 100%;
+
     margin-top: 10px;
+
 }
 
 
@@ -13,13 +16,17 @@
    ========================================================= */
 
 .crop-topbar {
+
     width: 100%;
 
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
 
     margin-bottom: 18px;
+
 }
 
 
@@ -28,9 +35,13 @@
    ========================================================= */
 
 .crop-filters {
+
     display: flex;
+
     align-items: center;
+
     gap: 10px;
+
 }
 
 
@@ -39,29 +50,42 @@
    ========================================================= */
 
 .crop-select {
+
     height: 40px;
 
     min-width: 150px;
 
     padding: 0 12px;
 
-    border: 1px solid #ddd;
+    border:
+        1px solid #ddd;
+
     border-radius: 20px;
 
     background: #2f6b2f;
+
     color: #ffffff;
 
-    font-family: 'Poppins', sans-serif;
+    font-family:
+        'Poppins',
+        sans-serif;
+
     font-size: 0.82rem;
 
     outline: none;
+
     cursor: pointer;
 
     box-sizing: border-box;
+
 }
 
+
 .crop-select:focus {
-    border-color: #2f6b2f;
+
+    border-color:
+        #2f6b2f;
+
 }
 
 
@@ -70,44 +94,66 @@
    ========================================================= */
 
 .crop-search {
+
     height: 40px;
+
     width: 300px;
 
     display: flex;
+
     align-items: center;
+
     gap: 8px;
 
     padding: 0 12px;
 
     box-sizing: border-box;
 
-    background: white;
+    background: #ffffff;
 
-    border: 1px solid #ddd;
+    border:
+        1px solid #ddd;
+
     border-radius: 20px;
+
 }
 
-.crop-search .material-symbols-rounded {
+
+.crop-search
+.material-symbols-rounded {
+
     font-size: 20px;
+
     color: #777;
+
 }
+
 
 .crop-search input {
+
     width: 100%;
 
     border: none;
+
     outline: none;
 
     background: transparent;
 
-    font-family: 'Poppins', sans-serif;
+    font-family:
+        'Poppins',
+        sans-serif;
+
     font-size: 0.82rem;
 
     color: #333;
+
 }
 
+
 .crop-search input::placeholder {
+
     color: #999;
+
 }
 
 
@@ -116,72 +162,109 @@
    ========================================================= */
 
 .crop-actions {
+
     display: flex;
+
     align-items: center;
+
     gap: 10px;
+
 }
 
 
 /* =========================================================
-   ADD CROP BUTTON
+   ADD + ARCHIVED BUTTONS
    ========================================================= */
 
 .add-crop-btn,
 .archived-crops-btn {
+
     height: 38px;
 
-    padding: 0 13px;
+    padding:
+        0 13px;
 
     display: inline-flex;
+
     align-items: center;
+
     justify-content: center;
 
     gap: 6px;
 
     border: none;
+
     border-radius: 20px;
 
-    font-family: 'Poppins', sans-serif;
+    font-family:
+        'Poppins',
+        sans-serif;
+
     font-size: 0.82rem;
+
     font-weight: 500;
 
     cursor: pointer;
 
-    transition: 0.2s ease;
-}
+    transition:
+        0.2s ease;
 
-
-/* ADD */
-
-.add-crop-btn {
-    background: #2f6b2f;
-    color: white;
-}
-
-.add-crop-btn:hover {
-    background: #244f24;
-}
-
-.add-crop-btn .material-symbols-rounded {
-    font-size: 18px;
 }
 
 
 /* =========================================================
-   ARCHIVED CROPS BUTTON
+   ADD CROP
+   ========================================================= */
+
+.add-crop-btn {
+
+    background: #2f6b2f;
+
+    color: #ffffff;
+
+}
+
+
+.add-crop-btn:hover {
+
+    background: #244f24;
+
+}
+
+
+.add-crop-btn
+.material-symbols-rounded {
+
+    font-size: 18px;
+
+}
+
+
+/* =========================================================
+   ARCHIVED CROPS
    ========================================================= */
 
 .archived-crops-btn {
+
     background: #f1f5f9;
+
     color: #444;
+
 }
+
 
 .archived-crops-btn:hover {
+
     background: #e2e8f0;
+
 }
 
-.archived-crops-btn .material-symbols-rounded {
+
+.archived-crops-btn
+.material-symbols-rounded {
+
     font-size: 18px;
+
 }
 
 
@@ -190,16 +273,19 @@
    ========================================================= */
 
 .crop-table-wrapper {
+
     width: 100%;
 
     overflow-x: auto;
 
-    background: white;
+    background: #ffffff;
 
     border-radius: 10px;
 
     box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.05);
+        0 2px 8px
+        rgba(0, 0, 0, 0.05);
+
 }
 
 
@@ -208,6 +294,7 @@
    ========================================================= */
 
 .crop-table-wrapper table {
+
     width: 100%;
 
     min-width: 950px;
@@ -216,7 +303,8 @@
 
     margin: 0;
 
-    background: white;
+    background: #ffffff;
+
 }
 
 
@@ -225,21 +313,29 @@
    ========================================================= */
 
 .crop-table-wrapper th {
-    padding: 12px 10px;
+
+    padding:
+        12px 10px;
 
     background: #f1f5f9;
 
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom:
+        1px solid #e5e7eb;
 
     color: #444;
 
     text-align: left;
 
-    font-family: 'Poppins', sans-serif;
+    font-family:
+        'Poppins',
+        sans-serif;
+
     font-size: 0.78rem;
+
     font-weight: 600;
 
     white-space: nowrap;
+
 }
 
 
@@ -248,26 +344,41 @@
    ========================================================= */
 
 .crop-table-wrapper td {
-    padding: 11px 10px;
 
-    border-bottom: 1px solid #eee;
+    padding:
+        11px 10px;
+
+    border-bottom:
+        1px solid #eee;
 
     color: #444;
 
     text-align: left;
 
-    font-family: 'Poppins', sans-serif;
+    font-family:
+        'Poppins',
+        sans-serif;
+
     font-size: 0.8rem;
 
     white-space: nowrap;
+
 }
 
-.crop-table-wrapper tbody tr:hover {
+
+.crop-table-wrapper
+tbody tr:hover {
+
     background: #f9fafb;
+
 }
 
-.crop-table-wrapper tbody tr:last-child td {
+
+.crop-table-wrapper
+tbody tr:last-child td {
+
     border-bottom: none;
+
 }
 
 
@@ -276,33 +387,49 @@
    ========================================================= */
 
 .action-buttons {
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
 
     gap: 7px;
+
 }
 
+
 .action-icon {
+
     width: 32px;
+
     height: 32px;
 
     padding: 0;
 
     border: none;
+
     border-radius: 7px;
 
     display: flex;
+
     align-items: center;
+
     justify-content: center;
 
     cursor: pointer;
 
-    transition: 0.2s ease;
+    transition:
+        0.2s ease;
+
 }
 
-.action-icon .material-symbols-rounded {
+
+.action-icon
+.material-symbols-rounded {
+
     font-size: 18px;
+
 }
 
 
@@ -311,13 +438,20 @@
    ========================================================= */
 
 .edit-icon {
+
     background: #e8f5e9;
+
     color: #2f6b2f;
+
 }
 
+
 .edit-icon:hover {
+
     background: #2f6b2f;
-    color: white;
+
+    color: #ffffff;
+
 }
 
 
@@ -326,13 +460,20 @@
    ========================================================= */
 
 .archive-icon {
+
     background: #fff4df;
+
     color: #b7791f;
+
 }
 
+
 .archive-icon:hover {
+
     background: #b7791f;
-    color: white;
+
+    color: #ffffff;
+
 }
 
 
@@ -341,65 +482,481 @@
    ========================================================= */
 
 .no-records {
-    padding: 35px 20px !important;
 
-    text-align: center !important;
+    padding:
+        35px 20px !important;
 
-    color: #888 !important;
+    text-align:
+        center !important;
 
-    font-size: 0.85rem !important;
+    color:
+        #888 !important;
+
+    font-size:
+        0.85rem !important;
+
 }
 
 
 /* =========================================================
-   RESPONSIVE
+   EDIT / ADD MODAL
+   ========================================================= */
+
+.modal-overlay {
+
+    position: fixed;
+
+    inset: 0;
+
+    width: 100%;
+
+    height: 100%;
+
+    background:
+        rgba(0, 0, 0, 0.45);
+
+    display: none;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 20px;
+
+    z-index: 9999;
+
+}
+
+
+.modal-overlay.active {
+
+    display: flex;
+
+}
+
+
+/* =========================================================
+   EDIT MODAL CONTAINER
+   ========================================================= */
+
+.edit-modal {
+
+    width: 100%;
+
+    max-width: 620px;
+
+    max-height: 90vh;
+
+    background: #ffffff;
+
+    border-radius: 14px;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 15px 40px
+        rgba(0, 0, 0, 0.20);
+
+    display: flex;
+
+    flex-direction: column;
+
+}
+
+
+/* =========================================================
+   MODAL HEADER
+   ========================================================= */
+
+.modal-header {
+
+    height: 60px;
+
+    padding:
+        0 18px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    background: #ffffff;
+
+    border-bottom:
+        1px solid #eee;
+
+    flex-shrink: 0;
+
+}
+
+
+.modal-header h3 {
+
+    margin: 0;
+
+    color: #2f6b2f;
+
+    font-family:
+        'Poppins',
+        sans-serif;
+
+    font-size: 1rem;
+
+    font-weight: 600;
+
+}
+
+
+/* =========================================================
+   CLOSE BUTTON
+   ========================================================= */
+
+.close-modal {
+
+    width: 34px;
+
+    height: 34px;
+
+    padding: 0;
+
+    border: none;
+
+    border-radius: 50%;
+
+    background: #f1f5f9;
+
+    color: #555;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    cursor: pointer;
+
+    transition:
+        0.2s ease;
+
+}
+
+
+.close-modal:hover {
+
+    background: #e2e8f0;
+
+    color: #222;
+
+}
+
+
+.close-modal
+.material-symbols-rounded {
+
+    font-size: 20px;
+
+}
+
+
+/* =========================================================
+   IFRAME
+   ========================================================= */
+
+#editFrame {
+
+    width: 100%;
+
+    height: 650px;
+
+    border: none;
+
+    display: block;
+
+    background: #ffffff;
+
+}
+
+
+/* =========================================================
+   ARCHIVE MODAL
+   ========================================================= */
+
+.delete-modal {
+
+    width: 100%;
+
+    max-width: 420px;
+
+    padding: 30px;
+
+    background: #ffffff;
+
+    border-radius: 14px;
+
+    text-align: center;
+
+    box-shadow:
+        0 15px 40px
+        rgba(0, 0, 0, 0.20);
+
+}
+
+
+.delete-icon-large {
+
+    width: 60px;
+
+    height: 60px;
+
+    margin:
+        0 auto 15px;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background: #fff4df;
+
+    color: #b7791f;
+
+}
+
+
+.delete-icon-large
+.material-symbols-rounded {
+
+    font-size: 30px;
+
+}
+
+
+.delete-modal h3 {
+
+    margin:
+        0 0 10px;
+
+    font-family:
+        'Poppins',
+        sans-serif;
+
+    color: #333;
+
+}
+
+
+.delete-modal p {
+
+    margin:
+        0 0 20px;
+
+    color: #666;
+
+    font-size: 0.85rem;
+
+}
+
+
+/* =========================================================
+   DELETE ACTIONS
+   ========================================================= */
+
+.delete-actions {
+
+    display: flex;
+
+    justify-content: center;
+
+    gap: 10px;
+
+}
+
+
+.cancel-btn,
+.confirm-delete-btn {
+
+    min-width: 100px;
+
+    height: 38px;
+
+    padding:
+        0 16px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    font-family:
+        'Poppins',
+        sans-serif;
+
+    font-size: 0.82rem;
+
+    font-weight: 500;
+
+    cursor: pointer;
+
+    transition:
+        0.2s ease;
+
+}
+
+
+.cancel-btn {
+
+    background: #f1f5f9;
+
+    color: #444;
+
+}
+
+
+.cancel-btn:hover {
+
+    background: #e2e8f0;
+
+}
+
+
+.confirm-delete-btn {
+
+    background: #b7791f;
+
+    color: #ffffff;
+
+}
+
+
+.confirm-delete-btn:hover {
+
+    background: #986516;
+
+}
+
+
+/* =========================================================
+   MOBILE MODAL
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .modal-overlay {
+
+        padding: 10px;
+
+    }
+
+
+    .edit-modal {
+
+        max-height: 95vh;
+
+        border-radius: 12px;
+
+    }
+
+
+    #editFrame {
+
+        height: 75vh;
+
+    }
+
+
+    .delete-modal {
+
+        padding: 25px 20px;
+
+    }
+
+}
+
+
+/* =========================================================
+   RESPONSIVE TOP BAR
    ========================================================= */
 
 @media (max-width: 1000px) {
 
     .crop-topbar {
+
         align-items: flex-start;
+
         gap: 15px;
+
     }
+
 
     .crop-filters {
+
         flex-wrap: wrap;
+
     }
 
+
     .crop-actions {
+
         flex-wrap: wrap;
+
     }
 
 }
 
 
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
 @media (max-width: 700px) {
 
     .crop-topbar {
+
         flex-direction: column;
+
         align-items: stretch;
+
         gap: 12px;
+
     }
+
 
     .crop-filters {
+
         width: 100%;
+
         flex-direction: column;
+
         align-items: stretch;
+
     }
 
+
     .crop-actions {
+
         width: 100%;
+
         display: flex;
+
     }
+
 
     .add-crop-btn,
     .archived-crops-btn {
+
         flex: 1;
+
     }
+
 
     .crop-select,
     .crop-search {
+
         width: 100%;
+
     }
 
 }

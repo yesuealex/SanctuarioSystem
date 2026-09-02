@@ -10,15 +10,20 @@ if (!isset($_SESSION['user_id'])) {
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $type = trim($_POST['type'] ?? '');
+    $name = trim($_POST['name'] ?? '');
+    $breed = trim($_POST['breed'] ?? '');
+    $date_of_birth = trim($_POST['date_of_birth'] ?? '');
     $age = trim($_POST['age'] ?? '');
+    $estimated_weight = trim($_POST['estimated_weight'] ?? '');
+    $for_sale = trim($_POST['for_sale'] ?? '');
     $number = intval($_POST['number'] ?? 0);
     $sex = trim($_POST['sex'] ?? '');
     $feeding_schedule = trim($_POST['feeding_schedule'] ?? '');
 
-    $stmt = $conn->prepare("INSERT INTO livestocks (type, age, number, sex, feeding_schedule) VALUES (?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO livestocks (type, name, breed, date_of_birth, age, estimated_weight, for_sale, number, sex, feeding_schedule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
     if (!$stmt) die("Prepare failed: " . $conn->error);
 
-    $stmt->bind_param("ssiss", $type, $age, $number, $sex, $feeding_schedule);
+    $stmt->bind_param("sssiiiiiss", $type, $name, $breed, $date_of_birth, $age, $estimated_weight, $for_sale, $number, $sex, $feeding_schedule);
 
     if (!$stmt->execute()) die("Insert failed: " . $stmt->error);
     $newId = $stmt->insert_id;
@@ -66,10 +71,13 @@ body { min-height:100vh; }
 <h2>Add Livestock</h2>
 <form method="POST">
 <div class="form-group"><label>Type / Breed</label><input name="type" placeholder="Type / Breed" required></div>
+<div class="form-group"><label>Name</label><input name="name" placeholder="Name" required></div>
+<div class="form-group"><label>Breed</label><input name="breed" placeholder="Breed" required></div>
+<div class="form-group"><label>Date of Birth</label><input type="date" name="date_of_birth" placeholder="Date of Birth" required></div>
 <div class="form-group"><label>Age</label><input name="age" placeholder="Age (e.g. 2 years)" required></div>
 <div class="form-group"><label>Number of Animals</label><input name="number" type="number" min="0" placeholder="Number of Animals" required></div>
 <div class="form-group"><label>Sex</label><input name="sex" placeholder="Male / Female / Mixed" required></div>
-<div class="form-group"><label>Feeding Schedule</label><input name="feeding_schedule" placeholder="Feeding Schedule"></div>
+<div class="form-group"><label>Feeding Schedule</label><input type="time" name="feeding_schedule" placeholder="Feeding Schedule"></div>
 <button type="submit">Save Livestock</button>
 </form>
 </div>
