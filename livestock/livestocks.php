@@ -482,14 +482,14 @@ $livestockResult = $conn->query("
 
                             if (
                                 !empty(
-                                    $livestockProfile['dob']
+                                    $livestockProfile['date_of_birth']
                                 )
                             ) {
 
                                 echo date(
                                     'F d, Y',
                                     strtotime(
-                                        $livestockProfile['dob']
+                                        $livestockProfile['date_of_birth']
                                     )
                                 );
 

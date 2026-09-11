@@ -12,6 +12,107 @@ $adminName = $_SESSION['name'] ?? 'Admin';
 
 $basePath = '/SanctuarioSystem/';
 
+include '../db.php';
+
+/*
+|--------------------------------------------------------------------------
+| PLOTS
+|--------------------------------------------------------------------------
+*/
+
+$plotRowsByCode = [];
+
+$plotsRes = $conn->query("SELECT * FROM plots WHERE archived = 0");
+
+if ($plotsRes) {
+    while ($p = $plotsRes->fetch_assoc()) {
+        $plotRowsByCode[$p['plot_code']] = $p;
+    }
+}
+
+$plotCodeByLetter = [
+    'A' => 'plot_a',
+    'B' => 'plot_b',
+    'C' => 'plot_c'
+];
+
+/*
+|--------------------------------------------------------------------------
+| CROPS (grouped by plot, active only)
+|--------------------------------------------------------------------------
+*/
+
+$cropsByPlotId = [];
+
+$cropsRes2 = $conn->query("
+    SELECT *
+    FROM crops
+    WHERE archived = 0
+    ORDER BY crop_id ASC
+");
+
+if ($cropsRes2) {
+    while ($c = $cropsRes2->fetch_assoc()) {
+        $cropsByPlotId[$c['plot_id']][] = $c;
+    }
+}
+
+$dbCropsByPlot = [];
+
+foreach ($plotCodeByLetter as $letter => $code) {
+
+    $pid = $plotRowsByCode[$code]['plot_id'] ?? null;
+
+    $dbCropsByPlot[$letter] =
+        ($pid !== null && isset($cropsByPlotId[$pid]))
+            ? array_values($cropsByPlotId[$pid])
+            : [];
+}
+
+/*
+|--------------------------------------------------------------------------
+| LIVESTOCK HOUSES + LIVESTOCK (grouped by house, active only)
+|--------------------------------------------------------------------------
+*/
+
+$houseRowsByCode = [];
+
+$housesRes = $conn->query("SELECT * FROM livestock_houses WHERE archived = 0");
+
+if ($housesRes) {
+    while ($h = $housesRes->fetch_assoc()) {
+        $houseRowsByCode[$h['house_code']] = $h;
+    }
+}
+
+$livestocksByHouseId = [];
+
+$liveRes = $conn->query("
+    SELECT *
+    FROM livestocks
+    WHERE archived = 0
+    ORDER BY livestock_id ASC
+");
+
+if ($liveRes) {
+    while ($l = $liveRes->fetch_assoc()) {
+        $livestocksByHouseId[$l['house_id']][] = $l;
+    }
+}
+
+$dbLivestockHouses = [];
+
+foreach ($houseRowsByCode as $code => $h) {
+
+    $dbLivestockHouses[$code] = [
+        'house'   => $h,
+        'animals' => array_values(
+            $livestocksByHouseId[$h['house_id']] ?? []
+        )
+    ];
+}
+
+
 ?>
 
 <!DOCTYPE html>
@@ -71,6 +172,1615 @@ $basePath = '/SanctuarioSystem/';
 
 <style>
 
+/* =========================================================
+   MAP EDIT TOOLBAR
+========================================================= */
+
+.map-edit-toolbar-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.map-edit-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.map-edit-btn,
+.map-edit-controls button {
+    border: none;
+    padding: 9px 15px;
+    border-radius: 7px;
+    background: #6b8e23;
+    color: white;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background-color .2s ease,
+        transform .15s ease,
+        opacity .2s ease;
+}
+
+.map-edit-btn:hover,
+.map-edit-controls button:hover {
+    transform: translateY(-1px);
+    opacity: .92;
+}
+
+.map-edit-btn.editing {
+    background: #8b6f35;
+}
+
+.map-edit-controls {
+    display: none;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.map-edit-controls.show {
+    display: flex;
+}
+
+.map-edit-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 7px;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,.9);
+}
+
+
+/* =========================================================
+   MAP EDIT MODE
+========================================================= */
+
+.map-container.edit-mode {
+    cursor: crosshair;
+}
+
+.map-container.edit-mode .editable-marker {
+    cursor: grab;
+}
+
+.map-container.edit-mode .editable-marker:hover {
+    filter:
+        drop-shadow(
+            0 0 6px rgba(95,143,69,.8)
+        );
+}
+
+.map-container.edit-mode .editable-marker:active {
+    cursor: grabbing;
+}
+
+.map-container.edit-mode .editable-marker::after {
+    content: "⋮";
+
+    position: absolute;
+
+    top: -8px;
+    right: -8px;
+
+    width: 18px;
+    height: 18px;
+
+    border-radius: 50%;
+
+    background: #5f8f45;
+    color: white;
+
+    font-size: 13px;
+    font-weight: bold;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    z-index: 100;
+}
+
+
+/* =========================================================
+   NEW MAP MARKERS
+========================================================= */
+
+.new-marker {
+    z-index: 50 !important;
+}
+
+.new-map-icon {
+    width: 38px;
+    height: 38px;
+
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: white;
+
+    border: 3px solid #5f8f45;
+
+    color: #5f8f45;
+
+    box-shadow:
+        0 3px 10px rgba(0,0,0,.2);
+}
+
+.new-map-icon i {
+    font-size: 17px;
+}
+
+
+/* =========================================================
+   BED MARKERS
+========================================================= */
+
+.popup-map {
+    position: relative;
+    overflow: hidden;
+}
+
+.bed-marker {
+    position: absolute;
+
+    transform: translate(-50%, -50%);
+
+    width: 30px;
+    height: 30px;
+
+    border-radius: 50%;
+
+    border: 2px solid white;
+
+    background: #5f8f45;
+    color: white;
+
+    box-shadow:
+        0 2px 8px rgba(0,0,0,.25);
+
+    font-family: 'Poppins', sans-serif;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+
+    z-index: 20;
+
+    transition:
+        transform .15s ease,
+        background-color .15s ease;
+}
+
+.bed-marker:hover {
+    transform:
+        translate(-50%, -50%)
+        scale(1.1);
+}
+
+.bed-marker.editing {
+    cursor: grab;
+    background: #8b6f35;
+}
+
+.bed-marker.editing:active {
+    cursor: grabbing;
+}
+
+.bed-marker.selected {
+    outline: 3px solid rgba(95,143,69,.3);
+}
+
+
+/* =========================================================
+   BED EDIT TOOLBAR
+========================================================= */
+
+.bed-edit-toolbar {
+    display: flex;
+
+    align-items: right;
+    justify-content: right;
+
+    flex-wrap: wrap;
+
+    gap: 8px;
+
+    margin-top: 0px;
+}
+
+.bed-edit-toolbar button {
+    border: none;
+
+    padding: 8px 13px;
+
+    border-radius: 7px;
+
+    background: #6b8e23;
+
+    color: white;
+
+    font-family: 'Poppins', sans-serif;
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: .2s ease;
+}
+
+.bed-edit-toolbar button:hover {
+    transform: translateY(-1px);
+    opacity: .9;
+}
+
+.bed-edit-toolbar .cancel-bed-edit {
+    background: #777;
+}
+
+.bed-edit-toolbar .delete-bed {
+    background: #b84a4a;
+}
+
+.bed-edit-status {
+    width: 100%;
+
+    text-align: center;
+
+    font-size: 11px;
+
+    color: #666;
+
+    margin-top: 2px;
+}
+
+
+/* =========================================================
+   BED EDITING
+========================================================= */
+
+.plot-popup.bed-editing .bed-marker {
+    cursor: grab;
+}
+
+.plot-popup.bed-editing .bed-marker:active {
+    cursor: grabbing;
+}
+
+.plot-popup.bed-editing .popup-map {
+    outline: 2px dashed rgba(95,143,69,.45);
+}
+
+
+/* =========================================================
+   BED COUNT
+========================================================= */
+
+.bed-count-display {
+    margin-top: 10px;
+
+    font-size: 12px;
+
+    color: #777;
+
+    text-align: center;
+}
+
+
+/* =========================================================
+   CROP PROFILE OVERLAY
+========================================================= */
+
+.crop-profile-overlay {
+    position: fixed;
+
+    inset: 0;
+
+    background: rgba(0,0,0,.55);
+
+    display: none;
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+
+    z-index: 9999;
+
+    animation: cropOverlayFade .2s ease;
+}
+
+.crop-profile-overlay.show {
+    display: flex;
+}
+
+@keyframes cropOverlayFade {
+
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+
+/* =========================================================
+   CROP PROFILE POPUP
+========================================================= */
+
+.crop-profile-popup {
+    width: min(720px, 100%);
+
+    max-height: 90vh;
+
+    overflow-y: auto;
+
+    background: white;
+
+    border-radius: 16px;
+
+    box-shadow:
+        0 20px 60px rgba(0,0,0,.25);
+
+    position: relative;
+
+    animation: cropPopupIn .2s ease;
+}
+
+@keyframes cropPopupIn {
+
+    from {
+        transform: translateY(15px) scale(.98);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+/* =========================================================
+   CROP PROFILE POPUP
+========================================================= */
+
+.crop-profile-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+
+    background: rgba(0, 0, 0, 0.45);
+
+    opacity: 0;
+    visibility: hidden;
+
+    transition:
+        opacity 0.2s ease,
+        visibility 0.2s ease;
+}
+
+.crop-profile-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+
+/* =========================================================
+   POPUP CONTAINER
+========================================================= */
+
+.crop-profile-popup {
+    position: relative;
+
+    width: min(520px, 100%);
+    max-height: 90vh;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    background: #ffffff;
+
+    border-radius: 16px;
+
+    box-shadow:
+        0 18px 50px rgba(0, 0, 0, 0.18);
+
+    animation: cropProfilePopupIn 0.22s ease;
+}
+
+@keyframes cropProfilePopupIn {
+
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+}
+
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+.crop-profile-popup::-webkit-scrollbar {
+    width: 6px;
+}
+
+.crop-profile-popup::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.crop-profile-popup::-webkit-scrollbar-thumb {
+    background: #cfd8c9;
+    border-radius: 10px;
+}
+
+.crop-profile-popup::-webkit-scrollbar-thumb:hover {
+    background: #b8c4b2;
+}
+
+
+/* =========================================================
+   CROP PROFILE HEADER
+========================================================= */
+
+.crop-profile-title {
+    position: relative;
+
+    padding: 20px 60px 16px 24px;
+
+    border-bottom: 1px solid #edf1eb;
+
+    text-align: left;
+}
+
+.crop-profile-title h2 {
+    margin: 0;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    color: #3e5d2d;
+
+    font-size: 20px;
+    font-weight: 700;
+
+    line-height: 1.3;
+}
+
+.crop-profile-title h2 i {
+    color: #6b8e23;
+    font-size: 17px;
+}
+
+.crop-profile-title p {
+    margin: 4px 0 0;
+
+    color: #888;
+
+    font-size: 12px;
+    font-weight: 400;
+
+    line-height: 1.4;
+}
+
+
+/* =========================================================
+   CLOSE BUTTON
+========================================================= */
+
+.crop-profile-close {
+    position: absolute;
+
+    top: 50%;
+    right: 18px;
+
+    transform: translateY(-50%);
+
+    width: 34px;
+    height: 34px;
+
+    padding: 0;
+
+    border: 1px solid #e5e9e2;
+    border-radius: 50%;
+
+    background: #f6f8f5;
+    color: #666;
+
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.crop-profile-close:hover {
+    background: #edf2e9;
+    border-color: #d8e1d3;
+    color: #3e5d2d;
+}
+
+.crop-profile-close i {
+    font-size: 14px;
+}
+
+
+/* =========================================================
+   IMAGE SECTION
+========================================================= */
+
+.crop-profile-image-section {
+    padding: 18px 24px 4px;
+
+    display: flex;
+    justify-content: center;
+}
+
+.crop-profile-image-section > div {
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+
+/* Image wrapper */
+
+.crop-profile-image-wrapper {
+    position: relative;
+
+    width: 210px;
+    height: 160px;
+
+    overflow: hidden;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #f1f5ee;
+
+    border: 1px solid #dce5d5;
+    border-radius: 12px;
+}
+
+
+/* Image */
+
+.crop-profile-image {
+    width: 100%;
+    height: 100%;
+
+    display: block;
+
+    object-fit: cover;
+}
+
+
+/* Placeholder */
+
+.crop-image-placeholder {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 7px;
+
+    color: #8b9d80;
+
+    text-align: center;
+}
+
+.crop-image-placeholder i {
+    font-size: 34px;
+}
+
+.crop-image-placeholder span {
+    font-size: 10px;
+    color: #8a9584;
+}
+
+
+/* =========================================================
+   IMAGE ACTIONS
+========================================================= */
+
+.crop-image-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 8px;
+
+    margin-top: 10px;
+}
+
+.crop-image-btn {
+    border: none;
+    border-radius: 7px;
+
+    padding: 8px 12px;
+
+    background: #6b8e23;
+    color: #ffffff;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 6px;
+
+    transition:
+        background 0.2s ease,
+        transform 0.15s ease;
+}
+
+.crop-image-btn:hover {
+    background: #5e7e1f;
+}
+
+.crop-image-btn:active {
+    transform: scale(0.97);
+}
+
+.crop-image-btn i {
+    font-size: 10px;
+}
+
+
+/* Remove */
+
+.crop-image-btn.remove {
+    background: #b84a4a;
+}
+
+.crop-image-btn.remove:hover {
+    background: #a63f3f;
+}
+
+
+/* =========================================================
+   PROFILE CONTENT
+========================================================= */
+
+.crop-profile-content {
+    padding: 18px 24px 24px;
+}
+
+
+/* =========================================================
+   DETAILS GRID
+========================================================= */
+
+.crop-profile-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 9px;
+}
+
+
+/* Individual field */
+
+.crop-profile-field {
+    min-width: 0;
+
+    padding: 10px 12px;
+
+    background: #f8faf7;
+
+    border: 1px solid #e7ede3;
+    border-radius: 9px;
+}
+
+.crop-profile-field span {
+    display: block;
+
+    margin-bottom: 4px;
+
+    color: #858b81;
+
+    font-size: 9px;
+    font-weight: 500;
+
+    line-height: 1.3;
+}
+
+.crop-profile-field strong {
+    display: block;
+
+    color: #35472e;
+
+    font-size: 12px;
+    font-weight: 600;
+
+    line-height: 1.4;
+
+    word-break: break-word;
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+.crop-status {
+    width: fit-content;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 4px 9px;
+
+    border-radius: 20px;
+
+    background: #e9f1e4;
+    color: #4f7039;
+
+    font-size: 9px;
+    font-weight: 700;
+
+    white-space: nowrap;
+}
+
+.crop-status.planted {
+    background: #e8f0df;
+    color: #55783b;
+}
+
+.crop-status.growing {
+    background: #e5f0e9;
+    color: #427153;
+}
+
+.crop-status.ready {
+    background: #f6edcf;
+    color: #856a20;
+}
+
+.crop-status.harvested {
+    background: #e5e5e5;
+    color: #666;
+}
+
+.crop-status.failed {
+    background: #f3dfdf;
+    color: #a34d4d;
+}
+
+
+/* =========================================================
+   CROP TIMELINE
+========================================================= */
+
+.crop-timeline-box {
+    margin-top: 14px;
+
+    padding: 14px;
+
+    background: #f5f8f2;
+
+    border: 1px solid #e1e9db;
+    border-radius: 10px;
+}
+
+
+/* Timeline heading */
+
+.crop-timeline-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 10px;
+
+    margin-bottom: 10px;
+}
+
+.crop-timeline-title strong {
+    color: #3e5d2d;
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.crop-timeline-title span {
+    color: #7c8577;
+
+    font-size: 10px;
+
+    white-space: nowrap;
+}
+
+
+/* Progress */
+
+.crop-progress-track {
+    width: 100%;
+    height: 8px;
+
+    overflow: hidden;
+
+    background: #dfe7d9;
+
+    border-radius: 20px;
+}
+
+.crop-progress-bar {
+    width: 0%;
+    height: 100%;
+
+    background: #6b8e23;
+
+    border-radius: 20px;
+
+    transition: width 0.3s ease;
+}
+
+
+/* Timeline statistics */
+
+.crop-timeline-stats {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 8px;
+
+    margin-top: 11px;
+}
+
+.crop-time-stat {
+    text-align: center;
+}
+
+.crop-time-stat span {
+    display: block;
+
+    margin-bottom: 2px;
+
+    color: #7c8577;
+
+    font-size: 9px;
+}
+
+.crop-time-stat strong {
+    display: block;
+
+    color: #3e5d2d;
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   EDIT FORM
+========================================================= */
+
+.crop-edit-form {
+    display: none;
+
+    margin-top: 14px;
+
+    padding: 14px;
+
+    background: #fafbf9;
+
+    border: 1px solid #e3e9df;
+    border-radius: 10px;
+}
+
+.crop-edit-form.show {
+    display: block;
+}
+
+
+/* Edit grid */
+
+.crop-edit-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 11px;
+}
+
+
+/* Input group */
+
+.crop-input-group {
+    min-width: 0;
+}
+
+.crop-input-group label {
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: #666;
+
+    font-size: 9px;
+    font-weight: 600;
+}
+
+.crop-input-group input,
+.crop-input-group select {
+    width: 100%;
+
+    box-sizing: border-box;
+
+    padding: 8px 9px;
+
+    border: 1px solid #d9e0d5;
+    border-radius: 7px;
+
+    outline: none;
+
+    background: #ffffff;
+    color: #333;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.crop-input-group input:focus,
+.crop-input-group select:focus {
+    border-color: #6b8e23;
+
+    box-shadow:
+        0 0 0 2px rgba(107, 142, 35, 0.1);
+}
+
+
+/* =========================================================
+   PROFILE ACTION BUTTONS
+========================================================= */
+
+.crop-profile-actions {
+    display: flex;
+
+    justify-content: flex-end;
+    align-items: center;
+
+    gap: 8px;
+
+    margin-top: 16px;
+}
+
+.crop-profile-actions button {
+    border: none;
+    border-radius: 7px;
+
+    padding: 9px 14px;
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 6px;
+
+    transition:
+        background 0.2s ease,
+        transform 0.15s ease;
+}
+
+.crop-profile-actions button:hover {
+    opacity: 0.92;
+}
+
+.crop-profile-actions button:active {
+    transform: scale(0.97);
+}
+
+
+/* Edit */
+
+.crop-edit-btn {
+    background: #6b8e23;
+    color: #ffffff;
+}
+
+.crop-edit-btn:hover {
+    background: #5e7e1f;
+}
+
+
+/* Save */
+
+.crop-save-btn {
+    background: #527b42;
+    color: #ffffff;
+}
+
+.crop-save-btn:hover {
+    background: #456b37;
+}
+
+
+/* Cancel */
+
+.crop-cancel-btn {
+    background: #777;
+    color: #ffffff;
+}
+
+.crop-cancel-btn:hover {
+    background: #666;
+}
+
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 600px) {
+
+    .crop-profile-overlay {
+        padding: 12px;
+    }
+
+    .crop-profile-popup {
+        width: 100%;
+        max-height: 94vh;
+
+        border-radius: 14px;
+    }
+
+    .crop-profile-title {
+        padding: 18px 55px 14px 18px;
+    }
+
+    .crop-profile-close {
+        top: 15px;
+        right: 15px;
+    }
+
+    .crop-profile-image-section {
+        padding: 16px 18px 4px;
+    }
+
+    .crop-profile-content {
+        padding: 16px 18px 20px;
+    }
+
+    .crop-profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .crop-edit-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .crop-timeline-stats {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .crop-profile-actions {
+        justify-content: stretch;
+    }
+
+    .crop-profile-actions button {
+        flex: 1;
+    }
+
+}
+
+
+@media (max-width: 400px) {
+
+    .crop-profile-image-wrapper {
+        width: 190px;
+        height: 145px;
+    }
+
+    .crop-image-actions {
+        flex-wrap: wrap;
+    }
+
+    .crop-image-btn {
+        flex: 1;
+    }
+
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 600px) {
+
+    .crop-profile-grid,
+    .crop-edit-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .crop-profile-header {
+        padding: 16px;
+    }
+
+    .crop-profile-content {
+        padding: 16px;
+    }
+
+    .crop-profile-image-section {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .crop-profile-popup {
+        max-height: 94vh;
+    }
+
+    .crop-timeline-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+
+/* =========================================================
+   LIVESTOCK HOUSE POPUP
+========================================================= */
+
+.livestock-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0,0,0,.45);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .2s ease, visibility .2s ease;
+}
+
+.livestock-overlay.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.livestock-popup {
+    position: relative;
+    width: min(850px, 95vw);
+    max-height: 92vh;
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.28);
+    animation: livestockPopupIn .22s ease;
+}
+
+@keyframes livestockPopupIn {
+    from { opacity: 0; transform: translateY(12px) scale(.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.livestock-house-map {
+    position: relative;
+    width: 100%;
+    height: 460px;
+    overflow: hidden;
+    background: #edf2e9;
+}
+
+.livestock-house-map > img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.livestock-house-marker {
+    position: absolute;
+    transform: translate(-50%,-50%);
+    width: 38px;
+    height: 38px;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    background: #315d2e;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(0,0,0,.32);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    z-index: 20;
+    transition: transform .15s ease, background .15s ease;
+}
+
+.livestock-house-marker:hover {
+    transform: translate(-50%,-50%) scale(1.12);
+    background: #4f7d3a;
+}
+
+.livestock-house-marker::after {
+    content: attr(data-name);
+    position: absolute;
+    left: 50%;
+    top: -32px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    background: #315d2e;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    pointer-events: none;
+}
+
+.livestock-house-info {
+    padding: 18px 22px 22px;
+}
+
+.livestock-house-info h2 {
+    margin: 0;
+    color: #315d2e;
+    font-size: 23px;
+}
+
+.livestock-house-info p {
+    margin: 4px 0 0;
+    color: #777;
+    font-size: 12px;
+}
+
+.livestock-count {
+    display: inline-flex;
+    margin-top: 10px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: #e8f0e3;
+    color: #4f7039;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+/* =========================================================
+   LIVESTOCK PROFILE
+========================================================= */
+
+.livestock-profile-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0,0,0,.55);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .2s ease, visibility .2s ease;
+}
+
+.livestock-profile-overlay.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.livestock-profile-popup {
+    position: relative;
+    width: min(520px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.22);
+    animation: livestockProfileIn .22s ease;
+}
+
+@keyframes livestockProfileIn {
+    from { opacity: 0; transform: translateY(10px) scale(.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.livestock-profile-title {
+    position: relative;
+    padding: 20px 60px 16px 24px;
+    border-bottom: 1px solid #edf1eb;
+}
+
+.livestock-profile-title h2 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #3e5d2d;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.livestock-profile-title h2 i {
+    color: #6b8e23;
+    font-size: 17px;
+}
+
+.livestock-profile-title p {
+    margin: 4px 0 0;
+    color: #888;
+    font-size: 12px;
+}
+
+.livestock-profile-close {
+    position: absolute;
+    top: 50%;
+    right: 18px;
+    transform: translateY(-50%);
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #e5e9e2;
+    border-radius: 50%;
+    background: #f6f8f5;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.livestock-profile-close:hover {
+    background: #edf2e9;
+    color: #3e5d2d;
+}
+
+.livestock-profile-image-section {
+    padding: 18px 24px 4px;
+    display: flex;
+    justify-content: center;
+}
+
+.livestock-profile-image-wrapper {
+    position: relative;
+    width: 210px;
+    height: 160px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5ee;
+    border: 1px solid #dce5d5;
+    border-radius: 12px;
+}
+
+.livestock-profile-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.livestock-image-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    color: #8b9d80;
+    text-align: center;
+}
+
+.livestock-image-placeholder i { font-size: 34px; }
+.livestock-image-placeholder span { font-size: 10px; color: #8a9584; }
+
+.livestock-image-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.livestock-image-btn {
+    border: none;
+    border-radius: 7px;
+    padding: 8px 12px;
+    background: #6b8e23;
+    color: #fff;
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.livestock-image-btn.remove { background: #b84a4a; }
+
+.livestock-profile-content { padding: 18px 24px 24px; }
+
+.livestock-profile-grid {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 9px;
+}
+
+.livestock-profile-field {
+    min-width: 0;
+    padding: 10px 12px;
+    background: #f8faf7;
+    border: 1px solid #e7ede3;
+    border-radius: 9px;
+}
+
+.livestock-profile-field.full { grid-column: 1 / -1; }
+
+.livestock-profile-field span {
+    display: block;
+    margin-bottom: 4px;
+    color: #858b81;
+    font-size: 9px;
+    font-weight: 500;
+}
+
+.livestock-profile-field strong {
+    display: block;
+    color: #35472e;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.livestock-profile-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.livestock-profile-actions button {
+    border: none;
+    border-radius: 7px;
+    padding: 9px 14px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.livestock-edit-btn { background: #6b8e23; color: #fff; }
+.livestock-save-btn { background: #527b42; color: #fff; }
+.livestock-cancel-btn { background: #777; color: #fff; }
+
+.livestock-edit-form {
+    display: none;
+    margin-top: 14px;
+    padding: 14px;
+    background: #fafbf9;
+    border: 1px solid #e3e9df;
+    border-radius: 10px;
+}
+
+.livestock-edit-form.show { display: block; }
+
+.livestock-edit-grid {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 11px;
+}
+
+.livestock-input-group { min-width: 0; }
+.livestock-input-group.full { grid-column: 1 / -1; }
+
+.livestock-input-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #666;
+    font-size: 9px;
+    font-weight: 600;
+}
+
+.livestock-input-group input,
+.livestock-input-group textarea,
+.livestock-input-group select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 9px;
+    border: 1px solid #d9e0d5;
+    border-radius: 7px;
+    outline: none;
+    background: #fff;
+    color: #333;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+}
+
+.livestock-input-group textarea { min-height: 70px; resize: vertical; }
+
+@media (max-width: 600px) {
+    .livestock-overlay,
+    .livestock-profile-overlay { padding: 12px; }
+    .livestock-house-map { height: 350px; }
+    .livestock-profile-grid,
+    .livestock-edit-grid { grid-template-columns: 1fr; }
+    .livestock-profile-field.full,
+    .livestock-input-group.full { grid-column: auto; }
+    .livestock-profile-content { padding: 16px 18px 20px; }
+    .livestock-profile-title { padding: 18px 55px 14px 18px; }
+    .livestock-profile-image-section { padding: 16px 18px 4px; }
+}
 
 </style>
 
@@ -142,6 +1852,28 @@ $basePath = '/SanctuarioSystem/';
                     class="map-edit-controls"
                 >
 
+                    <button
+                        type="button"
+                        data-tool="plot"
+                    >
+
+                        <i class="fa-solid fa-vector-square"></i>
+
+                        Add Plot
+
+                    </button>
+
+
+                    <button
+                        type="button"
+                        data-tool="marker"
+                    >
+
+                        <i class="fa-solid fa-location-dot"></i>
+
+                        Add Marker
+
+                    </button>
 
 
                     <button
@@ -215,7 +1947,7 @@ $basePath = '/SanctuarioSystem/';
                     </span>
 
                     <strong class="summary-number">
-                        --
+                        100
                     </strong>
 
                 </div>
@@ -238,7 +1970,7 @@ $basePath = '/SanctuarioSystem/';
                     </span>
 
                     <strong class="summary-number">
-                        --
+                        100
                     </strong>
 
                 </div>
@@ -261,15 +1993,12 @@ $basePath = '/SanctuarioSystem/';
                     </span>
 
                     <strong class="summary-number">
-                        --
+                        100
                     </strong>
 
                 </div>
 
             </div>
-
-
-        </div>
 
     </section>
 
@@ -839,183 +2568,487 @@ $basePath = '/SanctuarioSystem/';
                     </div>
 
                 </div>
-
-
-
-
                 <!-- =================================================
-                     LIVESTOCK HOUSE POPUP
-                ================================================== -->
+     LIVESTOCK HOUSE POPUP
+================================================== -->
 
-                <div class="livestock-overlay" id="livestockOverlay">
+<div
+    class="livestock-overlay"
+    id="livestockOverlay"
+>
 
-                    <div class="livestock-popup" id="livestockPopup">
+    <div
+        class="livestock-popup"
+        id="livestockPopup"
+    >
 
-                        <button type="button" class="popup-close" id="closeLivestockBtn">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
+        <!-- CLOSE BUTTON -->
+        <button
+            type="button"
+            class="popup-close"
+            id="closeLivestockBtn"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
 
-                        <div class="livestock-house-map">
 
-                            <img id="livestockHouseImage" src="" alt="Livestock House" draggable="false">
+        <!-- =========================
+             LIVESTOCK HOUSE IMAGE
+        ========================== -->
 
-                            <div id="livestockMarkersContainer"></div>
+        <div class="livestock-house-map">
 
-                        </div>
+            <img
+                id="livestockHouseImage"
+                src=""
+                alt="Livestock House"
+                draggable="false"
+            >
 
-                        <div class="livestock-house-info">
-                            <h2 id="livestockHouseTitle">Goat House</h2>
-                            <p id="livestockHouseDescription">Goat housing area.</p>
-                            <span class="livestock-count" id="livestockCount">0 animals</span>
-                        </div>
+            <!-- Animal markers will be inserted here by JavaScript -->
+            <div
+                id="livestockMarkersContainer"
+            ></div>
+
+        </div>
+
+
+        <!-- =========================
+             HOUSE INFORMATION
+        ========================== -->
+
+        <div class="livestock-house-info">
+
+            <h2 id="livestockHouseTitle">
+                Livestock House
+            </h2>
+
+            <p id="livestockHouseDescription">
+                Livestock housing area.
+            </p>
+
+            <span
+                class="livestock-count"
+                id="livestockCount"
+            >
+                0 animals
+            </span>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =================================================
+     LIVESTOCK PROFILE POPUP
+================================================== -->
+
+<div class="livestock-profile-overlay" id="livestockProfileOverlay">
+
+    <div class="livestock-profile-popup" id="livestockProfilePopup">
+
+        <!-- =========================
+             PROFILE HEADER
+        ========================== -->
+
+        <div class="livestock-profile-title">
+
+            <h2>
+                <i class="fa-solid fa-cow"></i>
+                <span id="profileLivestockName">GINO</span>
+            </h2>
+
+            <p id="profileLivestockType">Goat</p>
+
+            <button
+                type="button"
+                class="livestock-profile-close"
+                id="closeLivestockProfileBtn"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+
+        <!-- =========================
+             LIVESTOCK IMAGE
+        ========================== -->
+
+        <div class="livestock-profile-image-section">
+
+            <div>
+
+                <div class="livestock-profile-image-wrapper">
+
+                    <img
+                        id="livestockProfileImage"
+                        class="livestock-profile-image"
+                        src=""
+                        alt="Livestock"
+                        style="display:none;"
+                    >
+
+                    <div
+                        class="livestock-image-placeholder"
+                        id="livestockImagePlaceholder"
+                    >
+                        <i class="fa-solid fa-cow"></i>
+                        <span>No livestock picture uploaded</span>
+                    </div>
+
+                </div>
+
+                <div class="livestock-image-actions">
+
+                    <button
+                        type="button"
+                        class="livestock-image-btn"
+                        id="uploadLivestockImageBtn"
+                    >
+                        <i class="fa-solid fa-camera"></i>
+                        Upload / Change Picture
+                    </button>
+
+                    <button
+                        type="button"
+                        class="livestock-image-btn remove"
+                        id="removeLivestockImageBtn"
+                    >
+                        <i class="fa-solid fa-trash"></i>
+                        Remove
+                    </button>
+
+                    <input
+                        type="file"
+                        id="livestockImageInput"
+                        accept="image/*"
+                        hidden
+                    >
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =========================
+             LIVESTOCK PROFILE CONTENT
+        ========================== -->
+
+        <div class="livestock-profile-content">
+
+            <!-- =========================
+                 DISPLAY INFORMATION
+            ========================== -->
+
+            <div class="livestock-profile-grid">
+
+                <div class="livestock-profile-field">
+                    <span>Type</span>
+                    <strong id="profileLivestockTypeDisplay">-</strong>
+                </div>
+
+                <div class="livestock-profile-field">
+                    <span>Sex</span>
+                    <strong id="profileLivestockSex">-</strong>
+                </div>
+
+                <div class="livestock-profile-field">
+                    <span>Date of Birth</span>
+                    <strong id="profileLivestockDOB">-</strong>
+                </div>
+
+                <div class="livestock-profile-field">
+                    <span>Breed</span>
+                    <strong id="profileLivestockBreed">-</strong>
+                </div>
+
+                <div class="livestock-profile-field">
+                    <span>Age</span>
+                    <strong id="profileLivestockAge">-</strong>
+                </div>
+
+                <div class="livestock-profile-field">
+                    <span>Estimated Weight</span>
+                    <strong id="profileLivestockWeight">-</strong>
+                </div>
+
+                <div class="livestock-profile-field">
+                    <span>Number</span>
+                    <strong id="profileLivestockNumber">-</strong>
+                </div>
+
+                <div class="livestock-profile-field">
+                    <span>For Sale</span>
+                    <strong id="profileLivestockForSale">-</strong>
+                </div>
+
+                <div class="livestock-profile-field full">
+                    <span>Feeding Schedule</span>
+                    <strong id="profileLivestockFeedingSchedule">-</strong>
+                </div>
+
+                <div class="livestock-profile-field full">
+                    <span>Notes</span>
+                    <strong id="profileLivestockNotes">-</strong>
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 EDIT FORM
+            ========================== -->
+
+            <div
+                class="livestock-edit-form"
+                id="livestockEditForm"
+            >
+
+                <div class="livestock-edit-grid">
+
+                    <!-- Animal Name -->
+
+                    <div class="livestock-input-group">
+
+                        <label for="editLivestockName">
+                            Animal Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="editLivestockName"
+                            placeholder="Enter animal name"
+                        >
+
+                    </div>
+
+
+                    <!-- Animal Type -->
+
+                    <div class="livestock-input-group">
+
+                        <label for="editLivestockType">
+                            Animal Type
+                        </label>
+
+                        <input
+                            type="text"
+                            id="editLivestockType"
+                            placeholder="e.g. Goat, Cow, Pig"
+                        >
+
+                    </div>
+
+
+                    <!-- Sex -->
+
+                    <div class="livestock-input-group">
+
+                        <label for="editLivestockSex">
+                            Sex
+                        </label>
+
+                        <select id="editLivestockSex">
+
+                            <option value="">
+                                Select sex
+                            </option>
+
+                            <option value="male">
+                                Male
+                            </option>
+
+                            <option value="female">
+                                Female
+                            </option>
+
+                            <option value="mixed">
+                                Mixed
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Date of Birth -->
+
+                    <div class="livestock-input-group">
+
+                        <label for="editLivestockDOB">
+                            Date of Birth
+                        </label>
+
+                        <input
+                            type="date"
+                            id="editLivestockDOB"
+                        >
+
+                    </div>
+
+
+                    <!-- Breed -->
+
+                    <div class="livestock-input-group">
+
+                        <label for="editLivestockBreed">
+                            Breed
+                        </label>
+
+                        <input
+                            type="text"
+                            id="editLivestockBreed"
+                            placeholder="Enter breed"
+                        >
+
+                    </div>
+
+
+                    <!-- Estimated Weight -->
+
+                    <div class="livestock-input-group">
+
+                        <label for="editLivestockWeight">
+                            Estimated Weight (kg)
+                        </label>
+
+                        <input
+                            type="number"
+                            id="editLivestockWeight"
+                            min="0"
+                            step="0.01"
+                            placeholder="e.g. 25"
+                        >
+
+                    </div>
+
+
+                    <!-- Number -->
+
+                    <div class="livestock-input-group">
+
+                        <label for="editLivestockNumber">
+                            Number of Animals
+                        </label>
+
+                        <input
+                            type="number"
+                            id="editLivestockNumber"
+                            min="1"
+                            step="1"
+                            placeholder="e.g. 1"
+                        >
+
+                    </div>
+
+
+                    <!-- For Sale -->
+
+                    <div class="livestock-input-group">
+
+                        <label for="editLivestockForSale">
+                            For Sale
+                        </label>
+
+                        <select id="editLivestockForSale">
+
+                            <option value="0">
+                                No
+                            </option>
+
+                            <option value="1">
+                                Yes
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Feeding Schedule -->
+
+                    <div class="livestock-input-group full">
+
+                        <label for="editLivestockFeedingSchedule">
+                            Feeding Schedule
+                        </label>
+
+                        <textarea
+                            id="editLivestockFeedingSchedule"
+                            placeholder="Enter feeding schedule"
+                            rows="3"
+                        ></textarea>
 
                     </div>
 
                 </div>
 
-                <!-- =================================================
-                     LIVESTOCK PROFILE POPUP
-                ================================================== -->
+            </div>
 
-                <div class="livestock-profile-overlay" id="livestockProfileOverlay">
+            <div class="livestock-input-group full">
 
-                    <div class="livestock-profile-popup" id="livestockProfilePopup">
+    <label for="editLivestockNotes">
+        Notes
+    </label>
 
-                        <div class="livestock-profile-title">
-                            <h2>
-                                <i class="fa-solid fa-cow"></i>
-                                <span id="profileLivestockName">GINO</span>
-                            </h2>
-                            <p id="profileLivestockType">Buck</p>
+    <textarea
+        id="editLivestockNotes"
+        placeholder="Enter additional notes"
+        rows="4"
+    ></textarea>
 
-                            <button type="button" class="livestock-profile-close" id="closeLivestockProfileBtn">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
+</div>
 
-                        <div class="livestock-profile-image-section">
-                            <div>
-                                <div class="livestock-profile-image-wrapper">
-                                    <img id="livestockProfileImage" class="livestock-profile-image" src="" alt="Livestock" style="display:none;">
 
-                                    <div class="livestock-image-placeholder" id="livestockImagePlaceholder">
-                                        <i class="fa-solid fa-cow"></i>
-                                        <span>No livestock picture uploaded</span>
-                                    </div>
-                                </div>
+            <!-- =========================
+                 PROFILE ACTIONS
+            ========================== -->
 
-                                <div class="livestock-image-actions">
-                                    <button type="button" class="livestock-image-btn" id="uploadLivestockImageBtn">
-                                        <i class="fa-solid fa-camera"></i>
-                                        Upload / Change Picture
-                                    </button>
+            <div class="livestock-profile-actions">
 
-                                    <button type="button" class="livestock-image-btn remove" id="removeLivestockImageBtn">
-                                        <i class="fa-solid fa-trash"></i>
-                                        Remove
-                                    </button>
+                <button
+                    type="button"
+                    class="livestock-edit-btn"
+                    id="editLivestockProfileBtn"
+                >
+                    <i class="fa-solid fa-pen"></i>
+                    Edit Profile
+                </button>
 
-                                    <input type="file" id="livestockImageInput" accept="image/*" hidden>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="livestock-profile-content">
+                <button
+                    type="button"
+                    class="livestock-save-btn"
+                    id="saveLivestockProfileBtn"
+                    style="display:none;"
+                >
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    Save Profile
+                </button>
 
-                            <div class="livestock-profile-grid">
 
-                                <div class="livestock-profile-field">
-                                    <span>Date of Birth</span>
-                                    <strong id="profileLivestockDOB">December</strong>
-                                </div>
+                <button
+                    type="button"
+                    class="livestock-cancel-btn"
+                    id="cancelLivestockProfileBtn"
+                    style="display:none;"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                    Cancel
+                </button>
 
-                                <div class="livestock-profile-field">
-                                    <span>Breed</span>
-                                    <strong id="profileLivestockBreed">Native</strong>
-                                </div>
+            </div>
 
-                                <div class="livestock-profile-field">
-                                    <span>Age</span>
-                                    <strong id="profileLivestockAge">17 months</strong>
-                                </div>
+        </div>
 
-                                <div class="livestock-profile-field">
-                                    <span>Estimated Weight</span>
-                                    <strong id="profileLivestockWeight">25 kg</strong>
-                                </div>
+    </div>
 
-                                <div class="livestock-profile-field full">
-                                    <span>Notes</span>
-                                    <strong id="profileLivestockNotes">Happy goat</strong>
-                                </div>
-
-                            </div>
-
-                            <div class="livestock-edit-form" id="livestockEditForm">
-
-                                <div class="livestock-edit-grid">
-
-                                    <div class="livestock-input-group">
-                                        <label>Animal Name</label>
-                                        <input type="text" id="editLivestockName">
-                                    </div>
-
-                                    <div class="livestock-input-group">
-                                        <label>Sex / Type</label>
-                                        <select id="editLivestockSex">
-                                            <option value="Buck">Buck</option>
-                                            <option value="Doe">Doe</option>
-                                            <option value="Male">Male</option>
-                                            <option value="Female">Female</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="livestock-input-group">
-                                        <label>Date of Birth</label>
-                                        <input type="date" id="editLivestockDOB">
-                                    </div>
-
-                                    <div class="livestock-input-group">
-                                        <label>Breed</label>
-                                        <input type="text" id="editLivestockBreed">
-                                    </div>
-
-                                    <div class="livestock-input-group">
-                                        <label>Estimated Weight</label>
-                                        <input type="text" id="editLivestockWeight">
-                                    </div>
-
-                                    <div class="livestock-input-group full">
-                                        <label>Notes</label>
-                                        <textarea id="editLivestockNotes"></textarea>
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                            <div class="livestock-profile-actions">
-                                <button type="button" class="livestock-edit-btn" id="editLivestockProfileBtn">
-                                    <i class="fa-solid fa-pen"></i>
-                                    Edit Profile
-                                </button>
-
-                                <button type="button" class="livestock-save-btn" id="saveLivestockProfileBtn" style="display:none;">
-                                    <i class="fa-solid fa-floppy-disk"></i>
-                                    Save Profile
-                                </button>
-
-                                <button type="button" class="livestock-cancel-btn" id="cancelLivestockProfileBtn" style="display:none;">
-                                    <i class="fa-solid fa-xmark"></i>
-                                    Cancel
-                                </button>
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </div>
+</div>
 
                 <!-- =================================================
                      CROP PROFILE POPUP
@@ -1039,7 +3072,7 @@ $basePath = '/SanctuarioSystem/';
 
                                 <h2>
                                     <i class="fa-solid fa-seedling"></i>
-                                    LETTUCE
+                                    <span id="profileCropName">LETTUCE</span>
                                 </h2>
 
                                 <p id="profileCropVariety">
@@ -1363,6 +3396,63 @@ $basePath = '/SanctuarioSystem/';
                                             type="text"
                                             id="editCropStaff"
                                         >
+                                        <div class="crop-input-group">
+
+    <label>
+        Date Sowing
+    </label>
+
+    <input
+        type="date"
+        id="editCropDateSowing"
+    >
+
+</div>
+
+
+<div class="crop-input-group">
+
+    <label>
+        Target Transplant Date
+    </label>
+
+    <input
+        type="date"
+        id="editCropTargetTransplant"
+    >
+
+</div>
+
+
+<div class="crop-input-group">
+
+    <label>
+        Target Area
+    </label>
+
+    <input
+        type="text"
+        id="editCropTargetArea"
+        placeholder="e.g. 100m²"
+    >
+
+</div>
+
+
+<div class="crop-input-group">
+
+    <label>
+        Seedlings Received
+    </label>
+
+    <input
+        type="number"
+        id="editCropSeedlings"
+        min="0"
+        step="1"
+    >
+
+</div>
 
                                     </div>
 
@@ -1479,10 +3569,6 @@ $basePath = '/SanctuarioSystem/';
                                                 Harvested
                                             </option>
 
-                                            <option value="Failed">
-                                                Failed
-                                            </option>
-
                                         </select>
 
                                     </div>
@@ -1550,106 +3636,7 @@ $basePath = '/SanctuarioSystem/';
         </div>
 
 
-        <!-- =====================================================
-             RIGHT SIDE
-        ====================================================== -->
 
-        <aside class="farm-side-panel">
-
-
-            <!-- UPCOMING HARVEST -->
-
-            <div class="farm-panel">
-
-                <div class="panel-header">
-
-                    <span class="panel-title">
-                        UPCOMING HARVEST
-                    </span>
-
-                    <select
-                        class="plot-select"
-                        id="plotSelect"
-                    >
-
-                        <option value="A">
-                            Plot A
-                        </option>
-
-                        <option value="B">
-                            Plot B
-                        </option>
-
-                        <option value="C">
-                            Plot C
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <div class="harvest-item">
-
-                    <strong>
-                        Lettuce
-                    </strong>
-
-                    <span>
-                        June 10, 2026 - Plot A1
-                    </span>
-
-                </div>
-
-
-                <div class="harvest-item">
-
-                    <strong>
-                        Corn
-                    </strong>
-
-                    <span>
-                        June 10, 2026 - Plot A2
-                    </span>
-
-                </div>
-
-
-                <div class="harvest-item">
-
-                    <strong>
-                        Pechay
-                    </strong>
-
-                    <span>
-                        June 12, 2026 - Plot A3
-                    </span>
-
-                </div>
-
-
-                <div class="harvest-item">
-
-                    <strong>
-                        Eggplant
-                    </strong>
-
-                    <span>
-                        June 14, 2026 - Plot A4
-                    </span>
-
-                </div>
-
-            </div>
-
-
-            <!-- PLOT INFORMATION -->
-
-        </aside>
-
-    </section>
-
-</main>
 
 <script>
 
@@ -2009,6 +3996,20 @@ const plotData = {
     }
 
 };
+
+
+/* =========================================================
+   DATABASE-EMBEDDED DATA (PHP -> JS)
+========================================================= */
+
+const basePath = "<?= $basePath ?>";
+
+const userRole = "<?= htmlspecialchars($role, ENT_QUOTES) ?>";
+
+const dbCropsByPlot = <?= json_encode($dbCropsByPlot) ?>;
+
+const dbLivestockHouses = <?= json_encode($dbLivestockHouses) ?>;
+
 
 
 /* =========================================================
@@ -3146,186 +5147,97 @@ function saveStoredCropProfiles(data) {
 
 
 /* =========================================================
-   DEFAULT CROP DATA
+   CROP DATA (FROM DATABASE)
 ========================================================= */
 
-const defaultCropData = {
+/*
+| dbCropsByPlot is embedded by PHP at page load from the
+| crops table (WHERE archived = 0), grouped by plot and
+| ordered by crop_id. Bed marker "N" within a plot shows
+| the Nth active crop record for that plot.
+*/
 
-    1: {
+function statusDbToLabel(status) {
 
-        name:
-            "LETTUCE",
+    const map = {
+        planted: "Planted",
+        growing: "Growing",
+        ready: "Ready for Harvest",
+        harvested: "Harvested"
+    };
 
-        variety:
-            "Majesta Variety",
+    return map[status] || "Planted";
+}
 
-        staff:
-            "Mr. Villa",
+function statusLabelToDb(label) {
 
-        pcs:
-            "5 Trays",
+    const map = {
+        "Planted": "planted",
+        "Growing": "growing",
+        "Ready for Harvest": "ready",
+        "Harvested": "harvested"
+    };
 
-        germination:
-            "79%",
+    return map[label] || "planted";
+}
 
-        area:
-            "A1",
+function dbCropToProfile(row) {
 
-        plantedDate:
-            "2026-01-20",
+    return {
+    cropId: row.crop_id,
 
-        harvest:
-            "2026-05-01",
+    name:
+        (row.crop_name || "Unnamed Crop").toUpperCase(),
 
-        status:
-            "Growing",
+    variety:
+        row.variety || "No variety",
 
-        image:
-            ""
+    staff:
+        row.recipient || "Not assigned",
 
-    },
+    pcs:
+        row.pcs != null
+            ? String(row.pcs)
+            : "0",
 
+    dateSowing:
+        row.date_sowing || "",
 
-    2: {
+    germination:
+        row.germination_rate != null
+            ? `${row.germination_rate}%`
+            : "0%",
 
-        name:
-            "OKRA",
+    targetTransplantDate:
+        row.target_transplant_date || "",
 
-        variety:
-            "Clemson Spineless",
+    targetArea:
+        row.target_area || "",
 
-        staff:
-            "Ms. Liaga",
+    seedlingsReceived:
+        row.seedlings_received != null
+            ? String(row.seedlings_received)
+            : "0",
 
-        pcs:
-            "4 Trays",
+    area:
+        row.transplanted_area ||
+        row.target_area ||
+        (currentPlot || ""),
 
-        germination:
-            "84%",
+    plantedDate:
+        row.date_transplanted ||
+        row.date_sowing ||
+        getTodayDate(),
 
-        area:
-            "A2",
+    harvest:
+        row.expected_harvest || "",
 
-        plantedDate:
-            "2026-01-24",
+    status:
+        statusDbToLabel(row.status),
 
-        harvest:
-            "2026-05-08",
-
-        status:
-            "Growing",
-
-        image:
-            ""
-
-    },
-
-
-    3: {
-
-        name:
-            "PECHAY",
-
-        variety:
-            "Black Behi",
-
-        staff:
-            "Mr. Manalo",
-
-        pcs:
-            "6 Trays",
-
-        germination:
-            "91%",
-
-        area:
-            "A3",
-
-        plantedDate:
-            "2026-01-21",
-
-        harvest:
-            "2026-04-20",
-
-        status:
-            "Ready for Harvest",
-
-        image:
-            ""
-
-    },
-
-
-    4: {
-
-        name:
-            "CORN",
-
-        variety:
-            "Purple Gem F1",
-
-        staff:
-            "Mr. Villa",
-
-        pcs:
-            "10 Trays",
-
-        germination:
-            "87%",
-
-        area:
-            "A4",
-
-        plantedDate:
-            "2026-01-19",
-
-        harvest:
-            "2026-05-15",
-
-        status:
-            "Growing",
-
-        image:
-            ""
-
-    },
-
-
-    5: {
-
-        name:
-            "SPINACH",
-
-        variety:
-            "Bloomsdale",
-
-        staff:
-            "Ms. Liaga",
-
-        pcs:
-            "5 Trays",
-
-        germination:
-            "82%",
-
-        area:
-            "A5",
-
-        plantedDate:
-            "2026-01-25",
-
-        harvest:
-            "2026-05-10",
-
-        status:
-            "Growing",
-
-        image:
-            ""
-
-    }
-
+    image: ""
 };
+}
 
 
 /* =========================================================
@@ -3334,69 +5246,51 @@ const defaultCropData = {
 
 function getCropProfile(bedNumber) {
 
-    const stored =
-        getStoredCropProfiles();
+    const plotCrops = dbCropsByPlot[currentPlot] || [];
+    const row = plotCrops[bedNumber - 1];
 
+    const stored = getStoredCropProfiles();
+    const key = `${currentPlot}-${bedNumber}`;
 
-    const key =
-        `${currentPlot}-${bedNumber}`;
+    const storedImage =
+        stored[key] && stored[key].image
+            ? stored[key].image
+            : "";
 
-
-    if (
-        stored[key]
-    ) {
-
-        return stored[key];
-
+    if (row) {
+        const profile = dbCropToProfile(row);
+        profile.image = storedImage;
+        return profile;
     }
-
-
-    if (
-        defaultCropData[bedNumber]
-    ) {
-
-        return {
-            ...defaultCropData[bedNumber]
-        };
-
-    }
-
 
     return {
 
-        name:
-            "Unassigned Crop",
+        cropId: null,
 
-        variety:
-            "No variety assigned",
+        name: "Unassigned Crop",
 
-        staff:
-            "Not assigned",
+        variety: "No variety assigned",
 
-        pcs:
-            "0",
+        staff: "Not assigned",
 
-        germination:
-            "0%",
+        pcs: "0",
 
-        area:
-            `${currentPlot || ""}${bedNumber}`,
+        germination: "0%",
 
-        plantedDate:
-            getTodayDate(),
+        area: `${currentPlot || ""}${bedNumber}`,
 
-        harvest:
-            "",
+        plantedDate: getTodayDate(),
 
-        status:
-            "Planted",
+        harvest: "",
 
-        image:
-            ""
+        status: "Planted",
+
+        image: storedImage
 
     };
 
 }
+
 
 
 /* =========================================================
@@ -3645,6 +5539,12 @@ function renderCropProfile(crop) {
 
 
     document.getElementById(
+        "profileCropName"
+    ).textContent =
+        crop.name || "Unassigned Crop";
+
+
+    document.getElementById(
         "profileCropStaff"
     ).textContent =
         crop.staff || "Not assigned";
@@ -3765,22 +5665,18 @@ function updateCropImage(image) {
             "cropProfileImage"
         );
 
-
     const placeholder =
         document.getElementById(
             "cropImagePlaceholder"
         );
 
-
     if (image) {
 
         img.src =
-            image;
-
+            "<?= $basePath ?>" + image;
 
         img.style.display =
             "block";
-
 
         placeholder.style.display =
             "none";
@@ -3790,10 +5686,8 @@ function updateCropImage(image) {
         img.src =
             "";
 
-
         img.style.display =
             "none";
-
 
         placeholder.style.display =
             "flex";
@@ -3837,6 +5731,29 @@ function startCropProfileEditing() {
         "editCropPCS"
     ).value =
         crop.pcs || "";
+
+    document.getElementById(
+    "editCropDateSowing"
+).value =
+    crop.dateSowing || "";
+
+
+document.getElementById(
+    "editCropTargetTransplant"
+).value =
+    crop.targetTransplantDate || "";
+
+
+document.getElementById(
+    "editCropTargetArea"
+).value =
+    crop.targetArea || "";
+
+
+document.getElementById(
+    "editCropSeedlings"
+).value =
+    crop.seedlingsReceived || "0";
 
 
     document.getElementById(
@@ -3931,10 +5848,7 @@ function setCropProfileEditButtons(editing) {
 
 function saveCropProfile() {
 
-    if (
-        !currentPlot ||
-        !currentCropBed
-    ) {
+    if (!currentPlot || !currentCropBed) {
         return;
     }
 
@@ -3962,15 +5876,9 @@ function saveCropProfile() {
 
 
     /*
-     * If the farmer changes the
-     * weeks planted field, update
-     * the planted date automatically.
-     *
-     * Example:
-     *
-     * 4 weeks
-     * =
-     * today minus 28 days
+     * If Weeks Planted is changed,
+     * calculate the corresponding
+     * Date Transplanted.
      */
 
     let finalPlantedDate =
@@ -3994,7 +5902,10 @@ function saveCropProfile() {
 
 
         today.setHours(
-            0, 0, 0, 0
+            0,
+            0,
+            0,
+            0
         );
 
 
@@ -4014,118 +5925,281 @@ function saveCropProfile() {
                     today.getDate()
                 ).padStart(2, "0")
             }`;
-
     }
 
 
-    const crop = {
-
-        name:
-            document.getElementById(
-                "editCropName"
-            ).value.trim() ||
-            "Unnamed Crop",
+    const existing =
+        getCropProfile(
+            currentCropBed
+        );
 
 
-        variety:
-            document.getElementById(
-                "editCropVariety"
-            ).value.trim() ||
-            "No variety",
+    /*
+     * CREATE FORM DATA
+     */
+
+    const formData =
+        new FormData();
 
 
-        staff:
-            document.getElementById(
-                "editCropStaff"
-            ).value.trim() ||
-            "Not assigned",
+    formData.append(
+        "crop_id",
+        existing.cropId || ""
+    );
 
 
-        pcs:
+    formData.append(
+        "plot_letter",
+        currentPlot
+    );
+
+
+    formData.append(
+        "recipient",
+        document.getElementById(
+            "editCropStaff"
+        ).value.trim() ||
+        "Not assigned"
+    );
+
+
+    formData.append(
+        "crop_name",
+        document.getElementById(
+            "editCropName"
+        ).value.trim() ||
+        "Unnamed Crop"
+    );
+
+
+    formData.append(
+        "variety",
+        document.getElementById(
+            "editCropVariety"
+        ).value.trim() ||
+        "No variety"
+    );
+
+
+    formData.append(
+        "pcs",
+        parseInt(
             document.getElementById(
                 "editCropPCS"
-            ).value.trim() ||
-            "0",
+            ).value,
+            10
+        ) || 0
+    );
 
 
-        germination:
+    formData.append(
+        "date_sowing",
+        document.getElementById(
+            "editCropDateSowing"
+        ).value || ""
+    );
+
+
+    formData.append(
+        "germination_rate",
+        parseFloat(
             document.getElementById(
                 "editCropGermination"
-            ).value.trim() ||
-            "0%",
+            ).value
+        ) || 0
+    );
 
 
-        area:
+    formData.append(
+        "target_transplant_date",
+        document.getElementById(
+            "editCropTargetTransplant"
+        ).value || ""
+    );
+
+
+    formData.append(
+        "target_area",
+        document.getElementById(
+            "editCropTargetArea"
+        ).value.trim()
+    );
+
+
+    formData.append(
+        "seedlings_received",
+        parseInt(
             document.getElementById(
-                "editCropArea"
-            ).value.trim() ||
-            `${currentPlot}${currentCropBed}`,
-
-
-        plantedDate:
-            finalPlantedDate,
-
-
-        harvest:
-            document.getElementById(
-                "editCropHarvest"
+                "editCropSeedlings"
             ).value,
+            10
+        ) || 0
+    );
 
 
-        status:
+    formData.append(
+        "transplanted_area",
+        document.getElementById(
+            "editCropArea"
+        ).value.trim() ||
+        `${currentPlot}${currentCropBed}`
+    );
+
+
+    formData.append(
+        "date_transplanted",
+        finalPlantedDate || ""
+    );
+
+
+    formData.append(
+        "expected_harvest",
+        document.getElementById(
+            "editCropHarvest"
+        ).value || ""
+    );
+
+
+    formData.append(
+        "status",
+        statusLabelToDb(
             document.getElementById(
                 "editCropStatus"
-            ).value,
-
-
-        image:
-            getCropProfile(
-                currentCropBed
-            ).image || ""
-
-    };
-
-
-    const stored =
-        getStoredCropProfiles();
-
-
-    const key =
-        `${currentPlot}-${currentCropBed}`;
-
-
-    stored[key] =
-        crop;
-
-
-    saveStoredCropProfiles(
-        stored
+            ).value
+        )
     );
 
 
-    renderCropProfile(
-        crop
+    /*
+     * ADD CROP IMAGE IF SELECTED
+     */
+
+    const cropImageInput =
+        document.getElementById(
+            "cropImageInput"
+        );
+
+
+    if (
+        cropImageInput &&
+        cropImageInput.files.length > 0
+    ) {
+
+        formData.append(
+            "crop_image",
+            cropImageInput.files[0]
+        );
+    }
+
+
+    console.log(
+        "Saving crop with image:",
+        cropImageInput &&
+        cropImageInput.files.length > 0
+            ? cropImageInput.files[0]
+            : "No new image"
     );
 
 
-    document.getElementById(
-        "cropEditForm"
-    ).classList.remove(
-        "show"
-    );
+    const saveBtn =
+        document.getElementById(
+            "saveCropProfileBtn"
+        );
 
 
-    setCropProfileEditButtons(
-        false
-    );
+    saveBtn.disabled = true;
 
 
-    alert(
-        "Crop profile saved successfully."
+    fetch(
+        "../crops/farmMap_save_crop.php",
+        {
+            method: "POST",
+
+            /*
+             * IMPORTANT:
+             * Do NOT set Content-Type manually.
+             * Browser automatically sets multipart/form-data.
+             */
+
+            body: formData
+        }
+    )
+
+    .then(
+        response =>
+            response.json()
+    )
+
+    .then(
+        result => {
+
+            if (
+                !result.success
+            ) {
+
+                alert(
+                    result.message ||
+                    "Unable to save crop profile."
+                );
+
+                saveBtn.disabled =
+                    false;
+
+                return;
+            }
+
+
+            alert(
+                "Crop profile saved successfully."
+            );
+
+
+            location.reload();
+
+        }
+    )
+
+    .catch(
+        error => {
+
+            console.error(
+                "Save crop profile failed:",
+                error
+            );
+
+
+            alert(
+                "Unable to save crop profile. Please try again."
+            );
+
+
+            saveBtn.disabled =
+                false;
+
+        }
     );
 
 }
 
+/* =========================================================
+   SAVE CROP PROFILE BUTTON
+========================================================= */
+
+const saveCropProfileBtn =
+    document.getElementById("saveCropProfileBtn");
+
+if (saveCropProfileBtn) {
+
+    saveCropProfileBtn.addEventListener(
+        "click",
+        function () {
+
+            saveCropProfile();
+
+        }
+    );
+
+}
 
 /* =========================================================
    CANCEL CROP PROFILE EDITING
@@ -4245,14 +6319,105 @@ document.getElementById(
 
 
         reader.onload =
-            function(e) {
+    function(e) {
 
-                if (
-                    !currentPlot ||
-                    !currentCropBed
-                ) {
+        if (
+            !currentPlot ||
+            !currentCropBed
+        ) {
+            return;
+        }
+
+
+        const crop =
+            getCropProfile(
+                currentCropBed
+            );
+
+
+        const cropId =
+            crop.cropId;
+
+
+        if (!cropId) {
+
+            alert(
+                "This crop does not have a database ID yet."
+            );
+
+            return;
+        }
+
+
+        /*
+         * Show the selected image immediately
+         */
+
+        updateCropImage(
+            e.target.result
+        );
+
+
+        /*
+         * Upload image directly to PHP
+         */
+
+        const formData =
+            new FormData();
+
+
+        formData.append(
+            "image_only",
+            "1"
+        );
+
+
+        formData.append(
+            "crop_id",
+            cropId
+        );
+
+
+        formData.append(
+            "crop_image",
+            file
+        );
+
+
+        fetch(
+            "../crops/farmMap_save_crop.php",
+            {
+                method: "POST",
+                body: formData
+            }
+        )
+
+        .then(
+            response =>
+                response.json()
+        )
+
+        .then(
+            result => {
+
+                if (!result.success) {
+
+                    alert(
+                        result.message ||
+                        "Unable to upload crop picture."
+                    );
+
                     return;
                 }
+
+
+                /*
+                 * Save the database image path
+                 * into the local crop data.
+                 */
+
+                crop.image =
+                    result.image;
 
 
                 const stored =
@@ -4261,16 +6426,6 @@ document.getElementById(
 
                 const key =
                     `${currentPlot}-${currentCropBed}`;
-
-
-                const crop =
-                    getCropProfile(
-                        currentCropBed
-                    );
-
-
-                crop.image =
-                    e.target.result;
 
 
                 stored[key] =
@@ -4282,29 +6437,168 @@ document.getElementById(
                 );
 
 
+                /*
+                 * Refresh using the actual
+                 * server image path.
+                 */
+
                 updateCropImage(
-                    crop.image
+                    result.image
                 );
 
 
                 alert(
-                    "Crop picture updated successfully."
+                    "Crop picture uploaded successfully."
                 );
 
-            };
+            }
+        )
+
+        .catch(
+            error => {
+
+                console.error(
+                    "Crop image upload failed:",
+                    error
+                );
+
+
+                alert(
+                    "Unable to upload crop picture. Please try again."
+                );
+
+            }
+        );
+
+    };
 
 
         reader.readAsDataURL(
             file
         );
-
-
-        event.target.value =
-            "";
-
     }
 );
 
+const uploadLivestockImageBtn =
+    document.getElementById("uploadLivestockImageBtn");
+
+const removeLivestockImageBtn =
+    document.getElementById("removeLivestockImageBtn");
+
+const livestockImageInput =
+    document.getElementById("livestockImageInput");
+
+
+/* ================================
+   UPLOAD / CHANGE LIVESTOCK IMAGE
+================================ */
+
+if (uploadLivestockImageBtn && livestockImageInput) {
+
+    uploadLivestockImageBtn.addEventListener("click", function () {
+
+        livestockImageInput.click();
+
+    });
+
+}
+
+
+/* ================================
+   IMAGE SELECTED
+================================ */
+
+if (livestockImageInput) {
+
+    livestockImageInput.addEventListener("change", function () {
+
+        const file = this.files[0];
+
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+
+            alert("Please select an image file.");
+
+            this.value = "";
+
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = function (event) {
+
+            const image =
+                document.getElementById("livestockProfileImage");
+
+            const placeholder =
+                document.getElementById("livestockImagePlaceholder");
+
+            if (image) {
+
+                image.src = event.target.result;
+
+                image.style.display = "block";
+
+            }
+
+            if (placeholder) {
+
+                placeholder.style.display = "none";
+
+            }
+
+        };
+
+        reader.readAsDataURL(file);
+
+    });
+
+}
+
+
+/* ================================
+   REMOVE LIVESTOCK IMAGE
+================================ */
+
+if (removeLivestockImageBtn) {
+
+    removeLivestockImageBtn.addEventListener("click", function () {
+
+        const image =
+            document.getElementById("livestockProfileImage");
+
+        const placeholder =
+            document.getElementById("livestockImagePlaceholder");
+
+        const input =
+            document.getElementById("livestockImageInput");
+
+
+        if (image) {
+
+            image.src = "";
+
+            image.style.display = "none";
+
+        }
+
+        if (placeholder) {
+
+            placeholder.style.display = "flex";
+
+        }
+
+        if (input) {
+
+            input.value = "";
+
+        }
+
+    });
+
+}
 
 /* =========================================================
    REMOVE CROP IMAGE
@@ -4395,14 +6689,6 @@ document.getElementById(
 );
 
 
-/* =========================================================
-   CROP DATA - COMPATIBILITY
-========================================================= */
-
-const cropData =
-    defaultCropData;
-
-
 function openPlant(id) {
 
     openCropProfile(
@@ -4453,111 +6739,93 @@ function closeNursery() {
    LIVESTOCK DATA + STORAGE
 ========================================================= */
 
-const LIVESTOCK_STORAGE_KEY =
-    "sanctuarioLivestockProfiles";
-
-const LIVESTOCK_HOUSE_STORAGE_KEY =
-    "sanctuarioLivestockHousePositions";
-
 let currentLivestockHouse = null;
 let currentLivestockId = null;
 let livestockProfileSnapshot = null;
 
-const defaultLivestockHouses = {
+/*
+|--------------------------------------------------------------------------
+| LIVESTOCK DATA (FROM DATABASE)
+|--------------------------------------------------------------------------
+|
+| dbLivestockHouses is embedded by PHP at page load from the
+| livestock_houses + livestocks tables. Each house_code (e.g.
+| "goat-house") maps to { house: {...}, animals: [...] }.
+|
+*/
 
-    "goat-house": {
-        title: "Goat House",
-        image: "<?= $basePath ?>farmMap/goat_house.jpg?v=3",
-        description: "Goat housing area.",
-        animals: [
-            {
-                id: "gino",
-                name: "Gino",
-                sex: "Buck",
-                dob: "2025-03-01",
-                breed: "Native",
-                weight: "25 kg",
-                notes: "Happy goat",
-                image: "",
-                x: 31,
-                y: 45
-            }
-        ]
-    },
+function sexDbToLabel(sex) {
 
-    "goat-house-2": {
-        title: "Goat House 2",
-        image: "<?= $basePath ?>farmMap/goat_house.jpg?v=3",
-        description: "Second goat housing area.",
-        animals: []
-    },
+    if (sex === "male") return "Male";
+    if (sex === "female") return "Female";
+    if (sex === "mixed") return "Mixed";
 
-    "rabbit-house": {
-        title: "Rabbit House",
-        image: "<?= $basePath ?>farmMap/rabbit_house.jpg",
-        description: "Rabbit housing area.",
-        animals: []
-    },
-
-    "poultry-house": {
-        title: "Poultry House",
-        image: "<?= $basePath ?>farmMap/poultry_house.jpg",
-        description: "Poultry housing area.",
-        animals: []
-    },
-
-    "swine-house": {
-        title: "Swine House",
-        image: "<?= $basePath ?>farmMap/swine_house.jpg",
-        description: "Swine housing area.",
-        animals: []
-    }
-};
-
-function getStoredLivestockProfiles() {
-    try {
-        const value = JSON.parse(
-            localStorage.getItem(LIVESTOCK_STORAGE_KEY)
-        );
-        return value && typeof value === "object" && !Array.isArray(value)
-            ? value
-            : {};
-    } catch (error) {
-        console.error("Unable to load livestock profiles:", error);
-        return {};
-    }
+    return "--";
 }
 
-function saveStoredLivestockProfiles(data) {
-    localStorage.setItem(
-        LIVESTOCK_STORAGE_KEY,
-        JSON.stringify(data)
-    );
+function assignAnimalPosition(index, total) {
+
+    const columns = Math.max(1, Math.min(4, total));
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+
+    const spread = columns > 1 ? 70 / (columns - 1) : 0;
+
+    return {
+        x: 15 + col * spread,
+        y: 20 + row * 22
+    };
+}
+
+function dbLivestockToAnimal(row, index, total) {
+
+    const pos = assignAnimalPosition(index, total);
+
+    const displayName =
+        row.name ||
+        `${row.type || "Livestock"}${
+            row.number && row.number > 1 ? " (" + row.number + " pcs)" : ""
+        }`;
+
+    return {
+        id: row.livestock_id,
+        name: displayName,
+        type: row.type || "",
+        sex: row.sex || "",
+        dob: row.date_of_birth || "",
+        age: row.age || "",
+        breed: row.breed || "",
+        weight: row.estimated_weight ?? "",
+        number: row.number ?? 0,
+        forSale: Number(row.for_sale) === 1,
+        feedingSchedule: row.feeding_schedule || "",
+        notes: row.notes || "",
+        image: row.image ? `${basePath}${row.image}` : "",
+        x: pos.x,
+        y: pos.y
+    };
 }
 
 function getLivestockHouseData(houseId) {
 
-    const base = defaultLivestockHouses[houseId];
+    const entry = dbLivestockHouses[houseId];
 
-    if (!base) return null;
+    if (!entry) return null;
 
-    const stored = getStoredLivestockProfiles();
+    const total = entry.animals.length;
 
-    const animals = Array.isArray(stored[houseId])
-        ? stored[houseId]
-        : base.animals.map(animal => ({ ...animal }));
+    const animals = entry.animals.map(
+        (row, index) => dbLivestockToAnimal(row, index, total)
+    );
 
     return {
-        ...base,
+        title: entry.house.house_name,
+        image: entry.house.image ? `${basePath}${entry.house.image}` : "",
+        description: entry.house.description || "",
         animals
     };
 }
 
-function saveLivestockHouseAnimals(houseId, animals) {
-    const stored = getStoredLivestockProfiles();
-    stored[houseId] = animals;
-    saveStoredLivestockProfiles(stored);
-}
 
 function calculateLivestockAge(dob) {
 
@@ -4727,7 +6995,13 @@ function renderLivestockProfile(animal) {
         animal.name || "Unnamed Livestock";
 
     document.getElementById("profileLivestockType").textContent =
-        animal.sex || "Livestock";
+        animal.type || "--";
+
+    document.getElementById("profileLivestockTypeDisplay").textContent =
+        animal.type || "--";
+
+    document.getElementById("profileLivestockSex").textContent =
+        sexDbToLabel(animal.sex);
 
     document.getElementById("profileLivestockDOB").textContent =
         formatLivestockDate(animal.dob);
@@ -4736,10 +7010,21 @@ function renderLivestockProfile(animal) {
         animal.breed || "--";
 
     document.getElementById("profileLivestockAge").textContent =
-        calculateLivestockAge(animal.dob);
+        animal.age || "--";
 
     document.getElementById("profileLivestockWeight").textContent =
-        animal.weight || "--";
+        animal.weight
+            ? `${animal.weight} kg`
+            : "--";
+
+    document.getElementById("profileLivestockNumber").textContent =
+        animal.number ?? "--";
+
+    document.getElementById("profileLivestockForSale").textContent =
+        animal.forSale ? "Yes" : "No";
+
+    document.getElementById("profileLivestockFeedingSchedule").textContent =
+        animal.feedingSchedule || "--";
 
     document.getElementById("profileLivestockNotes").textContent =
         animal.notes || "No notes";
@@ -4798,16 +7083,61 @@ function startLivestockProfileEditing() {
         JSON.stringify(animal)
     );
 
-    document.getElementById("editLivestockName").value = animal.name || "";
-    document.getElementById("editLivestockSex").value = animal.sex || "Buck";
-    document.getElementById("editLivestockDOB").value = animal.dob || "";
-    document.getElementById("editLivestockBreed").value = animal.breed || "";
-    document.getElementById("editLivestockWeight").value = animal.weight || "";
-    document.getElementById("editLivestockNotes").value = animal.notes || "";
+    document.getElementById("editLivestockName").value =
+        animal.name || "";
+
+    document.getElementById("editLivestockType").value =
+        animal.type || "";
+
+    document.getElementById("editLivestockSex").value =
+        animal.sex || "male";
+
+    document.getElementById("editLivestockDOB").value =
+        animal.dob || "";
+
+    document.getElementById("editLivestockBreed").value =
+        animal.breed || "";
+
+    document.getElementById("editLivestockWeight").value =
+        animal.weight || "";
+
+    document.getElementById("editLivestockNumber").value =
+        animal.number ?? 1;
+
+    document.getElementById("editLivestockForSale").value =
+        animal.forSale ? "1" : "0";
+
+    document.getElementById("editLivestockFeedingSchedule").value =
+        animal.feedingSchedule || "";
+
+    document.getElementById("editLivestockNotes").value =
+        animal.notes || "";
 
     document.getElementById("livestockEditForm").classList.add("show");
+
     setLivestockProfileEditButtons(true);
 }
+
+document.getElementById("editLivestockProfileBtn").addEventListener(
+    "click",
+    function () {
+        startLivestockProfileEditing();
+    }
+);
+
+document.getElementById("saveLivestockProfileBtn").addEventListener(
+    "click",
+    function () {
+        saveLivestockProfile();
+    }
+);
+
+document.getElementById("cancelLivestockProfileBtn").addEventListener(
+    "click",
+    function () {
+        cancelLivestockProfileEditing();
+    }
+);
 
 function saveLivestockProfile() {
 
@@ -4815,75 +7145,193 @@ function saveLivestockProfile() {
 
     if (!animal || !currentLivestockHouse) return;
 
-    animal.name =
-        document.getElementById("editLivestockName").value.trim() || "Unnamed Livestock";
 
-    animal.sex =
-        document.getElementById("editLivestockSex").value || "Livestock";
+    /*
+    |--------------------------------------------------------------------------
+    | CREATE FORM DATA
+    |--------------------------------------------------------------------------
+    */
 
-    animal.dob =
-        document.getElementById("editLivestockDOB").value || "";
+    const formData = new FormData();
 
-    animal.breed =
-        document.getElementById("editLivestockBreed").value.trim() || "--";
 
-    animal.weight =
-        document.getElementById("editLivestockWeight").value.trim() || "--";
-
-    animal.notes =
-        document.getElementById("editLivestockNotes").value.trim() || "";
-
-    saveLivestockHouseAnimals(
-        currentLivestockHouse,
-        getLivestockHouseData(currentLivestockHouse).animals.map(item =>
-            item.id === animal.id ? animal : item
-        )
+    formData.append(
+        "livestock_id",
+        animal.id
     );
 
-    renderLivestockProfile(animal);
-    renderLivestockMarkers(currentLivestockHouse);
+    formData.append(
+        "name",
+        document.getElementById("editLivestockName").value.trim()
+    );
 
-    document.getElementById("livestockEditForm").classList.remove("show");
-    setLivestockProfileEditButtons(false);
+    formData.append(
+        "type",
+        document.getElementById("editLivestockType").value.trim()
+    );
 
-    livestockProfileSnapshot = null;
+    formData.append(
+        "sex",
+        document.getElementById("editLivestockSex").value
+    );
 
-    alert("Livestock profile saved successfully.");
+    formData.append(
+        "date_of_birth",
+        document.getElementById("editLivestockDOB").value
+    );
+
+    formData.append(
+        "breed",
+        document.getElementById("editLivestockBreed").value.trim()
+    );
+
+    formData.append(
+        "estimated_weight",
+        document.getElementById("editLivestockWeight").value
+    );
+
+    formData.append(
+        "number",
+        document.getElementById("editLivestockNumber").value
+    );
+
+    formData.append(
+        "for_sale",
+        document.getElementById("editLivestockForSale").value
+    );
+
+    formData.append(
+        "feeding_schedule",
+        document.getElementById("editLivestockFeedingSchedule").value.trim()
+    );
+
+    formData.append(
+        "notes",
+        document.getElementById("editLivestockNotes").value.trim()
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ADD IMAGE IF ONE WAS SELECTED
+    |--------------------------------------------------------------------------
+    */
+
+    const imageInput =
+        document.getElementById("livestockImageInput");
+
+    if (
+        imageInput &&
+        imageInput.files &&
+        imageInput.files.length > 0
+    ) {
+
+        formData.append(
+            "livestock_image",
+            imageInput.files[0]
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SAVE BUTTON
+    |--------------------------------------------------------------------------
+    */
+
+    const saveBtn =
+        document.getElementById("saveLivestockProfileBtn");
+
+    saveBtn.disabled = true;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SEND TO PHP
+    |--------------------------------------------------------------------------
+    */
+
+    fetch("../livestock/farmMap_save_livestock.php", {
+
+        method: "POST",
+
+        body: formData
+
+    })
+
+        .then(response => response.json())
+
+        .then(result => {
+
+            if (!result.success) {
+
+                alert(
+                    result.message ||
+                    "Unable to save livestock profile."
+                );
+
+                saveBtn.disabled = false;
+
+                return;
+            }
+
+
+            /*
+            |------------------------------------------------------------------
+            | UPDATE CURRENT ANIMAL IMAGE
+            |------------------------------------------------------------------
+            */
+
+            if (result.image) {
+
+                animal.image =
+                    `${basePath}${result.image}`;
+
+                updateLivestockImage(
+                    animal.image
+                );
+            }
+
+
+            alert(
+                "Livestock profile saved successfully."
+            );
+
+
+            location.reload();
+
+        })
+
+        .catch(error => {
+
+            console.error(
+                "Save livestock profile failed:",
+                error
+            );
+
+            alert(
+                "Unable to save livestock profile. Please try again."
+            );
+
+            saveBtn.disabled = false;
+
+        });
 }
 
 function cancelLivestockProfileEditing() {
 
-    if (!livestockProfileSnapshot) {
-        document.getElementById("livestockEditForm").classList.remove("show");
-        setLivestockProfileEditButtons(false);
-        return;
-    }
-
-    const house = getLivestockHouseData(currentLivestockHouse);
-
-    if (house) {
-        const restored = house.animals.map(item =>
-            item.id === livestockProfileSnapshot.id
-                ? { ...livestockProfileSnapshot }
-                : item
-        );
-
-        saveLivestockHouseAnimals(
-            currentLivestockHouse,
-            restored
-        );
-
-        renderLivestockProfile(
-            restored.find(item => item.id === currentLivestockId)
-        );
-
-        renderLivestockMarkers(currentLivestockHouse);
-    }
-
     document.getElementById("livestockEditForm").classList.remove("show");
     setLivestockProfileEditButtons(false);
+
     livestockProfileSnapshot = null;
+
+    const animal = getCurrentLivestock();
+
+    if (animal) {
+        renderLivestockProfile(animal);
+    }
 }
+
 
 
 
@@ -6464,6 +8912,41 @@ document.getElementById(
     "click",
     closeCropProfile
 );
+
+const closeLivestockBtn =
+    document.getElementById("closeLivestockBtn");
+
+if (closeLivestockBtn) {
+
+    closeLivestockBtn.addEventListener("click", function () {
+
+        const overlay =
+            document.getElementById("livestockOverlay");
+
+        if (overlay) {
+            overlay.classList.remove("show");
+        }
+
+    });
+
+}
+
+const closeLivestockProfileBtn =
+    document.getElementById("closeLivestockProfileBtn");
+
+if (closeLivestockProfileBtn) {
+
+    closeLivestockProfileBtn.addEventListener("click", function () {
+
+        const profileOverlay =
+            document.getElementById("livestockProfileOverlay");
+
+        if (profileOverlay) {
+            profileOverlay.classList.remove("show");
+        }
+
+    });
+}
 
 
 /* =========================================================

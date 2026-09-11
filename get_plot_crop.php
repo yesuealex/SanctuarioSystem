@@ -24,16 +24,16 @@ $plot = trim($plot);
 $stmt = $conn->prepare("
     SELECT 
         crop_name,
-        staff_name,
+        recipient,
         variety,
         pcs,
         germination_rate,
         transplanted_area,
         date_transplanted,
         expected_harvest,
-        plot_code
+        plot_id
     FROM crops
-    WHERE plot_code = ?
+    WHERE plot_id = ?
     ORDER BY date_transplanted DESC
 ");
 

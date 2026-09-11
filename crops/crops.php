@@ -36,10 +36,15 @@ $role = $_SESSION['role'] ?? 'staff';
 */
 
 $cropsResult = $conn->query("
-    SELECT *
+    SELECT 
+        crops.*,
+        plots.plot_name,
+        plots.plot_code
     FROM crops
-    WHERE archived = 0
-    ORDER BY crop_id DESC
+    LEFT JOIN plots
+        ON crops.plot_id = plots.plot_id
+    WHERE crops.archived = 0
+    ORDER BY crops.crop_id DESC
 ");
 
 ?>
@@ -385,7 +390,7 @@ $cropsResult = $conn->query("
                                 <td>
 
                                     <?= htmlspecialchars(
-                                        $row['plot_id'] ?? ''
+                                        $row['plot_name'] ?? ''
                                     ) ?>
 
                                 </td>

@@ -1,8 +1,11 @@
+```php
 <?php
+
 session_start();
 
 include '../db.php';
 include '../logfunc.php';
+
 
 /*
 |--------------------------------------------------------------------------
@@ -11,8 +14,44 @@ include '../logfunc.php';
 */
 
 if (!isset($_SESSION['user_id'])) {
+
     header("Location: ../login.php");
+
     exit();
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| FETCH PLOTS
+|--------------------------------------------------------------------------
+|
+| The dropdown will get the available plots directly
+| from the plots table.
+|
+| plots.plot_id  →  crops.plot_id
+|
+|--------------------------------------------------------------------------
+*/
+
+$plotsResult = $conn->query("
+    SELECT
+        plot_id,
+        plot_code,
+        plot_name
+    FROM plots
+    ORDER BY plot_id ASC
+");
+
+
+if (!$plotsResult) {
+
+    die(
+        "Failed to load plots: " .
+        $conn->error
+    );
+
 }
 
 
@@ -24,35 +63,67 @@ if (!isset($_SESSION['user_id'])) {
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $crop_name = trim($_POST['crop_name'] ?? '');
-    $recipient = trim($_POST['recipient'] ?? '');
-    $variety = trim($_POST['variety'] ?? '');
 
-    $pcs = intval($_POST['pcs'] ?? 0);
+    /*
+    |--------------------------------------------------------------------------
+    | GET FORM VALUES
+    |--------------------------------------------------------------------------
+    */
+
+    $crop_name = trim(
+        $_POST['crop_name'] ?? ''
+    );
+
+
+    $recipient = trim(
+        $_POST['recipient'] ?? ''
+    );
+
+
+    $variety = trim(
+        $_POST['variety'] ?? ''
+    );
+
+
+    $pcs = intval(
+        $_POST['pcs'] ?? 0
+    );
+
 
     $germination_rate = floatval(
         $_POST['germination_rate'] ?? 0
     );
 
+
     $transplanted_area = trim(
         $_POST['transplanted_area'] ?? ''
     );
 
-    $date_transplanted = !empty($_POST['date_transplanted'])
-        ? $_POST['date_transplanted']
-        : null;
 
-    $expected_harvest = !empty($_POST['expected_harvest'])
-        ? $_POST['expected_harvest']
-        : null;
+    $date_transplanted =
+        !empty($_POST['date_transplanted'])
+            ? $_POST['date_transplanted']
+            : null;
+
+
+    $expected_harvest =
+        !empty($_POST['expected_harvest'])
+            ? $_POST['expected_harvest']
+            : null;
+
 
     /*
     |--------------------------------------------------------------------------
-    | PLOT
+    | PLOT ID
     |--------------------------------------------------------------------------
+    |
+    | This must be the actual plot_id from the plots table.
+    |
     */
 
-    $plot_id = trim($_POST['plot_id'] ?? '');
+    $plot_id = intval(
+        $_POST['plot_id'] ?? 0
+    );
 
 
     /*
@@ -62,15 +133,73 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     */
 
     if ($crop_name === '') {
+
         die("Crop name is required.");
+
     }
+
 
     if ($recipient === '') {
+
         die("Recipient is required.");
+
     }
 
-    if ($plot_id === '') {
+
+    if ($plot_id <= 0) {
+
         die("Plot location is required.");
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK THAT PLOT EXISTS
+    |--------------------------------------------------------------------------
+    */
+
+    $plotCheck = $conn->prepare("
+        SELECT plot_id
+        FROM plots
+        WHERE plot_id = ?
+    ");
+
+
+    if (!$plotCheck) {
+
+        die(
+            "Plot check failed: " .
+            $conn->error
+        );
+
+    }
+
+
+    $plotCheck->bind_param(
+        "i",
+        $plot_id
+    );
+
+
+    $plotCheck->execute();
+
+
+    $plotExists =
+        $plotCheck
+            ->get_result()
+            ->num_rows > 0;
+
+
+    $plotCheck->close();
+
+
+    if (!$plotExists) {
+
+        die(
+            "The selected plot does not exist."
+        );
+
     }
 
 
@@ -93,11 +222,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             expected_harvest,
             plot_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES
+        (
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?
+        )
     ");
 
+
     if (!$stmt) {
-        die("Prepare failed: " . $conn->error);
+
+        die(
+            "Prepare failed: " .
+            $conn->error
+        );
+
     }
 
 
@@ -105,10 +251,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     |--------------------------------------------------------------------------
     | BIND PARAMETERS
     |--------------------------------------------------------------------------
+    |
+    | s = string
+    | i = integer
+    | d = decimal/double
+    |
+    | 9 values:
+    |
+    | 1. crop_name              s
+    | 2. recipient              s
+    | 3. variety                s
+    | 4. pcs                    i
+    | 5. germination_rate       d
+    | 6. transplanted_area      s
+    | 7. date_transplanted      s
+    | 8. expected_harvest       s
+    | 9. plot_id                i
+    |
+    |--------------------------------------------------------------------------
     */
 
     $stmt->bind_param(
-        "sssidssss",
+        "sssidsssi",
         $crop_name,
         $recipient,
         $variety,
@@ -128,7 +292,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     */
 
     if (!$stmt->execute()) {
-        die("Insert failed: " . $stmt->error);
+
+        die(
+            "Insert failed: " .
+            $stmt->error
+        );
+
     }
 
 
@@ -151,7 +320,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $conn,
         $_SESSION['user_id'],
         "Added Crop",
-        "Crop: $crop_name in $plot_id"
+        "Crop: $crop_name, Plot ID: $plot_id"
     );
 
 
@@ -164,7 +333,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     echo '
     <script>
 
-        if (window.parent && window.parent !== window) {
+        if (
+            window.parent &&
+            window.parent !== window
+        ) {
 
             window.parent.closeEditModal();
 
@@ -172,19 +344,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         } else {
 
-            window.location.href = "../records.php";
+            window.location.href =
+                "../records.php";
 
         }
 
     </script>
     ';
 
+
     exit();
+
 }
 
 ?>
 
+
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -196,12 +373,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     content="width=device-width, initial-scale=1.0"
 >
 
-<title>Add Crop</title>
+<title>
+    Add Crop
+</title>
+
 
 <link
     rel="stylesheet"
     href="../style.css"
 >
+
 
 <style>
 
@@ -209,10 +390,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     box-sizing: border-box;
 }
 
+
 html,
 body {
 
     margin: 0;
+
     padding: 0;
 
     background: #ffffff;
@@ -221,13 +404,16 @@ body {
         'Poppins',
         Arial,
         sans-serif;
+
 }
+
 
 body {
 
     min-height: 100vh;
 
 }
+
 
 .form-wrapper {
 
@@ -236,6 +422,7 @@ body {
     padding: 25px;
 
 }
+
 
 .form-card {
 
@@ -260,36 +447,48 @@ body {
 
 }
 
+
 .form-card h2 {
 
     margin:
         0 0 20px;
 
-    color: #2f6b2f;
+    color:
+        #2f6b2f;
 
-    text-align: center;
+    text-align:
+        center;
 
-    font-size: 1.35rem;
+    font-size:
+        1.35rem;
 
 }
+
 
 .form-group {
 
-    margin-bottom: 12px;
+    margin-bottom:
+        12px;
 
 }
+
 
 .form-card label {
 
-    display: block;
+    display:
+        block;
 
-    margin-bottom: 5px;
+    margin-bottom:
+        5px;
 
-    font-size: 0.85rem;
+    font-size:
+        0.85rem;
 
-    color: #555;
+    color:
+        #555;
 
 }
+
 
 .form-card input,
 .form-card select {
@@ -299,25 +498,31 @@ body {
     padding:
         11px 12px;
 
-    border-radius: 8px;
+    border-radius:
+        8px;
 
     border:
         1px solid #ddd;
 
     outline: none;
 
-    font-family: inherit;
+    font-family:
+        inherit;
 
-    font-size: 0.9rem;
+    font-size:
+        0.9rem;
 
-    background: #fff;
+    background:
+        #fff;
 
 }
+
 
 .form-card input:focus,
 .form-card select:focus {
 
-    border-color: #2f6b2f;
+    border-color:
+        #2f6b2f;
 
     box-shadow:
         0 0 0 2px
@@ -325,49 +530,66 @@ body {
 
 }
 
+
 .form-card button {
 
     width: 100%;
 
-    padding: 12px;
+    padding:
+        12px;
 
-    margin-top: 8px;
+    margin-top:
+        8px;
 
-    background: #2f6b2f;
+    background:
+        #2f6b2f;
 
-    color: white;
+    color:
+        white;
 
-    border: none;
+    border:
+        none;
 
-    border-radius: 8px;
+    border-radius:
+        8px;
 
-    font-family: inherit;
+    font-family:
+        inherit;
 
-    font-weight: 600;
+    font-weight:
+        600;
 
-    cursor: pointer;
+    cursor:
+        pointer;
 
-    transition: 0.2s ease;
+    transition:
+        0.2s ease;
 
 }
+
 
 .form-card button:hover {
 
-    background: #245224;
+    background:
+        #245224;
 
 }
+
 
 @media (max-width: 600px) {
 
     .form-wrapper {
 
-        padding: 15px;
+        padding:
+            15px;
 
     }
 
+
     .form-card {
 
-        padding: 20px;
+        padding:
+            20px;
 
     }
 
@@ -397,7 +619,9 @@ body {
         >
 
 
-            <!-- CROP NAME -->
+            <!-- =====================================================
+                 CROP NAME
+                 ===================================================== -->
 
             <div class="form-group">
 
@@ -415,7 +639,9 @@ body {
             </div>
 
 
-            <!-- RECIPIENT -->
+            <!-- =====================================================
+                 RECIPIENT
+                 ===================================================== -->
 
             <div class="form-group">
 
@@ -433,7 +659,9 @@ body {
             </div>
 
 
-            <!-- VARIETY -->
+            <!-- =====================================================
+                 VARIETY
+                 ===================================================== -->
 
             <div class="form-group">
 
@@ -450,7 +678,9 @@ body {
             </div>
 
 
-            <!-- PIECES -->
+            <!-- =====================================================
+                 PIECES
+                 ===================================================== -->
 
             <div class="form-group">
 
@@ -468,7 +698,9 @@ body {
             </div>
 
 
-            <!-- GERMINATION RATE -->
+            <!-- =====================================================
+                 GERMINATION RATE
+                 ===================================================== -->
 
             <div class="form-group">
 
@@ -488,7 +720,9 @@ body {
             </div>
 
 
-            <!-- AREA -->
+            <!-- =====================================================
+                 AREA
+                 ===================================================== -->
 
             <div class="form-group">
 
@@ -505,7 +739,9 @@ body {
             </div>
 
 
-            <!-- DATE TRANSPLANTED -->
+            <!-- =====================================================
+                 DATE TRANSPLANTED
+                 ===================================================== -->
 
             <div class="form-group">
 
@@ -521,7 +757,9 @@ body {
             </div>
 
 
-            <!-- EXPECTED HARVEST -->
+            <!-- =====================================================
+                 EXPECTED HARVEST
+                 ===================================================== -->
 
             <div class="form-group">
 
@@ -537,7 +775,9 @@ body {
             </div>
 
 
-            <!-- PLOT -->
+            <!-- =====================================================
+                 PLOT LOCATION
+                 ===================================================== -->
 
             <div class="form-group">
 
@@ -545,33 +785,48 @@ body {
                     Plot Location
                 </label>
 
+
                 <select
                     name="plot_id"
                     required
                 >
 
+
                     <option value="">
                         Select Plot
                     </option>
 
-                    <option value="plot_a">
-                        Plot A
-                    </option>
 
-                    <option value="plot_b">
-                        Plot B
-                    </option>
+                    <?php while (
+                        $plot =
+                        $plotsResult->fetch_assoc()
+                    ): ?>
 
-                    <option value="plot_c">
-                        Plot C
-                    </option>
+
+                        <option
+                            value="<?= intval(
+                                $plot['plot_id']
+                            ) ?>"
+                        >
+
+                            <?= htmlspecialchars(
+                                $plot['plot_name']
+                            ) ?>
+
+                        </option>
+
+
+                    <?php endwhile; ?>
+
 
                 </select>
 
             </div>
 
 
-            <!-- SAVE -->
+            <!-- =====================================================
+                 SAVE
+                 ===================================================== -->
 
             <button
                 type="submit"
@@ -594,3 +849,4 @@ body {
 </body>
 
 </html>
+```

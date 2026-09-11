@@ -27,9 +27,9 @@ $response = [
 if ($plot !== 'livestock') {
 
     $stmt = $conn->prepare("
-        SELECT crop_name, staff_name, pcs, date_transplanted
+        SELECT crop_name, recipient, pcs, date_transplanted
         FROM crops
-        WHERE plot_code = ?
+        WHERE plot_id = ?
     ");
 
     if (!$stmt) {
