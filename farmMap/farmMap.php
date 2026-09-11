@@ -333,6 +333,288 @@ foreach ($houseRowsByCode as $code => $h) {
     overflow: hidden;
 }
 
+/* =========================================================
+   IMAGE CROP MARKERS
+========================================================= */
+
+.bed-marker.crop-image-marker {
+
+    width: 42px;
+    height: 42px;
+
+    padding: 3px;
+
+    border-radius: 50%;
+
+    background: rgba(255,255,255,.96);
+
+    border: 2px solid #ffffff;
+
+    box-shadow:
+        0 2px 8px rgba(0,0,0,.25);
+
+    overflow: visible;
+
+}
+
+.bed-marker.crop-image-marker:hover {
+
+    transform:
+        translate(-50%, -50%)
+        scale(1.1);
+
+}
+
+.bed-marker.crop-image-marker img {
+
+    width: 34px;
+    height: 34px;
+
+    display: block;
+
+    object-fit: contain;
+
+    pointer-events: none;
+
+    user-select: none;
+
+}
+
+
+/* Keep bed number available as a small badge */
+
+.bed-marker.crop-image-marker .crop-bed-number {
+
+    position: absolute;
+
+    right: -6px;
+    bottom: -5px;
+
+    min-width: 16px;
+    height: 16px;
+
+    padding: 0 3px;
+
+    border-radius: 50%;
+
+    background: #5f8f45;
+
+    color: #ffffff;
+
+    border: 2px solid #ffffff;
+
+    font-size: 8px;
+    font-weight: 700;
+
+    line-height: 12px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+}
+
+
+/* =========================================================
+   IMAGE LIVESTOCK MARKERS
+========================================================= */
+
+.livestock-house-marker.livestock-image-marker {
+
+    width: 46px;
+    height: 46px;
+
+    padding: 3px;
+
+    background: rgba(255,255,255,.96);
+
+    border: 2px solid #ffffff;
+
+    border-radius: 50%;
+
+    box-shadow:
+        0 3px 10px rgba(0,0,0,.28);
+
+    overflow: visible;
+
+}
+
+.livestock-house-marker.livestock-image-marker:hover {
+
+    transform:
+        translate(-50%,-50%)
+        scale(1.1);
+
+}
+
+.livestock-house-marker.livestock-image-marker img {
+
+    width: 38px;
+    height: 38px;
+
+    object-fit: contain;
+
+    display: block;
+
+    pointer-events: none;
+
+    user-select: none;
+
+}
+
+
+/* =========================================================
+   ICON CHOOSER
+========================================================= */
+
+.marker-icon-chooser {
+
+    grid-column: 1 / -1;
+
+}
+
+.marker-icon-chooser-label {
+
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: #666;
+
+    font-size: 9px;
+
+    font-weight: 600;
+
+}
+
+.marker-icon-options {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+
+    gap: 7px;
+
+}
+
+.marker-icon-option {
+
+    position: relative;
+
+    min-width: 0;
+
+}
+
+.marker-icon-option input {
+
+    position: absolute;
+
+    opacity: 0;
+
+    pointer-events: none;
+
+}
+
+.marker-icon-option label {
+
+    min-height: 72px;
+
+    padding: 7px 5px;
+
+    border: 1px solid #d9e0d5;
+
+    border-radius: 9px;
+
+    background: #ffffff;
+
+    cursor: pointer;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 5px;
+
+    transition:
+        border-color .2s ease,
+        background .2s ease,
+        box-shadow .2s ease,
+        transform .15s ease;
+
+}
+
+.marker-icon-option label:hover {
+
+    border-color: #a8bd9e;
+
+    transform: translateY(-1px);
+
+}
+
+.marker-icon-option input:checked + label {
+
+    border-color: #6b8e23;
+
+    background: #f1f6ed;
+
+    box-shadow:
+        0 0 0 2px rgba(107,142,35,.12);
+
+}
+
+.marker-icon-option img {
+
+    width: 38px;
+    height: 38px;
+
+    object-fit: contain;
+
+    display: block;
+
+}
+
+.marker-icon-option span {
+
+    color: #52604d;
+
+    font-size: 8px;
+
+    font-weight: 600;
+
+    text-align: center;
+
+}
+
+.marker-position-row {
+
+    grid-column: 1 / -1;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0,1fr));
+
+    gap: 11px;
+
+}
+
+
+@media (max-width: 600px) {
+
+    .marker-icon-options {
+
+        grid-template-columns:
+            repeat(2, minmax(0,1fr));
+
+    }
+
+}
+
 .bed-marker {
     position: absolute;
 
@@ -2844,6 +3126,159 @@ foreach ($houseRowsByCode as $code => $h) {
 
                     </div>
 
+                    <!-- =================================================
+     LIVESTOCK MARKER ICON
+================================================== -->
+
+<div class="livestock-input-group full marker-icon-chooser">
+
+    <span class="marker-icon-chooser-label">
+        Choose Livestock Icon
+    </span>
+
+
+    <div class="marker-icon-options">
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="livestockMarkerIcon"
+                id="livestockIconGoat"
+                value="goat"
+            >
+
+            <label for="livestockIconGoat">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/livestocks/goat.png"
+                    alt="Goat"
+                >
+
+                <span>
+                    Goat
+                </span>
+
+            </label>
+
+        </div>
+
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="livestockMarkerIcon"
+                id="livestockIconRabbit"
+                value="rabbit"
+            >
+
+            <label for="livestockIconRabbit">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/livestocks/rabbit.png"
+                    alt="Rabbit"
+                >
+
+                <span>
+                    Rabbit
+                </span>
+
+            </label>
+
+        </div>
+
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="livestockMarkerIcon"
+                id="livestockIconChicken"
+                value="chicken"
+            >
+
+            <label for="livestockIconChicken">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/livestocks/chicken.png"
+                    alt="Chicken"
+                >
+
+                <span>
+                    Chicken
+                </span>
+
+            </label>
+
+        </div>
+
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="livestockMarkerIcon"
+                id="livestockIconPig"
+                value="pig"
+            >
+
+            <label for="livestockIconPig">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/livestocks/pig.png"
+                    alt="Pig"
+                >
+
+                <span>
+                    Pig
+                </span>
+
+            </label>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- =================================================
+     LIVESTOCK MARKER POSITION
+================================================== -->
+
+<div class="livestock-input-group">
+
+    <label for="editLivestockMarkerX">
+        Position X (%)
+    </label>
+
+    <input
+        type="number"
+        id="editLivestockMarkerX"
+        min="0"
+        max="100"
+        step="0.1"
+    >
+
+</div>
+
+
+<div class="livestock-input-group">
+
+    <label for="editLivestockMarkerY">
+        Position Y (%)
+    </label>
+
+    <input
+        type="number"
+        id="editLivestockMarkerY"
+        min="0"
+        max="100"
+        step="0.1"
+    >
+
+</div>
+
 
                     <!-- Sex -->
 
@@ -3370,6 +3805,161 @@ foreach ($houseRowsByCode as $code => $h) {
                                         >
 
                                     </div>
+
+ <!-- =================================================
+     CROP MARKER ICON
+================================================== -->
+
+<div class="crop-input-group marker-icon-chooser">
+
+    <span class="marker-icon-chooser-label">
+        Choose Crop Icon
+    </span>
+
+
+    <div class="marker-icon-options">
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconLettuce"
+                value="lettuce"
+            >
+
+            <label for="cropIconLettuce">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/lettuce.png"
+                    alt="Lettuce"
+                >
+
+                <span>
+                    Lettuce
+                </span>
+
+            </label>
+
+        </div>
+
+
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconCarrot"
+                value="carrot"
+            >
+
+            <label for="cropIconCarrot">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/carrot.png"
+                    alt="Carrot"
+                >
+
+                <span>
+                    Carrot
+                </span>
+
+            </label>
+
+        </div>
+
+
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconCorn"
+                value="corn"
+            >
+
+            <label for="cropIconCorn">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/corn.png"
+                    alt="Corn"
+                >
+
+                <span>
+                    Corn
+                </span>
+
+            </label>
+
+        </div>
+
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconEggplant"
+                value="eggplant"
+            >
+
+            <label for="cropIconEggplant">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/eggplant.png"
+                    alt="Eggplant"
+                >
+
+                <span>
+                    Eggplant
+                </span>
+
+            </label>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- =================================================
+     CROP MARKER POSITION
+================================================== -->
+
+<div class="crop-input-group">
+
+    <label for="editCropMarkerX">
+        Position X (%)
+    </label>
+
+    <input
+        type="number"
+        id="editCropMarkerX"
+        min="0"
+        max="100"
+        step="0.1"
+    >
+
+</div>
+
+
+<div class="crop-input-group">
+
+    <label for="editCropMarkerY">
+        Position Y (%)
+    </label>
+
+    <input
+        type="number"
+        id="editCropMarkerY"
+        min="0"
+        max="100"
+        step="0.1"
+    >
+
+</div>
 
 
                                     <div class="crop-input-group">
@@ -4004,6 +4594,215 @@ const plotData = {
 
 const basePath = "<?= $basePath ?>";
 
+/* =========================================================
+   FARM MARKER ICON CONFIGURATION
+========================================================= */
+
+const FARM_MARKER_ICONS = {
+
+    crops: {
+
+        lettuce:
+            `${basePath}farmMap/icons/crops/lettuce.png`,
+
+        carrot:
+            `${basePath}farmMap/icons/crops/carrot.png`,
+
+
+        corn:
+            `${basePath}farmMap/icons/crops/corn.png`,
+
+        eggplant:
+            `${basePath}farmMap/icons/crops/eggplant.png`
+
+    },
+
+    livestock: {
+
+        goat:
+            `${basePath}farmMap/icons/livestocks/goat.png`,
+
+        rabbit:
+            `${basePath}farmMap/icons/livestocks/rabbit.png`,
+
+        chicken:
+            `${basePath}farmMap/icons/livestocks/chicken.png`,
+
+        pig:
+            `${basePath}farmMap/icons/livestocks/pig.png`
+
+    }
+
+};
+
+
+/*
+ * These two values are intentionally kept in localStorage.
+ * The existing bed positions and main map editing system
+ * already use localStorage.
+ */
+
+const CROP_ICON_STORAGE_KEY =
+    "sanctuarioCropMarkerIcons";
+
+const LIVESTOCK_MARKER_STORAGE_KEY =
+    "sanctuarioLivestockMarkerData";
+
+
+function normalizeMarkerIconKey(value) {
+
+    return String(value || "")
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "");
+
+}
+
+
+function guessCropIcon(cropName) {
+
+    const name =
+        normalizeMarkerIconKey(cropName);
+
+    const cropNames = Object.keys(
+        FARM_MARKER_ICONS.crops
+    );
+
+    const match =
+        cropNames.find(
+            key =>
+                name.includes(
+                    normalizeMarkerIconKey(key)
+                )
+        );
+
+    return match || "lettuce";
+
+}
+
+
+function guessLivestockIcon(type) {
+
+    const value =
+        normalizeMarkerIconKey(type);
+
+    if (
+        value.includes("goat")
+    ) {
+        return "goat";
+    }
+
+    if (
+        value.includes("rabbit")
+    ) {
+        return "rabbit";
+    }
+
+    if (
+        value.includes("chicken") ||
+        value.includes("poultry") ||
+        value.includes("hen")
+    ) {
+        return "chicken";
+    }
+
+    if (
+        value.includes("pig") ||
+        value.includes("swine")
+    ) {
+        return "pig";
+    }
+
+    return "goat";
+
+}
+
+
+function getStoredCropMarkerIcons() {
+
+    try {
+
+        const value =
+            JSON.parse(
+                localStorage.getItem(
+                    CROP_ICON_STORAGE_KEY
+                )
+            );
+
+        return (
+            value &&
+            typeof value === "object" &&
+            !Array.isArray(value)
+        )
+            ? value
+            : {};
+
+    } catch (error) {
+
+        console.error(
+            "Unable to load crop marker icons:",
+            error
+        );
+
+        return {};
+
+    }
+
+}
+
+
+function saveStoredCropMarkerIcons(data) {
+
+    localStorage.setItem(
+        CROP_ICON_STORAGE_KEY,
+        JSON.stringify(data)
+    );
+
+}
+
+
+function getStoredLivestockMarkerData() {
+
+    try {
+
+        const value =
+            JSON.parse(
+                localStorage.getItem(
+                    LIVESTOCK_MARKER_STORAGE_KEY
+                )
+            );
+
+        return (
+            value &&
+            typeof value === "object" &&
+            !Array.isArray(value)
+        )
+            ? value
+            : {};
+
+    } catch (error) {
+
+        console.error(
+            "Unable to load livestock marker data:",
+            error
+        );
+
+        return {};
+
+    }
+
+}
+
+
+function saveStoredLivestockMarkerData(data) {
+
+    localStorage.setItem(
+        LIVESTOCK_MARKER_STORAGE_KEY,
+        JSON.stringify(data)
+    );
+
+}
+
 const userRole = "<?= htmlspecialchars($role, ENT_QUOTES) ?>";
 
 const dbCropsByPlot = <?= json_encode($dbCropsByPlot) ?>;
@@ -4186,38 +4985,120 @@ function getBedsForPlot(plot) {
    CREATE BED MARKER
 ========================================================= */
 
+function getCropMarkerIconKey(
+    bedNumber,
+    crop
+) {
+
+    const stored =
+        getStoredCropMarkerIcons();
+
+
+    const key =
+        `${currentPlot}-${bedNumber}`;
+
+
+    if (
+        stored[key] &&
+        FARM_MARKER_ICONS.crops[
+            stored[key]
+        ]
+    ) {
+
+        return stored[key];
+
+    }
+
+
+    return guessCropIcon(
+        crop &&
+        crop.name
+            ? crop.name
+            : ""
+    );
+
+}
+
 function createBedMarker(bed) {
 
     const marker =
         document.createElement("button");
 
 
-    marker.type = "button";
+    marker.type =
+        "button";
+
 
     marker.className =
-        "bed-marker";
+        "bed-marker crop-image-marker";
 
 
     marker.dataset.bed =
         String(bed.number);
 
 
-    marker.textContent =
-        bed.number;
-
-
     marker.style.left =
-        `${Number(bed.x)}%`;
+        `${Number(bed.x) || 0}%`;
 
 
     marker.style.top =
-        `${Number(bed.y)}%`;
+        `${Number(bed.y) || 0}%`;
+
+
+    /*
+     * Find the crop represented by this bed.
+     */
+    const crop =
+        getCropProfile(
+            Number(bed.number)
+        );
+
+
+    const cropKey =
+        getCropMarkerIconKey(
+            Number(bed.number),
+            crop
+        );
+
+
+    const iconPath =
+        FARM_MARKER_ICONS.crops[cropKey] ||
+        FARM_MARKER_ICONS.crops.lettuce;
+
+
+    const cropName =
+        crop &&
+        crop.name
+            ? crop.name
+            : `Bed ${bed.number}`;
 
 
     marker.title =
-        `Bed ${bed.number}`;
+        cropName;
 
 
+    marker.innerHTML =
+        `
+            <img
+                src="${iconPath}"
+                alt="${escapeHTML(cropName)}"
+                draggable="false"
+            >
+
+            <span class="crop-bed-number">
+                ${escapeHTML(bed.number)}
+            </span>
+        `;
+
+
+    /*
+     * CLICK
+     *
+     * Preserve the existing behavior:
+     *
+     * - Edit Beds mode = select bed
+     * - Normal mode = open crop profile
+     */
     marker.addEventListener(
         "click",
         function(event) {
@@ -4244,11 +5125,18 @@ function createBedMarker(bed) {
     );
 
 
+    /*
+     * DRAGGING
+     *
+     * This is intentionally unchanged in behavior.
+     */
     marker.addEventListener(
         "mousedown",
         function(event) {
 
-            if (!bedEditMode) return;
+            if (!bedEditMode) {
+                return;
+            }
 
 
             event.preventDefault();
@@ -4260,7 +5148,9 @@ function createBedMarker(bed) {
                 marker;
 
 
-            selectBed(marker);
+            selectBed(
+                marker
+            );
 
         }
     );
@@ -5709,6 +6599,45 @@ function startCropProfileEditing() {
         );
 
 
+    /*
+     * Save the current marker state so Cancel
+     * can restore it.
+     */
+    const beds =
+        getBedsForPlot(
+            currentPlot
+        );
+
+
+    const currentBed =
+        beds.find(
+            bed =>
+                Number(bed.number) ===
+                Number(currentCropBed)
+        );
+
+
+    cropProfileSnapshot = {
+
+        icon:
+            getCropMarkerIconKey(
+                currentCropBed,
+                crop
+            ),
+
+        x:
+            currentBed
+                ? Number(currentBed.x) || 0
+                : 0,
+
+        y:
+            currentBed
+                ? Number(currentBed.y) || 0
+                : 0
+
+    };
+
+
     document.getElementById(
         "editCropName"
     ).value =
@@ -5732,28 +6661,29 @@ function startCropProfileEditing() {
     ).value =
         crop.pcs || "";
 
+
     document.getElementById(
-    "editCropDateSowing"
-).value =
-    crop.dateSowing || "";
+        "editCropDateSowing"
+    ).value =
+        crop.dateSowing || "";
 
 
-document.getElementById(
-    "editCropTargetTransplant"
-).value =
-    crop.targetTransplantDate || "";
+    document.getElementById(
+        "editCropTargetTransplant"
+    ).value =
+        crop.targetTransplantDate || "";
 
 
-document.getElementById(
-    "editCropTargetArea"
-).value =
-    crop.targetArea || "";
+    document.getElementById(
+        "editCropTargetArea"
+    ).value =
+        crop.targetArea || "";
 
 
-document.getElementById(
-    "editCropSeedlings"
-).value =
-    crop.seedlingsReceived || "0";
+    document.getElementById(
+        "editCropSeedlings"
+    ).value =
+        crop.seedlingsReceived || "0";
 
 
     document.getElementById(
@@ -5771,7 +6701,8 @@ document.getElementById(
     document.getElementById(
         "editCropPlantedDate"
     ).value =
-        crop.plantedDate || getTodayDate();
+        crop.plantedDate ||
+        getTodayDate();
 
 
     document.getElementById(
@@ -5796,6 +6727,96 @@ document.getElementById(
         crop.status || "Planted";
 
 
+    /*
+     * Load current marker position.
+     */
+    document.getElementById(
+        "editCropMarkerX"
+    ).value =
+        cropProfileSnapshot.x;
+
+
+    document.getElementById(
+        "editCropMarkerY"
+    ).value =
+        cropProfileSnapshot.y;
+
+
+    /*
+     * Select current crop icon.
+     */
+    const iconKey =
+        cropProfileSnapshot.icon;
+
+
+    const iconInput =
+        document.querySelector(
+            `input[name="cropMarkerIcon"][value="${iconKey}"]`
+        );
+
+
+    if (iconInput) {
+
+        iconInput.checked =
+            true;
+
+    }
+
+
+    /*
+     * Immediately update the marker when
+     * the user chooses an icon.
+     */
+    document
+        .querySelectorAll(
+            'input[name="cropMarkerIcon"]'
+        )
+        .forEach(
+            input => {
+
+                input.onchange =
+                    function() {
+
+                        updateCurrentCropMarkerIcon(
+                            this.value
+                        );
+
+                    };
+
+            }
+        );
+
+
+    /*
+     * Immediately update marker X/Y while editing.
+     */
+    const xInput =
+        document.getElementById(
+            "editCropMarkerX"
+        );
+
+    const yInput =
+        document.getElementById(
+            "editCropMarkerY"
+        );
+
+
+    if (xInput) {
+
+        xInput.oninput =
+            updateCurrentCropMarkerPosition;
+
+    }
+
+
+    if (yInput) {
+
+        yInput.oninput =
+            updateCurrentCropMarkerPosition;
+
+    }
+
+
     document.getElementById(
         "cropEditForm"
     ).classList.add(
@@ -5806,6 +6827,143 @@ document.getElementById(
     setCropProfileEditButtons(
         true
     );
+
+}
+
+function updateCurrentCropMarkerIcon(
+    iconKey
+) {
+
+    if (!currentPlot || !currentCropBed) {
+        return;
+    }
+
+
+    if (
+        !FARM_MARKER_ICONS.crops[iconKey]
+    ) {
+        return;
+    }
+
+
+    const stored =
+        getStoredCropMarkerIcons();
+
+
+    const key =
+        `${currentPlot}-${currentCropBed}`;
+
+
+    stored[key] =
+        iconKey;
+
+
+    saveStoredCropMarkerIcons(
+        stored
+    );
+
+
+    /*
+     * Find the currently visible bed marker.
+     */
+    const marker =
+        document.querySelector(
+            `#bedMarkersContainer .bed-marker[data-bed="${currentCropBed}"]`
+        );
+
+
+    if (!marker) {
+        return;
+    }
+
+
+    const image =
+        marker.querySelector("img");
+
+
+    if (image) {
+
+        image.src =
+            FARM_MARKER_ICONS.crops[
+                iconKey
+            ];
+
+    }
+
+
+    const crop =
+        getCropProfile(
+            currentCropBed
+        );
+
+
+    marker.title =
+        crop.name ||
+        `Bed ${currentCropBed}`;
+
+}
+
+
+function updateCurrentCropMarkerPosition() {
+
+    if (!currentPlot || !currentCropBed) {
+        return;
+    }
+
+
+    const xInput =
+        document.getElementById(
+            "editCropMarkerX"
+        );
+
+    const yInput =
+        document.getElementById(
+            "editCropMarkerY"
+        );
+
+
+    if (!xInput || !yInput) {
+        return;
+    }
+
+
+    const x =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Number(xInput.value) || 0
+            )
+        );
+
+
+    const y =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Number(yInput.value) || 0
+            )
+        );
+
+
+    const marker =
+        document.querySelector(
+            `#bedMarkersContainer .bed-marker[data-bed="${currentCropBed}"]`
+        );
+
+
+    if (!marker) {
+        return;
+    }
+
+
+    marker.style.left =
+        `${x}%`;
+
+
+    marker.style.top =
+        `${y}%`;
 
 }
 
@@ -5932,7 +7090,84 @@ function saveCropProfile() {
         getCropProfile(
             currentCropBed
         );
+/*
+ * SAVE CROP MARKER ICON
+ */
 
+const selectedCropIcon =
+    document.querySelector(
+        'input[name="cropMarkerIcon"]:checked'
+    );
+
+
+if (
+    selectedCropIcon &&
+    FARM_MARKER_ICONS.crops[
+        selectedCropIcon.value
+    ]
+) {
+
+    const storedIcons =
+        getStoredCropMarkerIcons();
+
+
+    const iconKey =
+        `${currentPlot}-${currentCropBed}`;
+
+
+    storedIcons[iconKey] =
+        selectedCropIcon.value;
+
+
+    saveStoredCropMarkerIcons(
+        storedIcons
+    );
+
+}
+
+
+/*
+ * SAVE CROP MARKER POSITION
+ */
+
+const cropMarker =
+    document.querySelector(
+        `#bedMarkersContainer .bed-marker[data-bed="${currentCropBed}"]`
+    );
+
+
+if (cropMarker) {
+
+    const beds =
+        getBedsForPlot(
+            currentPlot
+        );
+
+
+    const bed =
+        beds.find(
+            item =>
+                Number(item.number) ===
+                Number(currentCropBed)
+        );
+
+
+    if (bed) {
+
+        bed.x =
+            parseFloat(
+                cropMarker.style.left
+            ) || 0;
+
+
+        bed.y =
+            parseFloat(
+                cropMarker.style.top
+            ) || 0;
+
+    }
+
+}
 
     /*
      * CREATE FORM DATA
@@ -6207,6 +7442,80 @@ if (saveCropProfileBtn) {
 
 function cancelCropProfileEditing() {
 
+    /*
+     * Restore marker state.
+     */
+    if (
+        cropProfileSnapshot &&
+        currentPlot &&
+        currentCropBed
+    ) {
+
+        const beds =
+            getBedsForPlot(
+                currentPlot
+            );
+
+
+        const bed =
+            beds.find(
+                item =>
+                    Number(item.number) ===
+                    Number(currentCropBed)
+            );
+
+
+        if (bed) {
+
+            bed.x =
+                cropProfileSnapshot.x;
+
+            bed.y =
+                cropProfileSnapshot.y;
+
+        }
+
+
+        /*
+         * Restore stored icon.
+         */
+        const stored =
+            getStoredCropMarkerIcons();
+
+
+        const key =
+            `${currentPlot}-${currentCropBed}`;
+
+
+        if (
+            cropProfileSnapshot.icon
+        ) {
+
+            stored[key] =
+                cropProfileSnapshot.icon;
+
+        } else {
+
+            delete stored[key];
+
+        }
+
+
+        saveStoredCropMarkerIcons(
+            stored
+        );
+
+
+        /*
+         * Re-render the bed markers.
+         */
+        renderBedMarkers(
+            currentPlot
+        );
+
+    }
+
+
     document.getElementById(
         "cropEditForm"
     ).classList.remove(
@@ -6224,6 +7533,10 @@ function cancelCropProfileEditing() {
             currentCropBed
         )
     );
+
+
+    cropProfileSnapshot =
+        null;
 
 }
 
@@ -6881,23 +8194,114 @@ function formatLivestockDate(dateString) {
 
 function createLivestockMarker(animal) {
 
-    const marker = document.createElement("button");
+    const marker =
+        document.createElement("button");
 
-    marker.type = "button";
-    marker.className = "livestock-house-marker";
-    marker.dataset.id = animal.id;
-    marker.dataset.name = animal.name || "Livestock";
-    marker.style.left = `${Number(animal.x) || 0}%`;
-    marker.style.top = `${Number(animal.y) || 0}%`;
-    marker.textContent = "🐐";
-    marker.title = animal.name || "Livestock";
 
-    marker.addEventListener("click", function(event) {
-        event.stopPropagation();
-        openLivestockProfile(animal.id);
-    });
+    marker.type =
+        "button";
+
+
+    marker.className =
+        "livestock-house-marker livestock-image-marker";
+
+
+    marker.dataset.id =
+        animal.id;
+
+
+    marker.dataset.name =
+        animal.name ||
+        "Livestock";
+
+
+    /*
+     * Load saved livestock marker information.
+     */
+    const stored =
+        getStoredLivestockMarkerData();
+
+
+    const saved =
+        stored[
+            animal.id
+        ] || {};
+
+
+    const iconKey =
+        saved.icon &&
+        FARM_MARKER_ICONS.livestock[
+            saved.icon
+        ]
+            ? saved.icon
+            : guessLivestockIcon(
+                animal.type
+            );
+
+
+    const iconPath =
+        FARM_MARKER_ICONS.livestock[
+            iconKey
+        ] ||
+        FARM_MARKER_ICONS.livestock.goat;
+
+
+    /*
+     * Preserve existing automatically generated
+     * positions unless the user has manually saved one.
+     */
+    const x =
+        saved.x != null
+            ? Number(saved.x)
+            : Number(animal.x) || 0;
+
+
+    const y =
+        saved.y != null
+            ? Number(saved.y)
+            : Number(animal.y) || 0;
+
+
+    marker.style.left =
+        `${Math.max(0, Math.min(100, x))}%`;
+
+
+    marker.style.top =
+        `${Math.max(0, Math.min(100, y))}%`;
+
+
+    marker.title =
+        animal.name ||
+        "Livestock";
+
+
+    marker.innerHTML =
+        `
+            <img
+                src="${iconPath}"
+                alt="${escapeHTML(animal.name || "Livestock")}"
+                draggable="false"
+            >
+        `;
+
+
+    marker.addEventListener(
+        "click",
+        function(event) {
+
+            event.stopPropagation();
+
+
+            openLivestockProfile(
+                animal.id
+            );
+
+        }
+    );
+
 
     return marker;
+
 }
 
 function renderLivestockMarkers(houseId) {
@@ -7075,47 +8479,417 @@ function setLivestockProfileEditButtons(editing) {
 
 function startLivestockProfileEditing() {
 
-    const animal = getCurrentLivestock();
+    const animal =
+        getCurrentLivestock();
 
-    if (!animal) return;
 
-    livestockProfileSnapshot = JSON.parse(
-        JSON.stringify(animal)
-    );
+    if (!animal) {
+        return;
+    }
 
-    document.getElementById("editLivestockName").value =
+
+    /*
+     * Save the original livestock information.
+     */
+    livestockProfileSnapshot =
+        JSON.parse(
+            JSON.stringify(animal)
+        );
+
+
+    /*
+     * Save the original marker information.
+     *
+     * IMPORTANT:
+     * This code is INSIDE the function because
+     * it uses animal.id.
+     */
+    const storedMarkerData =
+        getStoredLivestockMarkerData();
+
+
+    livestockProfileSnapshot.markerData =
+        JSON.parse(
+            JSON.stringify(
+                storedMarkerData[
+                    animal.id
+                ] || {}
+            )
+        );
+
+
+    document.getElementById(
+        "editLivestockName"
+    ).value =
         animal.name || "";
 
-    document.getElementById("editLivestockType").value =
+
+    document.getElementById(
+        "editLivestockType"
+    ).value =
         animal.type || "";
 
-    document.getElementById("editLivestockSex").value =
+
+    document.getElementById(
+        "editLivestockSex"
+    ).value =
         animal.sex || "male";
 
-    document.getElementById("editLivestockDOB").value =
+
+    document.getElementById(
+        "editLivestockDOB"
+    ).value =
         animal.dob || "";
 
-    document.getElementById("editLivestockBreed").value =
+
+    document.getElementById(
+        "editLivestockBreed"
+    ).value =
         animal.breed || "";
 
-    document.getElementById("editLivestockWeight").value =
+
+    document.getElementById(
+        "editLivestockWeight"
+    ).value =
         animal.weight || "";
 
-    document.getElementById("editLivestockNumber").value =
+
+    document.getElementById(
+        "editLivestockNumber"
+    ).value =
         animal.number ?? 1;
 
-    document.getElementById("editLivestockForSale").value =
-        animal.forSale ? "1" : "0";
 
-    document.getElementById("editLivestockFeedingSchedule").value =
+    document.getElementById(
+        "editLivestockForSale"
+    ).value =
+        animal.forSale
+            ? "1"
+            : "0";
+
+
+    document.getElementById(
+        "editLivestockFeedingSchedule"
+    ).value =
         animal.feedingSchedule || "";
 
-    document.getElementById("editLivestockNotes").value =
+
+    document.getElementById(
+        "editLivestockNotes"
+    ).value =
         animal.notes || "";
 
-    document.getElementById("livestockEditForm").classList.add("show");
 
-    setLivestockProfileEditButtons(true);
+    /*
+     * Load the currently saved icon.
+     */
+    const savedMarker =
+        storedMarkerData[
+            animal.id
+        ] || {};
+
+
+    const iconKey =
+        savedMarker.icon &&
+        FARM_MARKER_ICONS.livestock[
+            savedMarker.icon
+        ]
+            ? savedMarker.icon
+            : guessLivestockIcon(
+                animal.type
+            );
+
+
+    const iconInput =
+        document.querySelector(
+            `input[name="livestockMarkerIcon"][value="${iconKey}"]`
+        );
+
+
+    if (iconInput) {
+
+        iconInput.checked =
+            true;
+
+    }
+
+
+    /*
+     * Load the current marker position.
+     */
+    const currentMarker =
+        document.querySelector(
+            `#livestockMarkersContainer .livestock-house-marker[data-id="${animal.id}"]`
+        );
+
+
+    const currentX =
+        savedMarker.x != null
+            ? Number(savedMarker.x)
+            : currentMarker
+                ? parseFloat(
+                    currentMarker.style.left
+                )
+                : Number(animal.x) || 0;
+
+
+    const currentY =
+        savedMarker.y != null
+            ? Number(savedMarker.y)
+            : currentMarker
+                ? parseFloat(
+                    currentMarker.style.top
+                )
+                : Number(animal.y) || 0;
+
+
+    document.getElementById(
+        "editLivestockMarkerX"
+    ).value =
+        Number.isFinite(currentX)
+            ? currentX
+            : 0;
+
+
+    document.getElementById(
+        "editLivestockMarkerY"
+    ).value =
+        Number.isFinite(currentY)
+            ? currentY
+            : 0;
+
+
+    /*
+     * Change icon immediately when selected.
+     */
+    document
+        .querySelectorAll(
+            'input[name="livestockMarkerIcon"]'
+        )
+        .forEach(
+            input => {
+
+                input.onchange =
+                    function() {
+
+                        updateCurrentLivestockMarkerIcon(
+                            this.value
+                        );
+
+                    };
+
+            }
+        );
+
+
+    /*
+     * Change position immediately when X/Y changes.
+     */
+    const xInput =
+        document.getElementById(
+            "editLivestockMarkerX"
+        );
+
+
+    const yInput =
+        document.getElementById(
+            "editLivestockMarkerY"
+        );
+
+
+    if (xInput) {
+
+        xInput.oninput =
+            updateCurrentLivestockMarkerPosition;
+
+    }
+
+
+    if (yInput) {
+
+        yInput.oninput =
+            updateCurrentLivestockMarkerPosition;
+
+    }
+
+
+    document.getElementById(
+        "livestockEditForm"
+    ).classList.add(
+        "show"
+    );
+
+
+    setLivestockProfileEditButtons(
+        true
+    );
+
+}
+
+function updateCurrentLivestockMarkerIcon(
+    iconKey
+) {
+
+    if (!currentLivestockId) {
+        return;
+    }
+
+
+    if (
+        !FARM_MARKER_ICONS.livestock[
+            iconKey
+        ]
+    ) {
+        return;
+    }
+
+
+    const stored =
+        getStoredLivestockMarkerData();
+
+
+    const existing =
+        stored[
+            currentLivestockId
+        ] || {};
+
+
+    existing.icon =
+        iconKey;
+
+
+    stored[
+        currentLivestockId
+    ] =
+        existing;
+
+
+    saveStoredLivestockMarkerData(
+        stored
+    );
+
+
+    /*
+     * Immediately change the marker.
+     */
+    const marker =
+        document.querySelector(
+            `#livestockMarkersContainer .livestock-house-marker[data-id="${currentLivestockId}"]`
+        );
+
+
+    if (!marker) {
+        return;
+    }
+
+
+    const image =
+        marker.querySelector("img");
+
+
+    if (image) {
+
+        image.src =
+            FARM_MARKER_ICONS.livestock[
+                iconKey
+            ];
+
+    }
+
+}
+
+
+function updateCurrentLivestockMarkerPosition() {
+
+    if (!currentLivestockId) {
+        return;
+    }
+
+
+    const xInput =
+        document.getElementById(
+            "editLivestockMarkerX"
+        );
+
+
+    const yInput =
+        document.getElementById(
+            "editLivestockMarkerY"
+        );
+
+
+    if (!xInput || !yInput) {
+        return;
+    }
+
+
+    const x =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Number(xInput.value) || 0
+            )
+        );
+
+
+    const y =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Number(yInput.value) || 0
+            )
+        );
+
+
+    const stored =
+        getStoredLivestockMarkerData();
+
+
+    const existing =
+        stored[
+            currentLivestockId
+        ] || {};
+
+
+    existing.x =
+        x;
+
+
+    existing.y =
+        y;
+
+
+    stored[
+        currentLivestockId
+    ] =
+        existing;
+
+
+    saveStoredLivestockMarkerData(
+        stored
+    );
+
+
+    const marker =
+        document.querySelector(
+            `#livestockMarkersContainer .livestock-house-marker[data-id="${currentLivestockId}"]`
+        );
+
+
+    if (!marker) {
+        return;
+    }
+
+
+    marker.style.left =
+        `${x}%`;
+
+
+    marker.style.top =
+        `${y}%`;
+
 }
 
 document.getElementById("editLivestockProfileBtn").addEventListener(
@@ -7124,6 +8898,11 @@ document.getElementById("editLivestockProfileBtn").addEventListener(
         startLivestockProfileEditing();
     }
 );
+
+const storedMarkerData =
+    getStoredLivestockMarkerData();
+
+
 
 document.getElementById("saveLivestockProfileBtn").addEventListener(
     "click",
@@ -7144,6 +8923,95 @@ function saveLivestockProfile() {
     const animal = getCurrentLivestock();
 
     if (!animal || !currentLivestockHouse) return;
+
+    /*
+|--------------------------------------------------------------------------
+| SAVE LIVESTOCK MARKER ICON + POSITION
+|--------------------------------------------------------------------------
+*/
+
+const selectedLivestockIcon =
+    document.querySelector(
+        'input[name="livestockMarkerIcon"]:checked'
+    );
+
+
+const storedMarkerData =
+    getStoredLivestockMarkerData();
+
+
+const livestockMarkerData =
+    storedMarkerData[
+        animal.id
+    ] || {};
+
+
+if (
+    selectedLivestockIcon &&
+    FARM_MARKER_ICONS.livestock[
+        selectedLivestockIcon.value
+    ]
+) {
+
+    livestockMarkerData.icon =
+        selectedLivestockIcon.value;
+
+}
+
+
+const livestockX =
+    document.getElementById(
+        "editLivestockMarkerX"
+    );
+
+
+const livestockY =
+    document.getElementById(
+        "editLivestockMarkerY"
+    );
+
+
+if (livestockX) {
+
+    livestockMarkerData.x =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Number(
+                    livestockX.value
+                ) || 0
+            )
+        );
+
+}
+
+
+if (livestockY) {
+
+    livestockMarkerData.y =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Number(
+                    livestockY.value
+                ) || 0
+            )
+        );
+
+}
+
+
+storedMarkerData[
+    animal.id
+] =
+    livestockMarkerData;
+
+
+saveStoredLivestockMarkerData(
+    storedMarkerData
+);
 
 
     /*
@@ -7320,16 +9188,98 @@ function saveLivestockProfile() {
 
 function cancelLivestockProfileEditing() {
 
-    document.getElementById("livestockEditForm").classList.remove("show");
-    setLivestockProfileEditButtons(false);
+    if (
+        livestockProfileSnapshot &&
+        currentLivestockId
+    ) {
 
-    livestockProfileSnapshot = null;
+        const stored =
+            getStoredLivestockMarkerData();
 
-    const animal = getCurrentLivestock();
+
+        const snapshot =
+            livestockProfileSnapshot;
+
+
+        const current =
+            stored[
+                currentLivestockId
+            ] || {};
+
+
+        /*
+         * The profile snapshot contains the animal's
+         * original information. Marker settings are
+         * restored from the marker currently represented
+         * in localStorage if available.
+         *
+         * We intentionally do not alter the livestock
+         * database record here.
+         */
+        if (
+            current.icon
+        ) {
+
+            current.icon =
+                current.icon;
+
+        }
+
+
+        stored[
+            currentLivestockId
+        ] =
+            current;
+
+
+        saveStoredLivestockMarkerData(
+            stored
+        );
+
+    }
+
+
+    document.getElementById(
+        "livestockEditForm"
+    ).classList.remove(
+        "show"
+    );
+
+
+    setLivestockProfileEditButtons(
+        false
+    );
+
+
+    /*
+     * Re-render the house markers so the
+     * current stored marker settings are shown.
+     */
+    if (currentLivestockHouse) {
+
+        renderLivestockMarkers(
+            currentLivestockHouse
+        );
+
+    }
+
+
+    const animal =
+        getCurrentLivestock();
+
 
     if (animal) {
-        renderLivestockProfile(animal);
+
+        renderLivestockProfile(
+            animal
+        );
+
     }
+
+
+    livestockProfileSnapshot =
+        null;
+
 }
 
 
