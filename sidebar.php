@@ -32,7 +32,6 @@ $role = $_SESSION['role'] ?? 'staff';
 | /SanctuarioSystem/inventory/
 | /SanctuarioSystem/crops/
 | /SanctuarioSystem/livestock/
-| /SanctuarioSystem/maintenance/
 | /SanctuarioSystem/accountSettings/
 |
 */
@@ -92,16 +91,6 @@ $livestockActive = (
     strpos($currentPath, '/livestock/') !== false
 );
 
-
-/*
-|--------------------------------------------------------------------------
-| MAINTENANCE ACTIVE STATE
-|--------------------------------------------------------------------------
-*/
-
-$maintenanceActive = (
-    strpos($currentPath, '/maintenance/') !== false
-);
 
 
 /*
@@ -333,29 +322,6 @@ $accountSettingsActive = (
 
             <?php endif; ?>
 
-
-            <!-- =================================================
-                 MAINTENANCE
-            ================================================== -->
-
-            <?php if (in_array($role, ['admin', 'staff', 'maintenance'])): ?>
-
-                <li
-                    class="<?= $maintenanceActive ? 'active' : '' ?>"
-                    onclick="location.href='<?= $basePath ?>maintenance/adminMaintenance.php'"
-                >
-
-                    <span class="material-symbols-rounded">
-                        construction
-                    </span>
-
-                    <span class="menu-text">
-                        Maintenance
-                    </span>
-
-                </li>
-
-            <?php endif; ?>
 
 
             <!-- =================================================
