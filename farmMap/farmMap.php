@@ -339,22 +339,20 @@ foreach ($houseRowsByCode as $code => $h) {
 
 .bed-marker.crop-image-marker {
 
-    width: 42px;
-    height: 42px;
+    width: 50px;
+    height: 50px;
 
-    padding: 3px;
+    padding: 0;
 
-    border-radius: 50%;
+    background: transparent;
 
-    background: rgba(255,255,255,.96);
+    border: none;
 
-    border: 2px solid #ffffff;
+    border-radius: 0;
 
-    box-shadow:
-        0 2px 8px rgba(0,0,0,.25);
+    box-shadow: none;
 
     overflow: visible;
-
 }
 
 .bed-marker.crop-image-marker:hover {
@@ -367,8 +365,8 @@ foreach ($houseRowsByCode as $code => $h) {
 
 .bed-marker.crop-image-marker img {
 
-    width: 34px;
-    height: 34px;
+    width: 50px;
+    height: 50px;
 
     display: block;
 
@@ -399,11 +397,10 @@ foreach ($houseRowsByCode as $code => $h) {
 
     background: #5f8f45;
 
-    color: #ffffff;
 
     border: 2px solid #ffffff;
 
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 700;
 
     line-height: 12px;
@@ -416,6 +413,72 @@ foreach ($houseRowsByCode as $code => $h) {
 
 
 /* =========================================================
+   LIVESTOCK HOUSE EDIT CONTROLS
+========================================================= */
+.livestock-house-toolbar {
+    margin-top: 12px;
+}
+.livestock-house-toolbar > button,
+.livestock-house-edit-actions button {
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #6b8e23;
+    color: #fff;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .2s ease;
+}
+.livestock-house-toolbar button:hover {
+    transform: translateY(-1px);
+    opacity: .92;
+}
+.livestock-house-edit-actions {
+    display: none;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 8px;
+}
+.livestock-house-toolbar.is-editing .livestock-house-edit-actions {
+    display: flex;
+}
+.livestock-house-toolbar .delete-bed {
+    background: #b84a4a;
+}
+.livestock-house-toolbar .position-active {
+    background: #315d2e;
+}
+.livestock-plus-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 42px; height: 42px;
+    border: 2px dashed #6b8e23;
+    border-radius: 50%;
+    background: rgba(255,255,255,.92);
+    color: #6b8e23;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 19;
+}
+.livestock-plus-marker:hover {
+    transform: translate(-50%, -50%) scale(1.08);
+}
+.livestock-plus-marker span {
+    position: absolute; top: calc(100% + 5px); left: 50%;
+    transform: translateX(-50%); white-space: nowrap;
+    padding: 3px 6px; border-radius: 5px;
+    background: #315d2e; color: #fff; font-size: 8px;
+    opacity: 0; pointer-events: none;
+}
+.livestock-plus-marker:hover span { opacity: 1; }
+.livestock-house-marker.position-editing { cursor: grab; }
+.livestock-house-marker.position-editing:active { cursor: grabbing; }
+.livestock-house-marker.selected { outline: 3px solid rgba(95,143,69,.3); }
+
+
+/* =========================================================
    IMAGE LIVESTOCK MARKERS
 ========================================================= */
 
@@ -424,19 +487,17 @@ foreach ($houseRowsByCode as $code => $h) {
     width: 46px;
     height: 46px;
 
-    padding: 3px;
+    padding: 0;
 
-    background: rgba(255,255,255,.96);
+    background: transparent;
 
-    border: 2px solid #ffffff;
+    border: none;
 
-    border-radius: 50%;
+    border-radius: 0;
 
-    box-shadow:
-        0 3px 10px rgba(0,0,0,.28);
+    box-shadow: none;
 
     overflow: visible;
-
 }
 
 .livestock-house-marker.livestock-image-marker:hover {
@@ -615,23 +676,69 @@ foreach ($houseRowsByCode as $code => $h) {
 
 }
 
+.bed-plus-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border: 2px dashed #6b8e23;
+    border-radius: 50%;
+    background: rgba(255,255,255,.92);
+    color: #6b8e23;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 19;
+    box-sizing: border-box;
+    transition:
+        transform .15s ease,
+        background .15s ease,
+        border-color .15s ease,
+        color .15s ease;
+}
+
+.bed-plus-marker:hover {
+    transform: translate(-50%, -50%) scale(1.08);
+    background: #f1f6ed;
+    border-color: #527b42;
+    color: #527b42;
+}
+
+.bed-plus-marker i {
+    font-size: 17px;
+    pointer-events: none;
+}
+
+.bed-plus-marker span {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    padding: 3px 6px;
+    border-radius: 5px;
+    background: #315d2e;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s ease;
+}
+
+.bed-plus-marker:hover span {
+    opacity: 1;
+}
+
 .bed-marker {
     position: absolute;
 
     transform: translate(-50%, -50%);
 
-    width: 30px;
-    height: 30px;
-
-    border-radius: 50%;
-
-    border: 2px solid white;
-
-    background: #5f8f45;
-    color: white;
-
-    box-shadow:
-        0 2px 8px rgba(0,0,0,.25);
+    width: 40px;
+    height: 40px;
 
     font-family: 'Poppins', sans-serif;
 
@@ -2064,6 +2171,39 @@ foreach ($houseRowsByCode as $code => $h) {
     .livestock-profile-image-section { padding: 16px 18px 4px; }
 }
 
+
+
+/* =========================================================
+   CLEAN FARM MAP BOARD UX
+========================================================= */
+.farm-map-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 16px);
+    z-index: 99999;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: rgba(32, 58, 42, .96);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+}
+.farm-map-toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+.bed-edit-toolbar.is-editing {
+    gap: 8px;
+}
+#startEditBedsBtn.is-done {
+    background: #fff;
+}
+
 </style>
 
 </head>
@@ -2639,16 +2779,12 @@ foreach ($houseRowsByCode as $code => $h) {
 
                                 <button
                                     type="button"
-                                    id="addBedBtn"
+                                    id="editPositionBtn"
                                     style="display:none;"
                                 >
-
-                                    <i class="fa-solid fa-plus"></i>
-
-                                    Add Bed
-
+                                    <i class="fa-solid fa-up-down-left-right"></i>
+                                    Edit Position
                                 </button>
-
 
                                 <button
                                     type="button"
@@ -2656,11 +2792,17 @@ foreach ($houseRowsByCode as $code => $h) {
                                     class="delete-bed"
                                     style="display:none;"
                                 >
-
                                     <i class="fa-solid fa-trash"></i>
-
                                     Delete Selected
+                                </button>
 
+                                <button
+                                    type="button"
+                                    id="editSelectedCropBtn"
+                                    style="display:none;"
+                                >
+                                    <i class="fa-solid fa-seedling"></i>
+                                    Edit Crop
                                 </button>
 
 
@@ -2915,6 +3057,29 @@ foreach ($houseRowsByCode as $code => $h) {
             >
                 0 animals
             </span>
+
+            <div class="livestock-house-toolbar" id="livestockHouseToolbar">
+                <button type="button" id="editLivestockHouseBtn">
+                    <i class="fa-solid fa-pen"></i> Edit House
+                </button>
+                <div class="livestock-house-edit-actions" id="livestockHouseEditActions">
+                    <button type="button" id="addLivestockBtn">
+                        <i class="fa-solid fa-plus"></i> Add Livestock
+                    </button>
+                    <button type="button" id="editLivestockPositionBtn">
+                        <i class="fa-solid fa-up-down-left-right"></i> Edit Position
+                    </button>
+                    <button type="button" class="delete-bed" id="deleteLivestockBtn">
+                        <i class="fa-solid fa-trash"></i> Delete Selected
+                    </button>
+                    <button type="button" id="editSelectedLivestockBtn">
+                        <i class="fa-solid fa-pen"></i> Edit Livestock
+                    </button>
+                    <button type="button" id="doneLivestockHouseBtn">
+                        <i class="fa-solid fa-check"></i> Done
+                    </button>
+                </div>
+            </div>
 
         </div>
 
@@ -3850,6 +4015,31 @@ foreach ($houseRowsByCode as $code => $h) {
             <input
                 type="radio"
                 name="cropMarkerIcon"
+                id="cropIconTomato"
+                value="tomato"
+            >
+
+            <label for="cropIconTomato">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/tomato.png"
+                    alt="Tomato"
+                >
+
+                <span>
+                    Tomato
+                </span>
+
+            </label>
+
+        </div>
+
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
                 id="cropIconCarrot"
                 value="carrot"
             >
@@ -3869,6 +4059,31 @@ foreach ($houseRowsByCode as $code => $h) {
 
         </div>
 
+
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconPepper"
+                value="pepper"
+            >
+
+            <label for="cropIconPepper">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/pepper.png"
+                    alt="Pepper"
+                >
+
+                <span>
+                    Pepper
+                </span>
+
+            </label>
+
+        </div>
 
 
         <div class="marker-icon-option">
@@ -4538,7 +4753,7 @@ const plotData = {
             "Main Vegetable Production Area",
 
         beds:
-            18,
+            17,
 
         area:
             "500m²"
@@ -4558,7 +4773,7 @@ const plotData = {
             "Secondary Vegetable Production Area",
 
         beds:
-            12,
+            15,
 
         area:
             "400m²"
@@ -4578,13 +4793,21 @@ const plotData = {
             "Crop Production Area",
 
         beds:
-            15,
+            19,
 
         area:
             "300m²"
 
     }
 
+};
+
+/* Fixed crop-marker slots per plot. These are permanent positions;
+ * deleting a marker only turns its slot into a + button. */
+const FIXED_PLOT_MARKER_COUNTS = {
+    A: 17,
+    B: 15,
+    C: 19
 };
 
 
@@ -4605,9 +4828,17 @@ const FARM_MARKER_ICONS = {
         lettuce:
             `${basePath}farmMap/icons/crops/lettuce.png`,
 
+        
+        tomato:
+            `${basePath}farmMap/icons/crops/tomato.png`,
+
         carrot:
             `${basePath}farmMap/icons/crops/carrot.png`,
 
+
+        
+        pepper:
+            `${basePath}farmMap/icons/crops/pepper.png`,
 
         corn:
             `${basePath}farmMap/icons/crops/corn.png`,
@@ -4818,10 +5049,18 @@ const dbLivestockHouses = <?= json_encode($dbLivestockHouses) ?>;
 const BED_STORAGE_KEY =
     "sanctuarioPlotBeds";
 
+const DELETED_BED_SLOTS_STORAGE_KEY =
+    "sanctuarioDeletedBedSlots";
+
 
 let currentPlot = null;
 
+let deletedBedSlots = {};
+
+let deletedBedSlotsSnapshot = null;
+
 let bedEditMode = false;
+let bedPositionEditMode = false;
 
 let selectedBed = null;
 
@@ -4870,6 +5109,55 @@ function saveStoredBeds(data) {
     );
 
 }
+
+
+/* =========================================================
+   DELETED BED SLOT STORAGE
+========================================================= */
+
+function getStoredDeletedBedSlots() {
+
+    try {
+
+        const value =
+            JSON.parse(
+                localStorage.getItem(
+                    DELETED_BED_SLOTS_STORAGE_KEY
+                )
+            );
+
+        return value &&
+               typeof value === "object" &&
+               !Array.isArray(value)
+            ? value
+            : {};
+
+    } catch (error) {
+
+        console.error(
+            "Unable to load deleted bed slots:",
+            error
+        );
+
+        return {};
+
+    }
+
+}
+
+
+function saveStoredDeletedBedSlots(data) {
+
+    localStorage.setItem(
+        DELETED_BED_SLOTS_STORAGE_KEY,
+        JSON.stringify(data)
+    );
+
+}
+
+
+deletedBedSlots =
+    getStoredDeletedBedSlots();
 
 
 /* =========================================================
@@ -4957,28 +5245,34 @@ function createDefaultBedPositions(count) {
 
 function getBedsForPlot(plot) {
 
-    const stored =
-        getStoredBeds();
+    const fixedCount =
+        FIXED_PLOT_MARKER_COUNTS[plot] ||
+        Number(plotData[plot]?.beds) ||
+        0;
 
+    const stored = getStoredBeds();
+    const saved = Array.isArray(stored[plot]) ? stored[plot] : [];
+    const byNumber = new Map();
 
-    if (
-        Array.isArray(
-            stored[plot]
-        )
-    ) {
+    saved.forEach(bed => {
+        if (!bed || bed.number == null) return;
+        const number = Number(bed.number);
+        if (number >= 1 && number <= fixedCount) {
+            byNumber.set(number, {
+                number,
+                x: Number(bed.x) || 0,
+                y: Number(bed.y) || 0
+            });
+        }
+    });
 
-        return stored[plot];
+    const defaults = createDefaultBedPositions(fixedCount);
 
-    }
-
-
-    return plotData[plot]
-        ? createDefaultBedPositions(
-            plotData[plot].beds
-        )
-        : [];
-
+    return defaults.map(defaultBed =>
+        byNumber.get(defaultBed.number) || defaultBed
+    );
 }
+
 
 
 /* =========================================================
@@ -5162,35 +5456,71 @@ function createBedMarker(bed) {
 
 
 /* =========================================================
+   CREATE DELETED BED PLUS MARKER
+========================================================= */
+
+function createDeletedBedSlotMarker(slot) {
+
+    const marker = document.createElement("button");
+
+    marker.type = "button";
+    marker.className = "bed-plus-marker";
+    marker.dataset.bed = String(slot.number);
+    marker.dataset.slotX = String(slot.x);
+    marker.dataset.slotY = String(slot.y);
+    marker.style.left = `${Number(slot.x) || 0}%`;
+    marker.style.top = `${Number(slot.y) || 0}%`;
+    marker.title = `Add Crop to Bed ${slot.number}`;
+
+    marker.innerHTML = `
+        <i class="fa-solid fa-plus"></i>
+        <span>Bed ${escapeHTML(slot.number)} — Add Crop</span>
+    `;
+
+    marker.addEventListener("click", function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        openCropEditorForEmptySlot(slot);
+    });
+
+    return marker;
+}
+
+
+
+/* =========================================================
    RENDER BEDS
 ========================================================= */
 
 function renderBedMarkers(plot) {
 
-    const container =
-        document.getElementById(
-            "bedMarkersContainer"
-        );
-
+    const container = document.getElementById("bedMarkersContainer");
+    if (!container) return;
 
     container.innerHTML = "";
 
+    const fixedCount = FIXED_PLOT_MARKER_COUNTS[plot] || 0;
+    const beds = getBedsForPlot(plot);
+    const slots = Array.isArray(deletedBedSlots[plot])
+        ? deletedBedSlots[plot].filter(slot => Number(slot.number) >= 1 && Number(slot.number) <= fixedCount)
+        : [];
 
-    getBedsForPlot(plot)
-        .forEach(
-            bed => {
+    const deletedNumbers = new Set(
+        slots.map(slot => Number(slot.number))
+    );
 
-                container.appendChild(
-                    createBedMarker(bed)
-                );
+    beds.forEach(bed => {
+        if (deletedNumbers.has(Number(bed.number))) return;
+        container.appendChild(createBedMarker(bed));
+    });
 
-            }
-        );
-
+    slots.forEach(slot => {
+        container.appendChild(createDeletedBedSlotMarker(slot));
+    });
 
     updateBedCount();
-
 }
+
 
 
 /* =========================================================
@@ -5199,26 +5529,14 @@ function renderBedMarkers(plot) {
 
 function updateBedCount() {
 
-    const count =
-        document.querySelectorAll(
-            "#bedMarkersContainer .bed-marker"
-        ).length;
+    const count = currentPlot
+        ? (FIXED_PLOT_MARKER_COUNTS[currentPlot] || 0)
+        : document.querySelectorAll("#bedMarkersContainer .bed-marker").length;
 
-
-    const sideBeds =
-        document.getElementById(
-            "sidePlotBeds"
-        );
-
-
-    if (sideBeds) {
-
-        sideBeds.textContent =
-            count;
-
-    }
-
+    const sideBeds = document.getElementById("sidePlotBeds");
+    if (sideBeds) sideBeds.textContent = count;
 }
+
 
 
 /* =========================================================
@@ -5227,30 +5545,47 @@ function updateBedCount() {
 
 function collectCurrentBedPositions() {
 
-    return [
-        ...document.querySelectorAll(
-            "#bedMarkersContainer .bed-marker"
-        )
-    ].map(marker => ({
+    if (!currentPlot) return [];
 
-        number:
-            Number(
-                marker.dataset.bed
-            ),
+    const fixedCount = FIXED_PLOT_MARKER_COUNTS[currentPlot] || 0;
+    const visible = new Map();
 
-        x:
-            parseFloat(
-                marker.style.left
-            ) || 0,
+    document.querySelectorAll("#bedMarkersContainer .bed-marker").forEach(marker => {
+        const number = Number(marker.dataset.bed);
+        if (!number) return;
+        visible.set(number, {
+            number,
+            x: parseFloat(marker.style.left) || 0,
+            y: parseFloat(marker.style.top) || 0
+        });
+    });
 
-        y:
-            parseFloat(
-                marker.style.top
-            ) || 0
+    const result = getBedsForPlot(currentPlot).map(bed => {
+        return visible.get(Number(bed.number)) || {
+            number: Number(bed.number),
+            x: Number(bed.x) || 0,
+            y: Number(bed.y) || 0
+        };
+    });
 
-    }));
-
+    return result
+        .filter(bed => bed.number >= 1 && bed.number <= fixedCount)
+        .sort((a, b) => a.number - b.number);
 }
+
+function saveCurrentBedState() {
+    if (!currentPlot) return;
+
+    const stored = getStoredBeds();
+    stored[currentPlot] = collectCurrentBedPositions();
+    saveStoredBeds(stored);
+
+    const fixedCount = FIXED_PLOT_MARKER_COUNTS[currentPlot] || 0;
+    deletedBedSlots[currentPlot] = (deletedBedSlots[currentPlot] || [])
+        .filter(slot => Number(slot.number) >= 1 && Number(slot.number) <= fixedCount);
+    saveStoredDeletedBedSlots(deletedBedSlots);
+}
+
 
 
 /* =========================================================
@@ -5280,6 +5615,7 @@ function openPlot(plot) {
 
     bedEditMode =
         false;
+    bedPositionEditMode = false;
 
 
     selectedBed =
@@ -5362,6 +5698,7 @@ function closePlot() {
 
     bedEditMode =
         false;
+    bedPositionEditMode = false;
 
 
     selectedBed =
@@ -5409,6 +5746,13 @@ function createBedSnapshot() {
             )
         );
 
+    deletedBedSlotsSnapshot =
+        JSON.parse(
+            JSON.stringify(
+                deletedBedSlots[currentPlot] || []
+            )
+        );
+
 }
 
 
@@ -5422,15 +5766,16 @@ function restoreBedSnapshot() {
         return;
     }
 
-
     const container =
         document.getElementById(
             "bedMarkersContainer"
         );
 
+    if (!container) {
+        return;
+    }
 
     container.innerHTML = "";
-
 
     bedSnapshot.forEach(
         bed => {
@@ -5442,6 +5787,22 @@ function restoreBedSnapshot() {
         }
     );
 
+    deletedBedSlots[currentPlot] =
+        Array.isArray(deletedBedSlotsSnapshot)
+            ? JSON.parse(
+                JSON.stringify(
+                    deletedBedSlotsSnapshot
+                )
+            )
+            : [];
+
+    /*
+     * Cancel restores the visual state only.
+     * The original saved localStorage data is left
+     * untouched until the user presses Save Beds.
+     */
+    deletedBedSlotsSnapshot =
+        null;
 
     updateBedCount();
 
@@ -5456,41 +5817,42 @@ function startBedEditing() {
 
     if (!currentPlot) return;
 
-
     createBedSnapshot();
+    bedEditMode = true;
+    bedPositionEditMode = false;
+    selectedBed = null;
 
+    const popup = document.getElementById("plotPopup");
+    if (popup) popup.classList.add("bed-editing");
 
-    bedEditMode =
-        true;
-
-
-    selectedBed =
-        null;
-
-
-    document.getElementById(
-        "plotPopup"
-    ).classList.add(
-        "bed-editing"
-    );
-
-
-    document.querySelectorAll(
-        "#bedMarkersContainer .bed-marker"
-    ).forEach(
-        marker => {
-
-            marker.classList.add(
-                "editing"
-            );
-
-        }
-    );
-
+    document.querySelectorAll("#bedMarkersContainer .bed-marker").forEach(marker => {
+        marker.classList.add("editing");
+    });
 
     updateBedEditUI();
-
 }
+
+function toggleBedPositionEditing() {
+    if (!bedEditMode) return;
+
+    bedPositionEditMode = !bedPositionEditMode;
+    const button = document.getElementById("editPositionBtn");
+
+    if (button) {
+        button.classList.toggle("active", bedPositionEditMode);
+        button.innerHTML = bedPositionEditMode
+            ? '<i class="fa-solid fa-check"></i> Position Editing'
+            : '<i class="fa-solid fa-up-down-left-right"></i> Edit Position';
+    }
+
+    document.querySelectorAll("#bedMarkersContainer .bed-marker").forEach(marker => {
+        marker.classList.toggle("position-editing", bedPositionEditMode);
+    });
+
+    showFarmMapToast(bedPositionEditMode ? "Drag a crop marker to move it" : "Position editing off");
+    updateBedEditUI();
+}
+
 
 
 /* =========================================================
@@ -5499,93 +5861,51 @@ function startBedEditing() {
 
 function updateBedEditUI() {
 
-    const editButton =
-        document.getElementById(
-            "startEditBedsBtn"
-        );
+    const editButton = document.getElementById("startEditBedsBtn");
+    const addButton = document.getElementById("addBedBtn");
+    const deleteButton = document.getElementById("deleteBedBtn");
+    const saveButton = document.getElementById("saveBedsBtn");
+    const cancelButton = document.getElementById("cancelBedsBtn");
+    const cropButton = document.getElementById("editSelectedCropBtn");
+    const positionButton = document.getElementById("editPositionBtn");
+    const toolbar = document.getElementById("bedEditToolbar");
+    const status = document.getElementById("bedEditStatus");
 
-
-    const addButton =
-        document.getElementById(
-            "addBedBtn"
-        );
-
-
-    const deleteButton =
-        document.getElementById(
-            "deleteBedBtn"
-        );
-
-
-    const saveButton =
-        document.getElementById(
-            "saveBedsBtn"
-        );
-
-
-    const cancelButton =
-        document.getElementById(
-            "cancelBedsBtn"
-        );
-
+    if (!editButton) return;
 
     if (!bedEditMode) {
-
-        editButton.style.display =
-            "inline-flex";
-
-
-        addButton.style.display =
-            "none";
-
-
-        deleteButton.style.display =
-            "none";
-
-
-        saveButton.style.display =
-            "none";
-
-
-        cancelButton.style.display =
-            "none";
-
-
-        status.textContent =
-            "Click a bed marker to view its crop profile.";
-
-
+        editButton.style.display = "inline-flex";
+        editButton.classList.remove("is-done");
+        editButton.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Plot';
+        if (addButton) addButton.style.display = "none";
+        if (deleteButton) deleteButton.style.display = "none";
+        if (saveButton) saveButton.style.display = "none";
+        if (cancelButton) cancelButton.style.display = "none";
+        if (cropButton) cropButton.style.display = "none";
+        if (positionButton) positionButton.style.display = "none";
+        if (toolbar) toolbar.classList.remove("is-editing");
+        if (status) status.textContent = "Click a crop marker to view its profile.";
         return;
-
     }
 
+    editButton.style.display = "inline-flex";
+    editButton.classList.add("is-done");
+    editButton.innerHTML = '<i class="fa-solid fa-check"></i> Done';
+    if (addButton) addButton.style.display = "none";
+    if (deleteButton) deleteButton.style.display = "inline-flex";
+    if (saveButton) saveButton.style.display = "none";
+    if (cancelButton) cancelButton.style.display = "none";
+    if (cropButton) cropButton.style.display = "inline-flex";
+    if (positionButton) positionButton.style.display = "inline-flex";
+    if (toolbar) toolbar.classList.add("is-editing");
 
-    editButton.style.display =
-        "none";
-
-
-    addButton.style.display =
-        "inline-flex";
-
-
-    deleteButton.style.display =
-        "inline-flex";
-
-
-    saveButton.style.display =
-        "inline-flex";
-
-
-    cancelButton.style.display =
-        "inline-flex";
-
-
-    status.textContent =
-        selectedBed
-            ? `Bed ${selectedBed.dataset.bed} selected — drag it to move.`
-            : "Drag a bed marker or select one.";
-
+    if (status) {
+        status.textContent = selectedBed
+            ? `Bed ${selectedBed.dataset.bed} selected — use Edit Position to move it.`
+            : "Select a crop marker to edit, move, or delete it.";
+    }
 }
+
 
 
 /* =========================================================
@@ -5594,31 +5914,25 @@ function updateBedEditUI() {
 
 function selectBed(marker) {
 
-    document.querySelectorAll(
-        "#bedMarkersContainer .bed-marker"
-    ).forEach(
-        item => {
+    document.querySelectorAll("#bedMarkersContainer .bed-marker").forEach(item => {
+        item.classList.remove("selected");
+    });
 
-            item.classList.remove(
-                "selected"
-            );
-
-        }
-    );
-
-
-    selectedBed =
-        marker;
-
-
-    marker.classList.add(
-        "selected"
-    );
-
-
+    selectedBed = marker;
+    marker.classList.add("selected");
     updateBedEditUI();
-
 }
+
+function editSelectedCrop() {
+    if (!bedEditMode || !selectedBed) {
+        showFarmMapToast("Select a crop marker first");
+        return;
+    }
+
+    openCropProfile(Number(selectedBed.dataset.bed));
+    startCropProfileEditing();
+}
+
 
 
 /* =========================================================
@@ -5631,7 +5945,8 @@ document.addEventListener(
 
         if (
             !draggingBed ||
-            !bedEditMode
+            !bedEditMode ||
+            !bedPositionEditMode
         ) {
             return;
         }
@@ -5691,149 +6006,63 @@ document.addEventListener(
     "mouseup",
     function() {
 
-        draggingBed =
-            null;
+        if (draggingBed && bedEditMode && bedPositionEditMode) {
+            saveCurrentBedState();
+            showFarmMapToast("Crop position saved");
+        }
+
+        draggingBed = null;
 
     }
 );
 
 
 /* =========================================================
-   ADD BED
+   FIXED BED/CROP SLOTS
 ========================================================= */
 
-function addBed() {
-
-    if (
-        !currentPlot ||
-        !bedEditMode
-    ) {
-        return;
-    }
-
-
-    const container =
-        document.getElementById(
-            "bedMarkersContainer"
-        );
-
-
-    const numbers =
-        [
-            ...container.querySelectorAll(
-                ".bed-marker"
-            )
-        ].map(
-            m =>
-                Number(
-                    m.dataset.bed
-                ) || 0
-        );
-
-
-    const newNumber =
-        numbers.length
-            ? Math.max(...numbers) + 1
-            : 1;
-
-
-    const marker =
-        createBedMarker({
-
-            number:
-                newNumber,
-
-            x:
-                50,
-
-            y:
-                50
-
-        });
-
-
-    marker.classList.add(
-        "editing"
-    );
-
-
-    container.appendChild(
-        marker
-    );
-
-
-    selectBed(marker);
-
-    updateBedCount();
-
+function addBedAtSlot(slot) {
+    /* Kept as a compatibility function for older calls.
+       New slots are crop profile slots, not new beds. */
+    openCropEditorForEmptySlot(slot);
 }
 
-
-/* =========================================================
-   DELETE BED
-========================================================= */
+function addBed() {
+    showFarmMapToast("Bed slots are fixed for this plot");
+}
 
 function deleteSelectedBed() {
 
-    if (
-        !bedEditMode ||
-        !selectedBed
-    ) {
-
-        alert(
-            "Select a bed marker first."
-        );
-
-        return;
-
-    }
-
-
-    const number =
-        selectedBed.dataset.bed;
-
-
-    if (
-        !confirm(
-            `Delete Bed ${number}?`
-        )
-    ) {
+    if (!bedEditMode || !selectedBed) {
+        showFarmMapToast("Select a crop marker first");
         return;
     }
 
+    const number = Number(selectedBed.dataset.bed);
+    const x = parseFloat(selectedBed.style.left) || 0;
+    const y = parseFloat(selectedBed.style.top) || 0;
 
-    selectedBed.remove();
+    if (!confirm(`Remove the crop from Bed ${number}?`)) return;
 
+    const slots = Array.isArray(deletedBedSlots[currentPlot])
+        ? deletedBedSlots[currentPlot]
+        : [];
 
-    selectedBed =
-        null;
-
-
-    [
-        ...document.querySelectorAll(
-            "#bedMarkersContainer .bed-marker"
-        )
-    ].forEach(
-        (marker, index) => {
-
-            marker.dataset.bed =
-                String(index + 1);
-
-            marker.textContent =
-                index + 1;
-
-            marker.title =
-                `Bed ${index + 1}`;
-
-        }
+    deletedBedSlots[currentPlot] = slots.filter(
+        slot => Number(slot.number) !== number
     );
 
+    deletedBedSlots[currentPlot].push({ number, x, y });
 
-    updateBedCount();
+    selectedBed.remove();
+    selectedBed = null;
 
+    saveCurrentBedState();
+    renderBedMarkers(currentPlot);
     updateBedEditUI();
-
+    showFarmMapToast(`Bed ${number} is empty — + is ready`);
 }
+
 
 
 /* =========================================================
@@ -5841,72 +6070,7 @@ function deleteSelectedBed() {
 ========================================================= */
 
 function saveBeds() {
-
-    if (
-        !currentPlot ||
-        !bedEditMode
-    ) {
-        return;
-    }
-
-
-    const stored =
-        getStoredBeds();
-
-
-    stored[currentPlot] =
-        collectCurrentBedPositions();
-
-
-    saveStoredBeds(
-        stored
-    );
-
-
-    bedSnapshot =
-        null;
-
-
-    bedEditMode =
-        false;
-
-
-    selectedBed =
-        null;
-
-
-    draggingBed =
-        null;
-
-
-    document.getElementById(
-        "plotPopup"
-    ).classList.remove(
-        "bed-editing"
-    );
-
-
-    document.querySelectorAll(
-        "#bedMarkersContainer .bed-marker"
-    ).forEach(
-        marker => {
-
-            marker.classList.remove(
-                "editing",
-                "selected"
-            );
-
-        }
-    );
-
-
-    updateBedEditUI();
-
-
-    alert(
-        "Bed marker positions saved successfully."
-    );
-
+    finishBedEditing();
 }
 
 
@@ -5915,47 +6079,9 @@ function saveBeds() {
 ========================================================= */
 
 function cancelBedEditing() {
-
-    if (!bedEditMode) return;
-
-
-    if (
-        !confirm(
-            "Discard the current bed marker changes?"
-        )
-    ) {
-        return;
-    }
-
-
-    restoreBedSnapshot();
-
-
-    bedEditMode =
-        false;
-
-
-    selectedBed =
-        null;
-
-
-    draggingBed =
-        null;
-
-
-    bedSnapshot =
-        null;
-
-
-    document.getElementById(
-        "plotPopup"
-    ).classList.remove(
-        "bed-editing"
-    );
-
-
-    updateBedEditUI();
-
+    /* Bed changes are auto-saved. Keep this function as a safe
+       compatibility hook for any existing code that calls it. */
+    finishBedEditing();
 }
 
 
@@ -5992,6 +6118,9 @@ let currentCropBed =
 
 let cropProfileSnapshot =
     null;
+
+let cropEditingEmptySlot = false;
+let cropEmptySlotSnapshot = null;
 
 
 function getStoredCropProfiles() {
@@ -6376,6 +6505,8 @@ function openCropProfile(bedNumber) {
     currentCropBed =
         bedNumber;
 
+    cropEditingEmptySlot = false;
+    cropEmptySlotSnapshot = null;
 
     const crop =
         getCropProfile(
@@ -6591,6 +6722,48 @@ function updateCropImage(image) {
    EDIT CROP PROFILE
 ========================================================= */
 
+function openCropEditorForEmptySlot(slot) {
+
+    if (!currentPlot || !slot) return;
+
+    currentCropBed = Number(slot.number);
+    cropEditingEmptySlot = true;
+    cropEmptySlotSnapshot = {
+        number: Number(slot.number),
+        x: Number(slot.x) || 0,
+        y: Number(slot.y) || 0
+    };
+
+    /* Make the fixed slot active visually while its profile is being filled. */
+    const slots = Array.isArray(deletedBedSlots[currentPlot])
+        ? deletedBedSlots[currentPlot]
+        : [];
+
+    deletedBedSlots[currentPlot] = slots.filter(
+        item => Number(item.number) !== Number(slot.number)
+    );
+
+    const existingMarker = document.querySelector(
+        `#bedMarkersContainer .bed-marker[data-bed="${Number(slot.number)}"]`
+    );
+
+    if (!existingMarker) {
+        const marker = createBedMarker({
+            number: Number(slot.number),
+            x: Number(slot.x) || 0,
+            y: Number(slot.y) || 0
+        });
+        marker.classList.add("editing", "selected", "temporary-crop-slot");
+        document.getElementById("bedMarkersContainer")?.appendChild(marker);
+        selectedBed = marker;
+    }
+
+    startCropProfileEditing();
+    document.getElementById("cropProfileOverlay").classList.add("show");
+    document.getElementById("cropEditForm").classList.add("show");
+    setCropProfileEditButtons(true);
+}
+
 function startCropProfileEditing() {
 
     const crop =
@@ -6619,22 +6792,15 @@ function startCropProfileEditing() {
 
     cropProfileSnapshot = {
 
-        icon:
-            getCropMarkerIconKey(
-                currentCropBed,
-                crop
-            ),
+        icon: getCropMarkerIconKey(currentCropBed, crop),
 
-        x:
-            currentBed
-                ? Number(currentBed.x) || 0
-                : 0,
+        x: cropEditingEmptySlot && cropEmptySlotSnapshot
+            ? Number(cropEmptySlotSnapshot.x) || 0
+            : (currentBed ? Number(currentBed.x) || 0 : 0),
 
-        y:
-            currentBed
-                ? Number(currentBed.y) || 0
-                : 0
-
+        y: cropEditingEmptySlot && cropEmptySlotSnapshot
+            ? Number(cropEmptySlotSnapshot.y) || 0
+            : (currentBed ? Number(currentBed.y) || 0 : 0)
     };
 
 
@@ -7173,6 +7339,16 @@ if (cropMarker) {
      * CREATE FORM DATA
      */
 
+    if (cropEditingEmptySlot) {
+        const slots = Array.isArray(deletedBedSlots[currentPlot])
+            ? deletedBedSlots[currentPlot]
+            : [];
+        deletedBedSlots[currentPlot] = slots.filter(
+            slot => Number(slot.number) !== Number(currentCropBed)
+        );
+        saveCurrentBedState();
+    }
+
     const formData =
         new FormData();
 
@@ -7388,6 +7564,8 @@ if (cropMarker) {
                 "Crop profile saved successfully."
             );
 
+            cropEditingEmptySlot = false;
+            cropEmptySlotSnapshot = null;
 
             location.reload();
 
@@ -7535,8 +7713,20 @@ function cancelCropProfileEditing() {
     );
 
 
-    cropProfileSnapshot =
-        null;
+    if (cropEditingEmptySlot && cropEmptySlotSnapshot && currentPlot) {
+        const slots = Array.isArray(deletedBedSlots[currentPlot])
+            ? deletedBedSlots[currentPlot]
+            : [];
+        if (!slots.some(slot => Number(slot.number) === Number(cropEmptySlotSnapshot.number))) {
+            slots.push({ ...cropEmptySlotSnapshot });
+        }
+        deletedBedSlots[currentPlot] = slots;
+        renderBedMarkers(currentPlot);
+    }
+
+    cropEditingEmptySlot = false;
+    cropEmptySlotSnapshot = null;
+    cropProfileSnapshot = null;
 
 }
 
@@ -7547,17 +7737,14 @@ function cancelCropProfileEditing() {
 
 function closeCropProfile() {
 
-    document.getElementById(
-        "cropProfileOverlay"
-    ).classList.remove(
-        "show"
-    );
+    if (cropEditingEmptySlot) {
+        cancelCropProfileEditing();
+    }
 
-
-    currentCropBed =
-        null;
-
+    document.getElementById("cropProfileOverlay").classList.remove("show");
+    currentCropBed = null;
 }
+
 
 
 /* =========================================================
@@ -8054,6 +8241,14 @@ function closeNursery() {
 
 let currentLivestockHouse = null;
 let currentLivestockId = null;
+let livestockHouseEditMode = false;
+let livestockPositionEditMode = false;
+let selectedLivestockMarker = null;
+let livestockAddMode = false;
+let livestockAddSlot = null;
+let livestockDeletedIds = {};
+let draggingLivestock = null;
+
 let livestockProfileSnapshot = null;
 
 /*
@@ -8119,12 +8314,40 @@ function dbLivestockToAnimal(row, index, total) {
     };
 }
 
+function normalizeLivestockHouseKey(value) {
+    return String(value || "")
+        .toLowerCase()
+        .trim()
+        .replace(/[_\s]+/g, "-");
+}
+
+function resolveLivestockHouseEntry(houseId) {
+    if (!houseId) return null;
+
+    /* Exact match first. */
+    if (dbLivestockHouses[houseId]) {
+        return { key: houseId, entry: dbLivestockHouses[houseId] };
+    }
+
+    /* Then allow house_code values such as goat_house / goat-house. */
+    const wanted = normalizeLivestockHouseKey(houseId);
+
+    for (const key of Object.keys(dbLivestockHouses)) {
+        if (normalizeLivestockHouseKey(key) === wanted) {
+            return { key, entry: dbLivestockHouses[key] };
+        }
+    }
+
+    return null;
+}
+
 function getLivestockHouseData(houseId) {
 
-    const entry = dbLivestockHouses[houseId];
+    const resolved = resolveLivestockHouseEntry(houseId);
 
-    if (!entry) return null;
+    if (!resolved || !resolved.entry || !resolved.entry.house) return null;
 
+    const entry = resolved.entry;
     const total = entry.animals.length;
 
     const animals = entry.animals.map(
@@ -8132,7 +8355,10 @@ function getLivestockHouseData(houseId) {
     );
 
     return {
-        title: entry.house.house_name,
+        key: resolved.key,
+        houseId: entry.house.house_id,
+        houseCode: entry.house.house_code || resolved.key,
+        title: entry.house.house_name || resolved.key,
         image: entry.house.image ? `${basePath}${entry.house.image}` : "",
         description: entry.house.description || "",
         animals
@@ -8190,6 +8416,41 @@ function formatLivestockDate(dateString) {
         day: "numeric",
         year: "numeric"
     });
+}
+
+const LIVESTOCK_DELETED_STORAGE_KEY = "sanctuarioDeletedLivestock";
+
+function getDeletedLivestock() {
+    try {
+        const value = JSON.parse(localStorage.getItem(LIVESTOCK_DELETED_STORAGE_KEY));
+        return value && typeof value === "object" ? value : {};
+    } catch (e) { return {}; }
+}
+
+function saveDeletedLivestock(data) {
+    localStorage.setItem(LIVESTOCK_DELETED_STORAGE_KEY, JSON.stringify(data));
+}
+
+livestockDeletedIds = getDeletedLivestock();
+
+function createLivestockPlusMarker(index, x, y, deletedId = null) {
+    const marker = document.createElement("button");
+    marker.type = "button";
+    marker.className = "livestock-plus-marker";
+    marker.style.left = `${Number(x) || 50}%`;
+    marker.style.top = `${Number(y) || 50}%`;
+    marker.dataset.deletedId = deletedId != null ? String(deletedId) : "";
+    marker.innerHTML = `<i class="fa-solid fa-plus"></i><span>Add Livestock</span>`;
+    marker.addEventListener("click", e => {
+        e.preventDefault(); e.stopPropagation();
+        openNewLivestockForm(
+            index,
+            Number(x) || 50,
+            Number(y) || 50,
+            deletedId
+        );
+    });
+    return marker;
 }
 
 function createLivestockMarker(animal) {
@@ -8285,19 +8546,22 @@ function createLivestockMarker(animal) {
         `;
 
 
-    marker.addEventListener(
-        "click",
-        function(event) {
-
-            event.stopPropagation();
-
-
-            openLivestockProfile(
-                animal.id
-            );
-
+    marker.addEventListener("click", function(event) {
+        event.stopPropagation();
+        if (livestockHouseEditMode) {
+            selectLivestockMarker(marker);
+            return;
         }
-    );
+        openLivestockProfile(animal.id);
+    });
+
+    marker.addEventListener("mousedown", function(event) {
+        if (!livestockHouseEditMode || !livestockPositionEditMode) return;
+        event.preventDefault();
+        event.stopPropagation();
+        draggingLivestock = marker;
+        selectLivestockMarker(marker);
+    });
 
 
     return marker;
@@ -8305,42 +8569,170 @@ function createLivestockMarker(animal) {
 }
 
 function renderLivestockMarkers(houseId) {
-
-    const container = document.getElementById(
-        "livestockMarkersContainer"
-    );
-
+    const container = document.getElementById("livestockMarkersContainer");
     if (!container) return;
-
     container.innerHTML = "";
 
     const house = getLivestockHouseData(houseId);
-
     if (!house) return;
 
-    house.animals.forEach(animal => {
-        container.appendChild(
-            createLivestockMarker(animal)
-        );
+    house.animals.forEach((animal, index) => {
+        const key = String(animal.id);
+        if (livestockDeletedIds[houseId] && livestockDeletedIds[houseId][key]) {
+            const stored = getStoredLivestockMarkerData();
+            const saved = stored[key] || {};
+            const x = saved.x != null
+                ? Number(saved.x)
+                : (Number(animal.x) || (20 + (index % 5) * 15));
+            const y = saved.y != null
+                ? Number(saved.y)
+                : (Number(animal.y) || (20 + Math.floor(index / 5) * 15));
+            container.appendChild(createLivestockPlusMarker(index, x, y, animal.id));
+            return;
+        }
+        container.appendChild(createLivestockMarker(animal));
     });
 
     const count = document.getElementById("livestockCount");
+    if (count) count.textContent = `${house.animals.length} ${house.animals.length === 1 ? "animal" : "animals"}`;
+}
 
-    if (count) {
-        count.textContent = `${house.animals.length} ${house.animals.length === 1 ? "animal" : "animals"}`;
+function selectLivestockMarker(marker) {
+    document.querySelectorAll("#livestockMarkersContainer .livestock-house-marker").forEach(item => item.classList.remove("selected"));
+    selectedLivestockMarker = marker;
+    currentLivestockId = marker?.dataset.id || null;
+    if (marker) marker.classList.add("selected");
+}
+
+
+function updateLivestockHouseEditUI() {
+    const toolbar = document.getElementById("livestockHouseToolbar");
+    const editBtn = document.getElementById("editLivestockHouseBtn");
+    const posBtn = document.getElementById("editLivestockPositionBtn");
+    if (!toolbar || !editBtn) return;
+    toolbar.classList.toggle("is-editing", livestockHouseEditMode);
+    editBtn.innerHTML = livestockHouseEditMode
+        ? '<i class="fa-solid fa-check"></i> Done'
+        : '<i class="fa-solid fa-pen"></i> Edit House';
+    if (posBtn) {
+        posBtn.classList.toggle("position-active", livestockPositionEditMode);
+        posBtn.innerHTML = livestockPositionEditMode
+            ? '<i class="fa-solid fa-check"></i> Position Editing'
+            : '<i class="fa-solid fa-up-down-left-right"></i> Edit Position';
     }
 }
+
+function toggleLivestockHouseEditing() {
+    livestockHouseEditMode = !livestockHouseEditMode;
+    livestockPositionEditMode = false;
+    selectedLivestockMarker = null;
+    updateLivestockHouseEditUI();
+    renderLivestockMarkers(currentLivestockHouse);
+}
+
+function toggleLivestockPositionEditing() {
+    if (!livestockHouseEditMode) return;
+    livestockPositionEditMode = !livestockPositionEditMode;
+    document.querySelectorAll("#livestockMarkersContainer .livestock-house-marker").forEach(marker => marker.classList.toggle("position-editing", livestockPositionEditMode));
+    updateLivestockHouseEditUI();
+}
+
+function deleteSelectedLivestock() {
+    if (!livestockHouseEditMode || !selectedLivestockMarker) {
+        showFarmMapToast("Select a livestock marker first");
+        return;
+    }
+    const id = String(selectedLivestockMarker.dataset.id);
+    const animal = getCurrentLivestock();
+    if (!animal) return;
+    if (!confirm(`Remove ${animal.name || "this livestock"} from the house?`)) return;
+    if (!livestockDeletedIds[currentLivestockHouse]) livestockDeletedIds[currentLivestockHouse] = {};
+    livestockDeletedIds[currentLivestockHouse][id] = true;
+    saveDeletedLivestock(livestockDeletedIds);
+    selectedLivestockMarker = null;
+    currentLivestockId = null;
+    renderLivestockMarkers(currentLivestockHouse);
+    showFarmMapToast("Livestock removed — + is ready");
+}
+
+function editSelectedLivestock() {
+    if (!livestockHouseEditMode || !selectedLivestockMarker) {
+        showFarmMapToast("Select a livestock marker first");
+        return;
+    }
+    openLivestockProfile(selectedLivestockMarker.dataset.id);
+    startLivestockProfileEditing();
+}
+
+function openNewLivestockForm(index, x, y, deletedId = null) {
+    livestockAddMode = true;
+    livestockAddSlot = {
+        deletedId: deletedId != null ? String(deletedId) : null,
+        x: Number(x) || 50,
+        y: Number(y) || 50
+    };
+    currentLivestockId = null;
+    livestockProfileSnapshot = null;
+    const profile = document.getElementById("livestockProfileOverlay");
+    if (!profile) return;
+    document.getElementById("profileLivestockName").textContent = "New Livestock";
+    document.getElementById("profileLivestockType").textContent = "Add livestock";
+    document.getElementById("livestockEditForm").classList.add("show");
+    setLivestockProfileEditButtons(true);
+    [
+        ["editLivestockName", ""], ["editLivestockType", ""], ["editLivestockBreed", ""],
+        ["editLivestockWeight", ""], ["editLivestockFeedingSchedule", ""], ["editLivestockNotes", ""]
+    ].forEach(([id, value]) => { const el = document.getElementById(id); if (el) el.value = value; });
+    document.getElementById("editLivestockSex").value = "";
+    document.getElementById("editLivestockDOB").value = "";
+    document.getElementById("editLivestockNumber").value = "1";
+    document.getElementById("editLivestockForSale").value = "0";
+    document.getElementById("editLivestockMarkerX").value = x;
+    document.getElementById("editLivestockMarkerY").value = y;
+    const goat = document.querySelector('input[name="livestockMarkerIcon"][value="goat"]');
+    if (goat) goat.checked = true;
+    profile.classList.add("show");
+}
+
+// Livestock position dragging
+document.addEventListener("mousemove", function(event) {
+    if (!draggingLivestock || !livestockPositionEditMode) return;
+    const map = document.querySelector(".livestock-house-map");
+    if (!map) return;
+    const rect = map.getBoundingClientRect();
+    const x = Math.max(2, Math.min(98, ((event.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(2, Math.min(98, ((event.clientY - rect.top) / rect.height) * 100));
+    draggingLivestock.style.left = `${x}%`;
+    draggingLivestock.style.top = `${y}%`;
+});
+
+document.addEventListener("mouseup", function() {
+    if (draggingLivestock && livestockPositionEditMode && currentLivestockId) {
+        const stored = getStoredLivestockMarkerData();
+        stored[currentLivestockId] = { ...(stored[currentLivestockId] || {}), x: parseFloat(draggingLivestock.style.left) || 0, y: parseFloat(draggingLivestock.style.top) || 0 };
+        saveStoredLivestockMarkerData(stored);
+        showFarmMapToast("Livestock position saved");
+    }
+    draggingLivestock = null;
+});
 
 function openLivestock(houseId) {
 
     const house = getLivestockHouseData(houseId);
 
     if (!house) {
-        alert("This livestock house does not have information yet.");
+        alert(
+            `Livestock house "${houseId}" could not be matched to an active record in livestock_houses.`
+        );
         return;
     }
 
     currentLivestockHouse = houseId;
+    livestockHouseEditMode = false;
+    livestockPositionEditMode = false;
+    selectedLivestockMarker = null;
+    draggingLivestock = null;
+    updateLivestockHouseEditUI();
 
     document.getElementById("livestockHouseImage").src = house.image;
     document.getElementById("livestockHouseTitle").textContent = house.title;
@@ -8354,6 +8746,11 @@ function openLivestock(houseId) {
 function closeLivestock() {
 
     closeLivestockProfile();
+    livestockHouseEditMode = false;
+    livestockPositionEditMode = false;
+    selectedLivestockMarker = null;
+    draggingLivestock = null;
+    livestockAddMode = false;
 
     currentLivestockHouse = null;
 
@@ -8371,7 +8768,7 @@ function getCurrentLivestock() {
     if (!house) return null;
 
     return house.animals.find(
-        animal => animal.id === currentLivestockId
+        animal => String(animal.id) === String(currentLivestockId)
     ) || null;
 }
 
@@ -8463,6 +8860,8 @@ function closeLivestockProfile() {
 
     currentLivestockId = null;
     livestockProfileSnapshot = null;
+    livestockAddMode = false;
+    livestockAddSlot = null;
 }
 
 function setLivestockProfileEditButtons(editing) {
@@ -8922,7 +9321,7 @@ function saveLivestockProfile() {
 
     const animal = getCurrentLivestock();
 
-    if (!animal || !currentLivestockHouse) return;
+    if ((!animal && !livestockAddMode) || !currentLivestockHouse) return;
 
     /*
 |--------------------------------------------------------------------------
@@ -8939,12 +9338,13 @@ const selectedLivestockIcon =
 const storedMarkerData =
     getStoredLivestockMarkerData();
 
+const markerKey = livestockAddMode
+    ? null
+    : String(animal.id);
 
-const livestockMarkerData =
-    storedMarkerData[
-        animal.id
-    ] || {};
-
+const livestockMarkerData = markerKey
+    ? (storedMarkerData[markerKey] || {})
+    : {};
 
 if (
     selectedLivestockIcon &&
@@ -8952,10 +9352,7 @@ if (
         selectedLivestockIcon.value
     ]
 ) {
-
-    livestockMarkerData.icon =
-        selectedLivestockIcon.value;
-
+    livestockMarkerData.icon = selectedLivestockIcon.value;
 }
 
 
@@ -9003,15 +9400,10 @@ if (livestockY) {
 }
 
 
-storedMarkerData[
-    animal.id
-] =
-    livestockMarkerData;
-
-
-saveStoredLivestockMarkerData(
-    storedMarkerData
-);
+if (markerKey) {
+    storedMarkerData[markerKey] = livestockMarkerData;
+    saveStoredLivestockMarkerData(storedMarkerData);
+}
 
 
     /*
@@ -9022,10 +9414,26 @@ saveStoredLivestockMarkerData(
 
     const formData = new FormData();
 
+    const saveBtn = document.getElementById("saveLivestockProfileBtn");
 
     formData.append(
         "livestock_id",
-        animal.id
+        livestockAddMode ? "" : animal.id
+    );
+
+    const currentHouseData = getLivestockHouseData(currentLivestockHouse);
+
+    if (!currentHouseData || !currentHouseData.houseId) {
+        alert(
+            `Livestock house "${currentLivestockHouse}" was not found in the livestock_houses table.`
+        );
+        saveBtn.disabled = false;
+        return;
+    }
+
+    formData.append(
+        "house_id",
+        String(currentHouseData.houseId)
     );
 
     formData.append(
@@ -9107,8 +9515,10 @@ saveStoredLivestockMarkerData(
     |--------------------------------------------------------------------------
     */
 
-    const saveBtn =
-        document.getElementById("saveLivestockProfileBtn");
+    if (!saveBtn) {
+        alert("Save button was not found.");
+        return;
+    }
 
     saveBtn.disabled = true;
 
@@ -9150,7 +9560,7 @@ saveStoredLivestockMarkerData(
             |------------------------------------------------------------------
             */
 
-            if (result.image) {
+            if (result.image && animal) {
 
                 animal.image =
                     `${basePath}${result.image}`;
@@ -9160,12 +9570,38 @@ saveStoredLivestockMarkerData(
                 );
             }
 
+            if (livestockAddMode && result.livestock_id) {
+                const saved = getStoredLivestockMarkerData();
+                const key = String(result.livestock_id);
+                saved[key] = {
+                    ...(saved[key] || {}),
+                    icon: selectedLivestockIcon ? selectedLivestockIcon.value : "goat",
+                    x: Number(livestockX?.value) || 50,
+                    y: Number(livestockY?.value) || 50
+                };
+                saveStoredLivestockMarkerData(saved);
+
+                /* The deleted + slot is now occupied by the new livestock. */
+                if (livestockAddSlot?.deletedId) {
+                    if (livestockDeletedIds[currentLivestockHouse]) {
+                        delete livestockDeletedIds[currentLivestockHouse][livestockAddSlot.deletedId];
+                        if (Object.keys(livestockDeletedIds[currentLivestockHouse]).length === 0) {
+                            delete livestockDeletedIds[currentLivestockHouse];
+                        }
+                        saveDeletedLivestock(livestockDeletedIds);
+                    }
+                }
+            }
+
 
             alert(
-                "Livestock profile saved successfully."
+                livestockAddMode
+                    ? "Livestock added successfully."
+                    : "Livestock profile saved successfully."
             );
 
-
+            livestockAddMode = false;
+            livestockAddSlot = null;
             location.reload();
 
         })
@@ -9187,6 +9623,14 @@ saveStoredLivestockMarkerData(
 }
 
 function cancelLivestockProfileEditing() {
+
+    if (livestockAddMode) {
+        livestockAddMode = false;
+        livestockAddSlot = null;
+        document.getElementById("livestockEditForm")?.classList.remove("show");
+        setLivestockProfileEditButtons(false);
+        return;
+    }
 
     if (
         livestockProfileSnapshot &&
@@ -9283,6 +9727,51 @@ function cancelLivestockProfileEditing() {
 }
 
 
+
+
+/* =========================================================
+   LIVESTOCK HOUSE EDIT BUTTONS
+========================================================= */
+
+const editLivestockHouseBtn = document.getElementById("editLivestockHouseBtn");
+if (editLivestockHouseBtn) editLivestockHouseBtn.addEventListener("click", toggleLivestockHouseEditing);
+
+const editLivestockPositionBtn = document.getElementById("editLivestockPositionBtn");
+if (editLivestockPositionBtn) editLivestockPositionBtn.addEventListener("click", toggleLivestockPositionEditing);
+
+const deleteLivestockBtn = document.getElementById("deleteLivestockBtn");
+if (deleteLivestockBtn) deleteLivestockBtn.addEventListener("click", deleteSelectedLivestock);
+
+const editSelectedLivestockBtn = document.getElementById("editSelectedLivestockBtn");
+if (editSelectedLivestockBtn) editSelectedLivestockBtn.addEventListener("click", editSelectedLivestock);
+
+const addLivestockBtn = document.getElementById("addLivestockBtn");
+if (addLivestockBtn) addLivestockBtn.addEventListener("click", function() {
+    if (!livestockHouseEditMode) return;
+
+    /* Prefer an existing empty (+) livestock slot so Add Livestock never
+       unnecessarily overlaps an existing marker. */
+    const plus = document.querySelector("#livestockMarkersContainer .livestock-plus-marker");
+    if (plus) {
+        plus.click();
+        return;
+    }
+
+    const house = getLivestockHouseData(currentLivestockHouse);
+    const count = house ? house.animals.length : 0;
+    const x = 20 + (count % 5) * 15;
+    const y = 20 + Math.floor(count / 5) * 15;
+    openNewLivestockForm(count, x, y);
+});
+
+const doneLivestockHouseBtn = document.getElementById("doneLivestockHouseBtn");
+if (doneLivestockHouseBtn) doneLivestockHouseBtn.addEventListener("click", function() {
+    livestockHouseEditMode = false;
+    livestockPositionEditMode = false;
+    selectedLivestockMarker = null;
+    updateLivestockHouseEditUI();
+    renderLivestockMarkers(currentLivestockHouse);
+});
 
 
 /* =========================================================
@@ -10721,6 +11210,62 @@ mapContainer.addEventListener(
 );
 
 
+
+/* =========================================================
+   CLEAN FARM MAP BOARD UX HELPERS
+========================================================= */
+let farmMapToastTimer = null;
+
+function showFarmMapToast(message) {
+    const toast = document.getElementById("farmMapToast");
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add("show");
+    clearTimeout(farmMapToastTimer);
+    farmMapToastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+    }, 1600);
+}
+
+function autoSaveBedBoard() {
+    saveCurrentBedState();
+}
+
+
+function finishBedEditing() {
+    if (!bedEditMode) return;
+
+    autoSaveBedBoard();
+
+    bedEditMode = false;
+    bedPositionEditMode = false;
+    selectedBed = null;
+    draggingBed = null;
+    bedSnapshot = null;
+    deletedBedSlotsSnapshot = null;
+
+    const popup = document.getElementById("plotPopup");
+    if (popup) popup.classList.remove("bed-editing");
+
+    document.querySelectorAll("#bedMarkersContainer .bed-marker").forEach(marker => {
+        marker.classList.remove("editing", "selected");
+    });
+
+    updateBedEditUI();
+    showFarmMapToast("Bed board saved automatically");
+}
+
+/* =========================================================
+   PLOT EDIT BUTTONS
+========================================================= */
+
+const editPositionBtn = document.getElementById("editPositionBtn");
+if (editPositionBtn) editPositionBtn.addEventListener("click", toggleBedPositionEditing);
+
+const editSelectedCropBtn = document.getElementById("editSelectedCropBtn");
+if (editSelectedCropBtn) editSelectedCropBtn.addEventListener("click", editSelectedCrop);
+
+
 /* =========================================================
    BUTTON EVENTS
 ========================================================= */
@@ -10774,15 +11319,13 @@ document.getElementById(
     "startEditBedsBtn"
 ).addEventListener(
     "click",
-    startBedEditing
-);
-
-
-document.getElementById(
-    "addBedBtn"
-).addEventListener(
-    "click",
-    addBed
+    function() {
+        if (bedEditMode) {
+            finishBedEditing();
+        } else {
+            startBedEditing();
+        }
+    }
 );
 
 
@@ -11123,6 +11666,7 @@ updateBedEditUI();
 </script>
 
 
+<div id="farmMapToast" class="farm-map-toast" role="status" aria-live="polite"></div>
 </body>
 
 </html>

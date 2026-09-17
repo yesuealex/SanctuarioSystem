@@ -1,599 +1,86 @@
 <?php
 session_start();
-
-/*
-|--------------------------------------------------------------------------
-| LOGIN CHECK
-|--------------------------------------------------------------------------
-*/
-if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login.php");
-    exit();
-}
-
-/*
-|--------------------------------------------------------------------------
-| ROLE CHECK
-|--------------------------------------------------------------------------
-| Only maintenance staff can access this page.
-|--------------------------------------------------------------------------
-*/
-
-$role = $_SESSION['role'] ?? '';
-
-if ($role !== 'maintenance') {
-    header("Location: ../adminDashboard.php");
-    exit();
-}
-
-/*
-|--------------------------------------------------------------------------
-| DATABASE
-|--------------------------------------------------------------------------
-*/
+if (!isset($_SESSION['user_id'])) { header("Location: ../login.php"); exit(); }
+if (($_SESSION['role'] ?? '') !== 'maintenance') { header("Location: ../adminDashboard.php"); exit(); }
 require_once '../db.php';
 
-/*
-|--------------------------------------------------------------------------
-| USER INFORMATION
-|--------------------------------------------------------------------------
-*/
+function e($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+
+$userId = (int)$_SESSION['user_id'];
 $userName = $_SESSION['username'] ?? $_SESSION['name'] ?? 'Maintenance Staff';
+$message = '';
+$error = '';
 
-/*
-|--------------------------------------------------------------------------
-| GET MAINTENANCE REQUESTS
-|--------------------------------------------------------------------------
-| This section assumes you have a maintenance_requests table.
-|
-| If your table has different columns, send me your table structure
-| and I can adjust this part.
-|--------------------------------------------------------------------------
-*/
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'status') {
+    try {
+        $requestId = (int)($_POST['request_id'] ?? 0);
+        $status = $_POST['status'] ?? '';
+        if ($requestId <= 0 || !in_array($status, ['Pending','Ongoing','Completed'], true)) {
+            throw new Exception('Invalid request or status.');
+        }
 
-$totalRequests = 0;
-$pendingRequests = 0;
-$ongoingRequests = 0;
-$completedRequests = 0;
-
-try {
-
-    // Total requests
-    $result = $conn->query("
-        SELECT COUNT(*) AS total
-        FROM maintenance_requests
-    ");
-
-    if ($result) {
-        $row = $result->fetch_assoc();
-        $totalRequests = $row['total'] ?? 0;
+        if ($status === 'Completed') {
+            $stmt = $conn->prepare("UPDATE maintenance_requests SET status=?, completed_at=NOW() WHERE request_id=? AND assigned_to=?");
+        } else {
+            $stmt = $conn->prepare("UPDATE maintenance_requests SET status=?, completed_at=NULL WHERE request_id=? AND assigned_to=?");
+        }
+        $stmt->bind_param("sii", $status, $requestId, $userId);
+        $stmt->execute();
+        $stmt->close();
+        $message = 'Task status updated.';
+    } catch (Throwable $ex) {
+        $error = $ex->getMessage();
     }
-
-    // Pending
-    $result = $conn->query("
-        SELECT COUNT(*) AS total
-        FROM maintenance_requests
-        WHERE status = 'Pending'
-    ");
-
-    if ($result) {
-        $row = $result->fetch_assoc();
-        $pendingRequests = $row['total'] ?? 0;
-    }
-
-    // Ongoing
-    $result = $conn->query("
-        SELECT COUNT(*) AS total
-        FROM maintenance_requests
-        WHERE status = 'Ongoing'
-    ");
-
-    if ($result) {
-        $row = $result->fetch_assoc();
-        $ongoingRequests = $row['total'] ?? 0;
-    }
-
-    // Completed
-    $result = $conn->query("
-        SELECT COUNT(*) AS total
-        FROM maintenance_requests
-        WHERE status = 'Completed'
-    ");
-
-    if ($result) {
-        $row = $result->fetch_assoc();
-        $completedRequests = $row['total'] ?? 0;
-    }
-
-} catch (Exception $e) {
-
-    // If the table/columns don't exist yet,
-    // the dashboard will still load.
-    $totalRequests = 0;
-    $pendingRequests = 0;
-    $ongoingRequests = 0;
-    $completedRequests = 0;
 }
 
+$totalRequests=$pendingRequests=$ongoingRequests=$completedRequests=0;
+$tasks=[];
+
+try {
+    $stmt=$conn->prepare("
+        SELECT
+            COUNT(*) AS total,
+            SUM(status='Pending') AS pending,
+            SUM(status='Ongoing') AS ongoing,
+            SUM(status='Completed') AS completed
+        FROM maintenance_requests
+        WHERE assigned_to=?
+    ");
+    $stmt->bind_param("i",$userId);
+    $stmt->execute();
+    $row=$stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    $totalRequests=(int)($row['total']??0);
+    $pendingRequests=(int)($row['pending']??0);
+    $ongoingRequests=(int)($row['ongoing']??0);
+    $completedRequests=(int)($row['completed']??0);
+
+    $stmt=$conn->prepare("SELECT * FROM maintenance_requests WHERE assigned_to=? ORDER BY request_id DESC LIMIT 10");
+    $stmt->bind_param("i",$userId);
+    $stmt->execute();
+    $result=$stmt->get_result();
+    while($row=$result->fetch_assoc())$tasks[]=$row;
+    $stmt->close();
+} catch(Throwable $ex) {
+    $error='Maintenance data could not be loaded. Run maintenance_tables.sql first.';
+}
 ?>
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>Maintenance Staff | Sanctuario Nature Farm</title>
-
-    <!-- Poppins -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-
-    <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossorigin
-    >
-
-    <link
-        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-    >
-
-    <!-- Material Symbols -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:wght@400;500;600"
-        rel="stylesheet"
-    >
-
-    <!-- Main CSS -->
-    <link
-        rel="stylesheet"
-        href="../style.css"
-    >
-
-    <!-- Sidebar CSS -->
-    <link
-        rel="stylesheet"
-        href="../sidebar.css"
-    >
-
-    <!-- Maintenance CSS -->
-    <link
-        rel="stylesheet"
-        href="maintenance.css"
-    >
-
-</head>
-
-<body>
-
-<div class="layout">
-
-    <!-- =================================================
-         SIDEBAR
-         ================================================= -->
-
-    <?php include '../sidebar.php'; ?>
-
-
-    <!-- =================================================
-         MAIN DASHBOARD
-         ================================================= -->
-
-    <main class="dashboard">
-
-        <!-- TOP RIGHT BAR -->
-
-        <?php include '../topRightBar.php'; ?>
-
-
-        <!-- =================================================
-             PAGE HEADER
-             ================================================= -->
-
-        <section class="maintenance-header">
-
-            <div>
-
-                <h1>
-                    Maintenance
-                </h1>
-
-                <p>
-                    Welcome back, <?= htmlspecialchars($userName) ?>!
-                </p>
-
-            </div>
-
-        </section>
-
-
-        <!-- =================================================
-             SUMMARY CARDS
-             ================================================= -->
-
-        <section class="maintenance-cards">
-
-
-            <!-- TOTAL REQUESTS -->
-
-            <div class="maintenance-card">
-
-                <div class="maintenance-card-icon">
-
-                    <span class="material-symbols-rounded">
-                        build
-                    </span>
-
-                </div>
-
-                <div class="maintenance-card-content">
-
-                    <span class="maintenance-card-label">
-                        Total Requests
-                    </span>
-
-                    <strong>
-                        <?= $totalRequests ?>
-                    </strong>
-
-                </div>
-
-            </div>
-
-
-            <!-- PENDING -->
-
-            <div class="maintenance-card">
-
-                <div class="maintenance-card-icon pending">
-
-                    <span class="material-symbols-rounded">
-                        pending_actions
-                    </span>
-
-                </div>
-
-                <div class="maintenance-card-content">
-
-                    <span class="maintenance-card-label">
-                        Pending
-                    </span>
-
-                    <strong>
-                        <?= $pendingRequests ?>
-                    </strong>
-
-                </div>
-
-            </div>
-
-
-            <!-- ONGOING -->
-
-            <div class="maintenance-card">
-
-                <div class="maintenance-card-icon ongoing">
-
-                    <span class="material-symbols-rounded">
-                        engineering
-                    </span>
-
-                </div>
-
-                <div class="maintenance-card-content">
-
-                    <span class="maintenance-card-label">
-                        Ongoing
-                    </span>
-
-                    <strong>
-                        <?= $ongoingRequests ?>
-                    </strong>
-
-                </div>
-
-            </div>
-
-
-            <!-- COMPLETED -->
-
-            <div class="maintenance-card">
-
-                <div class="maintenance-card-icon completed">
-
-                    <span class="material-symbols-rounded">
-                        task_alt
-                    </span>
-
-                </div>
-
-                <div class="maintenance-card-content">
-
-                    <span class="maintenance-card-label">
-                        Completed
-                    </span>
-
-                    <strong>
-                        <?= $completedRequests ?>
-                    </strong>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- =================================================
-             MAIN CONTENT
-             ================================================= -->
-
-        <section class="maintenance-content">
-
-
-            <!-- =================================================
-                 MAINTENANCE TASKS
-                 ================================================= -->
-
-            <div class="maintenance-panel">
-
-                <div class="panel-header">
-
-                    <div>
-
-                        <h2>
-                            Maintenance Tasks
-                        </h2>
-
-                        <p>
-                            View and manage assigned maintenance work.
-                        </p>
-
-                    </div>
-
-                    <a
-                        href="maintenanceRequests.php"
-                        class="view-all-btn"
-                    >
-                        View All
-                    </a>
-
-                </div>
-
-
-                <div class="task-list">
-
-                    <?php
-
-                    try {
-
-                        $taskQuery = "
-                            SELECT *
-                            FROM maintenance_requests
-                            ORDER BY request_id DESC
-                            LIMIT 5
-                        ";
-
-                        $taskResult = $conn->query($taskQuery);
-
-                        if ($taskResult && $taskResult->num_rows > 0):
-
-                            while ($task = $taskResult->fetch_assoc()):
-
-                                $status = $task['status'] ?? 'Pending';
-
-                                $statusClass = strtolower(
-                                    str_replace(' ', '-', $status)
-                                );
-
-                    ?>
-
-                        <div class="task-item">
-
-                            <div class="task-icon">
-
-                                <span class="material-symbols-rounded">
-                                    construction
-                                </span>
-
-                            </div>
-
-                            <div class="task-info">
-
-                                <h3>
-                                    <?= htmlspecialchars(
-                                        $task['title']
-                                        ?? $task['description']
-                                        ?? 'Maintenance Request'
-                                    ) ?>
-                                </h3>
-
-                                <p>
-                                    <?= htmlspecialchars(
-                                        $task['description']
-                                        ?? 'No description available.'
-                                    ) ?>
-                                </p>
-
-                            </div>
-
-                            <span
-                                class="status-badge <?= htmlspecialchars($statusClass) ?>"
-                            >
-                                <?= htmlspecialchars($status) ?>
-                            </span>
-
-                        </div>
-
-                    <?php
-
-                            endwhile;
-
-                        else:
-
-                    ?>
-
-                        <div class="empty-state">
-
-                            <span class="material-symbols-rounded">
-                                assignment
-                            </span>
-
-                            <h3>
-                                No maintenance requests
-                            </h3>
-
-                            <p>
-                                There are currently no maintenance tasks to display.
-                            </p>
-
-                        </div>
-
-                    <?php
-
-                        endif;
-
-                    } catch (Exception $e) {
-
-                    ?>
-
-                        <div class="empty-state">
-
-                            <span class="material-symbols-rounded">
-                                assignment
-                            </span>
-
-                            <h3>
-                                No maintenance requests
-                            </h3>
-
-                            <p>
-                                Maintenance requests will appear here.
-
-                            </p>
-
-                        </div>
-
-                    <?php } ?>
-
-                </div>
-
-            </div>
-
-
-            <!-- =================================================
-                 QUICK ACTIONS
-                 ================================================= -->
-
-            <div class="maintenance-panel quick-actions-panel">
-
-                <div class="panel-header">
-
-                    <div>
-
-                        <h2>
-                            Quick Actions
-                        </h2>
-
-                        <p>
-                            Common maintenance activities.
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <div class="quick-actions">
-
-                    <a
-                        href="maintenanceRequests.php"
-                        class="quick-action"
-                    >
-
-                        <span class="material-symbols-rounded">
-                            assignment
-                        </span>
-
-                        <div>
-
-                            <strong>
-                                View Requests
-                            </strong>
-
-                            <small>
-                                Check maintenance requests
-                            </small>
-
-                        </div>
-
-                    </a>
-
-
-                    <a
-                        href="maintenanceTasks.php"
-                        class="quick-action"
-                    >
-
-                        <span class="material-symbols-rounded">
-                            engineering
-                        </span>
-
-                        <div>
-
-                            <strong>
-                                My Tasks
-                            </strong>
-
-                            <small>
-                                View assigned tasks
-                            </small>
-
-                        </div>
-
-                    </a>
-
-
-                    <a
-                        href="maintenanceHistory.php"
-                        class="quick-action"
-                    >
-
-                        <span class="material-symbols-rounded">
-                            history
-                        </span>
-
-                        <div>
-
-                            <strong>
-                                Maintenance History
-                            </strong>
-
-                            <small>
-                                View completed work
-                            </small>
-
-                        </div>
-
-                    </a>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-    </main>
-
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Maintenance Staff | Sanctuario Nature Farm</title>
+<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../sidebar.css"><link rel="stylesheet" href="maintenance.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Material+Symbols+Rounded:wght@400;500;600" rel="stylesheet">
+<style>
+.page{padding:24px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:18px 0}.card,.box{background:#fff;border-radius:15px;padding:18px}.card span{display:block;color:#718077;font-size:13px}.card strong{font-size:27px}.msg,.err{padding:12px;border-radius:9px;margin-bottom:14px}.msg{background:#eaf6ed;color:#27623a}.err{background:#fff0ef;color:#9b2c2c}.task{display:flex;justify-content:space-between;gap:15px;padding:16px 0;border-bottom:1px solid #e8ece9}.task h3{margin:0 0 5px}.task p{margin:0;color:#68756d;font-size:13px}.task form{display:flex;gap:7px;align-items:center}.task select,.btn{padding:8px 10px;border-radius:8px;border:1px solid #dce4de;font:13px Poppins}.btn{background:#2f6f45;color:#fff;border:0;cursor:pointer}.muted{font-size:12px;color:#718077}@media(max-width:800px){.cards{grid-template-columns:repeat(2,1fr)}.task{flex-direction:column}}
+</style>
+</head><body><div class="layout"><?php include '../sidebar.php';?><main class="dashboard"><?php include '../topRightBar.php';?><div class="page">
+<h1>Maintenance</h1><p>Welcome back, <?=e($userName)?>. These are the maintenance tasks assigned to your account.</p>
+<?php if($message):?><div class="msg"><?=e($message)?></div><?php endif;?><?php if($error):?><div class="err"><?=e($error)?></div><?php endif;?>
+<div class="cards"><div class="card"><span>Total Assigned</span><strong><?=$totalRequests?></strong></div><div class="card"><span>Pending</span><strong><?=$pendingRequests?></strong></div><div class="card"><span>Ongoing</span><strong><?=$ongoingRequests?></strong></div><div class="card"><span>Completed</span><strong><?=$completedRequests?></strong></div></div>
+<div class="box"><h2>My Tasks</h2>
+<?php if(!$tasks):?><p>No tasks have been assigned to you yet.</p><?php else:foreach($tasks as $task):?>
+<div class="task"><div><h3><?=e($task['title'])?></h3><p><?=e($task['description'])?></p><p class="muted"><?=e($task['location']?:'No location')?> · Priority: <?=e($task['priority'])?> · Request #<?=e($task['request_id'])?></p></div>
+<form method="post"><input type="hidden" name="action" value="status"><input type="hidden" name="request_id" value="<?=e($task['request_id'])?>"><select name="status"><?php foreach(['Pending','Ongoing','Completed'] as $s):?><option value="<?=e($s)?>" <?=($task['status']===$s?'selected':'')?>><?=e($s)?></option><?php endforeach;?></select><button class="btn" type="submit">Update</button></form>
 </div>
-
-</body>
-
-</html>
+<?php endforeach;endif;?>
+</div></div></main></div></body></html>

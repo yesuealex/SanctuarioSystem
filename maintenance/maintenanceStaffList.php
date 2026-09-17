@@ -1,0 +1,10 @@
+<?php
+session_start();
+if (!isset($_SESSION['user_id'])) { header("Location: ../login.php"); exit(); }
+if (($_SESSION['role'] ?? '') !== 'admin') { header("Location: ../adminDashboard.php"); exit(); }
+require_once '../db.php';
+function e($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
+$staff=[];
+try{$result=$conn->query("SELECT u.user_id,u.username,u.email,COUNT(mr.request_id) AS active_tasks FROM users u LEFT JOIN maintenance_requests mr ON mr.assigned_to=u.user_id AND mr.status IN ('Pending','Ongoing') WHERE u.role='maintenance' GROUP BY u.user_id,u.username,u.email ORDER BY u.username");while($row=$result->fetch_assoc())$staff[]=$row;}catch(Throwable $ex){$error='Could not load maintenance staff.';}
+?>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Maintenance Staff</title><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../sidebar.css"><link rel="stylesheet" href="maintenance.css"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Material+Symbols+Rounded:wght@400;500;600" rel="stylesheet"><style>.page{padding:24px}.box{background:#fff;border-radius:16px;padding:22px}table{width:100%;border-collapse:collapse}th,td{padding:12px;border-bottom:1px solid #e8ece9;text-align:left;font-size:13px}.muted{color:#718077}</style></head><body><div class="layout"><?php include '../sidebar.php';?><main class="dashboard"><?php include '../topRightBar.php';?><div class="page"><h1>Maintenance Staff</h1><p>Maintenance accounts available for task assignment.</p><div class="box"><table><thead><tr><th>Username</th><th>Email</th><th>Active Tasks</th></tr></thead><tbody><?php if(!$staff):?><tr><td colspan="3">No maintenance staff accounts found.</td></tr><?php else:foreach($staff as $s):?><tr><td><strong><?=e($s['username'])?></strong></td><td><?=e($s['email'])?></td><td><?=e($s['active_tasks'])?></td></tr><?php endforeach;endif;?></tbody></table></div></div></main></div></body></html>

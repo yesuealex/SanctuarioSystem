@@ -537,8 +537,6 @@ body {
     align-items: center;
     justify-content: center;
 
-    background: white;
-
     border: 3px solid #5f8f45;
 
     color: #5f8f45;
@@ -682,10 +680,6 @@ body {
 
     border-radius: 50%;
 
-    border: 4px solid #d71919;
-
-    background: white;
-
     color: #315d2e;
 
     font-size: 11px;
@@ -695,8 +689,7 @@ body {
 
     z-index: 20;
 
-    box-shadow:
-        0 2px 7px rgba(0, 0, 0, .3);
+
 }
 
 .plant-marker:hover {
@@ -1463,14 +1456,6 @@ a.edit-btn:hover {
     height: 30px;
 
     border-radius: 50%;
-
-    border: 2px solid white;
-
-    background: #5f8f45;
-    color: white;
-
-    box-shadow:
-        0 2px 8px rgba(0,0,0,.25);
 
     font-family: 'Poppins', sans-serif;
 
