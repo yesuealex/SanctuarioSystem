@@ -23,17 +23,6 @@ $role = $_SESSION['role'] ?? 'staff';
 |--------------------------------------------------------------------------
 | PROJECT ROOT PATH
 |--------------------------------------------------------------------------
-|
-| This makes all sidebar links and files work even when the current
-| PHP page is inside a subfolder.
-|
-| Example:
-| /SanctuarioSystem/
-| /SanctuarioSystem/inventory/
-| /SanctuarioSystem/crops/
-| /SanctuarioSystem/livestock/
-| /SanctuarioSystem/accountSettings/
-|
 */
 
 $basePath = '/SanctuarioSystem/';
@@ -90,7 +79,6 @@ $cropsActive = (
 $livestockActive = (
     strpos($currentPath, '/livestock/') !== false
 );
-
 
 
 /*
@@ -323,23 +311,87 @@ $accountSettingsActive = (
             <?php endif; ?>
 
 
-
             <!-- =================================================
                  INVENTORY
             ================================================== -->
 
             <li
-                class="<?= $inventoryActive ? 'active' : '' ?>"
-                onclick="location.href='<?= $basePath ?>inventory/adminInventory.php'"
+                class="menu-dropdown <?= $inventoryActive ? 'active-parent open' : '' ?>"
             >
 
-                <span class="material-symbols-rounded">
-                    inventory_2
-                </span>
+                <div
+                    class="sidebar-records-header"
+                    onclick="toggleInventoryDropdown(event)"
+                >
 
-                <span class="menu-text">
-                    Inventory
-                </span>
+                    <span class="sidebar-records-left">
+
+                        <span class="material-symbols-rounded">
+                            inventory_2
+                        </span>
+
+                        <span class="menu-text">
+                            Inventory
+                        </span>
+
+                    </span>
+
+
+                    <span class="material-symbols-rounded sidebar-records-arrow">
+                        expand_more
+                    </span>
+
+                </div>
+
+
+                <!-- =============================================
+                     INVENTORY SUBMENU
+                ============================================== -->
+
+                <ul class="sidebar-records-submenu">
+
+
+                    <!-- =========================================
+                         SEED
+                    ========================================== -->
+
+                    <li
+                        class="<?= $page === 'seed.php' ? 'sub-active' : '' ?>"
+                        onclick="location.href='<?= $basePath ?>inventory/seed.php'"
+                    >
+
+                        <span class="material-symbols-rounded">
+                            grass
+                        </span>
+
+                        <span>
+                            Seed
+                        </span>
+
+                    </li>
+
+
+                    <!-- =========================================
+                         SOWING MATERIAL
+                    ========================================== -->
+
+                    <li
+                        class="<?= $page === 'sowingMaterial.php' ? 'sub-active' : '' ?>"
+                        onclick="location.href='<?= $basePath ?>inventory/sowingMaterial.php'"
+                    >
+
+                        <span class="material-symbols-rounded">
+                            construction
+                        </span>
+
+                        <span>
+                            Sowing Material
+                        </span>
+
+                    </li>
+
+
+                </ul>
 
             </li>
 
@@ -364,36 +416,92 @@ $accountSettingsActive = (
             </li>
 
 
+            <!-- =================================================
+                 LOGOUT
+            ================================================== -->
+
+            <li
+                class="logout-menu-item"
+                onclick="location.href='<?= $basePath ?>logout.php'"
+            >
+
+                <span class="material-symbols-rounded">
+                    logout
+                </span>
+
+                <span class="menu-text">
+                    Logout
+                </span>
+
+            </li>
+
+
         </ul>
 
     </div>
 
 
-    <!-- ========================================================
-         SIDEBAR FOOTER
-    ========================================================= -->
-
-    <div class="sidebar-footer">
-
-        <a
-            href="<?= $basePath ?>logout.php"
-            class="logout-link"
-        >
-
-            <span class="material-symbols-rounded">
-                logout
-            </span>
-
-            <span>
-                Logout
-            </span>
-
-        </a>
-
-    </div>
-
-
 </nav>
+
+
+<!-- ============================================================
+     SIDEBAR FIX
+============================================================ -->
+
+<style>
+
+/*
+|--------------------------------------------------------------------------
+| Keep the sidebar menu flexible
+|--------------------------------------------------------------------------
+*/
+
+.sidebar-top {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Main menu fills available sidebar height
+|--------------------------------------------------------------------------
+*/
+
+.sidebar-top .menu {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Logout stays at the bottom
+|--------------------------------------------------------------------------
+*/
+
+.sidebar-top .logout-menu-item {
+    margin-top: auto;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Prevent text/icon from being squeezed when zooming
+|--------------------------------------------------------------------------
+*/
+
+.sidebar-top .logout-menu-item span {
+    flex-shrink: 0;
+}
+
+</style>
 
 
 <!-- ============================================================
@@ -403,6 +511,22 @@ $accountSettingsActive = (
 <script>
 
 function toggleRecordsDropdown(event) {
+
+    event.stopPropagation();
+
+    const dropdown =
+        event.currentTarget.closest('.menu-dropdown');
+
+    if (!dropdown) {
+        return;
+    }
+
+    dropdown.classList.toggle('open');
+
+}
+
+
+function toggleInventoryDropdown(event) {
 
     event.stopPropagation();
 

@@ -10,6 +10,7 @@
 
     width: 250px;
     height: 100vh;
+    height: 100dvh;
 
     background: #2e5129;
 
@@ -23,6 +24,12 @@
     z-index: 1000;
 
     color: #ffffff;
+
+    /*
+     * Prevent the whole sidebar from creating
+     * an unwanted page overflow.
+     */
+    overflow: hidden;
 }
 
 
@@ -37,6 +44,8 @@
     flex-direction: column;
 
     min-height: 0;
+
+    height: 100%;
 }
 
 
@@ -53,11 +62,16 @@
     align-items: center;
 
     padding: 8px 0 50px;
+
+    /*
+     * Logo should not shrink when zooming.
+     */
+    flex-shrink: 0;
 }
 
 
 .sidebar-logo {
-    width: 175px;
+    width: 250px;
     height: auto;
 
     display: block;
@@ -80,6 +94,55 @@
     flex-direction: column;
 
     gap: 50px;
+
+    /*
+     * IMPORTANT
+     * The menu takes the remaining sidebar height.
+     */
+    flex: 1;
+    min-height: 0;
+
+    /*
+     * When browser zoom makes the menu taller
+     * than the available screen, scroll INSIDE
+     * the sidebar instead of overlapping.
+     */
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    /*
+     * Small space at the bottom.
+     */
+    padding-bottom: 15px;
+
+    box-sizing: border-box;
+
+    /*
+     * Keep the scrollbar subtle.
+     */
+    scrollbar-width: thin;
+}
+
+
+/* =========================================================
+   MENU SCROLLBAR
+   ========================================================= */
+
+.menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.menu::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
+}
+
+.menu::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
 }
 
 
@@ -95,7 +158,7 @@
 
     align-items: center;
 
-    gap: 35px;
+    gap: 12px;
 
     padding: 0 15px;
 
@@ -118,6 +181,12 @@
     transition:
         background 0.2s ease,
         color 0.2s ease;
+
+    /*
+     * Do not allow items to become squeezed
+     * when the sidebar is zoomed.
+     */
+    flex-shrink: 0;
 }
 
 
@@ -182,6 +251,11 @@
     box-shadow: none;
 
     color: #ffffff;
+
+    /*
+     * Important when zooming.
+     */
+    flex-shrink: 0;
 }
 
 
@@ -207,12 +281,6 @@
 
     justify-content: space-between;
 
-    /*
-       IMPORTANT:
-       This is the normal sidebar green.
-       It does NOT use the top-right dropdown color.
-    */
-
     background: #2e5129;
 
     border: none;
@@ -234,6 +302,8 @@
     transition:
         background 0.2s ease,
         color 0.2s ease;
+
+    flex-shrink: 0;
 }
 
 
@@ -248,6 +318,8 @@
     align-items: center;
 
     gap: 30px;
+
+    min-width: 0;
 }
 
 
@@ -274,6 +346,8 @@
 
     transition:
         transform 0.25s ease;
+
+    flex-shrink: 0;
 }
 
 
@@ -315,7 +389,7 @@
 .menu-dropdown.active-parent
 .sidebar-records-header:hover {
 
-    background: #f8e67d ;
+    background: #f8e67d;
 
     color: #2e5129;
 }
@@ -386,7 +460,7 @@
 
     align-items: center;
 
-    gap: 12px;
+    gap: 20px;
 
     background: transparent;
 
@@ -405,6 +479,11 @@
     transition:
         background 0.2s ease,
         color 0.2s ease;
+
+    /*
+     * Prevent submenu items from being squeezed.
+     */
+    flex-shrink: 0;
 }
 
 
@@ -416,6 +495,8 @@
 .material-symbols-rounded {
 
     font-size: 20px;
+
+    flex-shrink: 0;
 }
 
 
@@ -457,38 +538,38 @@
 
 
 /* =========================================================
-   SIDEBAR FOOTER
-   ========================================================= */
-
-.sidebar-footer {
-
-    margin-top: auto;
-
-    padding-top: 15px;
-}
-
-
-/* =========================================================
    LOGOUT
    ========================================================= */
 
-.logout-link {
+/*
+ * Logout is now inside .menu.
+ *
+ * margin-top: auto pushes it to the bottom
+ * whenever there is enough free space.
+ *
+ * When zoomed in and there isn't enough space,
+ * the menu becomes scrollable instead.
+ */
+
+.menu > .logout-menu-item {
+
+    margin-top: auto;
 
     min-height: 48px;
 
-    width: 100%;
-
-    padding: 0 15px;
-
-    box-sizing: border-box;
+    flex-shrink: 0;
 
     display: flex;
 
     align-items: center;
 
-    gap: 14px;
+    gap: 12px;
 
-    border-radius: 12px;
+    padding: 0 15px;
+
+    box-sizing: border-box;
+
+    border-radius: 30px;
 
     background: transparent;
 
@@ -496,7 +577,7 @@
 
     color: #da4141;
 
-    text-decoration: none;
+    cursor: pointer;
 
     font-size: 15px;
 
@@ -512,10 +593,12 @@
    LOGOUT ICON
    ========================================================= */
 
-.logout-link
+.menu > .logout-menu-item
 .material-symbols-rounded {
 
     font-size: 23px;
+
+    flex-shrink: 0;
 }
 
 
@@ -523,11 +606,23 @@
    LOGOUT HOVER
    ========================================================= */
 
-.logout-link:hover {
+.menu > .logout-menu-item:hover {
 
     background: rgba(255, 255, 255, 0.12);
 
     color: #ffffff;
+}
+
+
+/* =========================================================
+   PREVENT MENU TEXT FROM COLLAPSING
+   ========================================================= */
+
+.menu-text {
+
+    white-space: nowrap;
+
+    flex-shrink: 0;
 }
 
 

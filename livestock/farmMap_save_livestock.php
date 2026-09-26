@@ -50,7 +50,7 @@ if ($houseId <= 0) {
     exit;
 }
 
-$houseStmt = $conn->prepare("\n    SELECT house_id\n    FROM livestock_houses\n    WHERE house_id = ?\n      AND archived = 0\n    LIMIT 1\n");
+$houseStmt = $conn->prepare("\n    SELECT house_id, house_code, house_name\n    FROM livestock_houses\n    WHERE house_id = ?\n      AND archived = 0\n    LIMIT 1\n");
 
 if (!$houseStmt) {
     echo json_encode([
@@ -70,6 +70,34 @@ if (!$validHouse) {
     echo json_encode([
         'success' => false,
         'message' => 'Invalid livestock house. The selected house does not exist or is archived.'
+    ]);
+    exit;
+}
+
+/*
+ * For NEW livestock, the selected house determines the animal type.
+ * This prevents adding a rabbit to a goat house, etc.
+ */
+if ($livestockId <= 0) {
+    $houseKey = strtolower(str_replace(['_', ' '], '-',
+        ($validHouse['house_code'] ?? '') . '-' . ($validHouse['house_name'] ?? '')
+    ));
+
+    if (strpos($houseKey, 'rabbit') !== false) {
+        $type = 'Rabbit';
+    } elseif (strpos($houseKey, 'goat') !== false) {
+        $type = 'Goat';
+    } elseif (strpos($houseKey, 'poultry') !== false || strpos($houseKey, 'chicken') !== false) {
+        $type = 'Chicken';
+    } elseif (strpos($houseKey, 'swine') !== false || strpos($houseKey, 'pig') !== false) {
+        $type = 'Pig';
+    }
+}
+
+if ($name === '' || $type === '') {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Livestock name and type are required.'
     ]);
     exit;
 }

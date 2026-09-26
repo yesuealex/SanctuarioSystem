@@ -288,6 +288,8 @@ $cropsResult = $conn->query("
 
                         <tr>
 
+                            <th class="row-number-col">#</th>
+
                             <th>
                                 RECIPIENT
                             </th>
@@ -366,6 +368,7 @@ $cropsResult = $conn->query("
                     ): ?>
 
 
+                        <?php $cropRowNumber = 1; ?>
                         <?php while (
                             $row = $cropsResult->fetch_assoc()
                         ): ?>
@@ -373,6 +376,7 @@ $cropsResult = $conn->query("
 
                             <tr class="crop-row">
 
+                                <td class="row-number"><?= $cropRowNumber++ ?></td>
 
                                 <!-- RECIPIENT -->
 
@@ -631,7 +635,7 @@ $cropsResult = $conn->query("
                         <tr>
 
                             <td
-                                colspan="<?= $role === 'admin' ? '15' : '14' ?>"
+                                colspan="<?= $role === 'admin' ? '16' : '15' ?>"
                                 class="no-records"
                             >
 

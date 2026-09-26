@@ -1,15 +1,84 @@
+
 <?php
 
 session_start();
 
 include '../db.php';
 
+
+// =========================================================
+// LOGIN CHECK
+// =========================================================
+
 if (!isset($_SESSION['user_id'])) {
+
     header("Location: ../login.php");
+
     exit();
+
 }
 
 $role = $_SESSION['role'] ?? 'staff';
+
+
+// =========================================================
+// ARCHIVE LIVESTOCK
+// =========================================================
+
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    &&
+    isset($_POST['archive_livestock_id'])
+) {
+
+    // Only admin can archive livestock
+    if ($role !== 'admin') {
+
+        http_response_code(403);
+
+        echo 'Unauthorized';
+
+        exit();
+
+    }
+
+
+    $archiveId =
+        intval($_POST['archive_livestock_id']);
+
+
+    if ($archiveId > 0) {
+
+        $archiveStmt = $conn->prepare("
+            UPDATE livestocks
+            SET archived = 1
+            WHERE livestock_id = ?
+            AND archived = 0
+        ");
+
+
+        if ($archiveStmt) {
+
+            $archiveStmt->bind_param(
+                "i",
+                $archiveId
+            );
+
+            $archiveStmt->execute();
+
+            $archiveStmt->close();
+
+        }
+
+    }
+
+
+    // Return to active livestock records
+    header("Location: livestocks.php");
+
+    exit();
+
+}
 
 
 // =========================================================
@@ -23,9 +92,10 @@ $selectedType = $_GET['type'] ?? '';
 // GET SELECTED LIVESTOCK
 // =========================================================
 
-$selectedLivestockId = isset($_GET['livestock_id'])
-    ? intval($_GET['livestock_id'])
-    : 0;
+$selectedLivestockId =
+    isset($_GET['livestock_id'])
+        ? intval($_GET['livestock_id'])
+        : 0;
 
 
 // =========================================================
@@ -44,12 +114,6 @@ $typeResult = $conn->query("
 // GET LIVESTOCK NAMES
 // =========================================================
 
-$nameSql = "
-    SELECT livestock_id, name, type
-    FROM livestocks
-    WHERE archived = 0
-";
-
 if ($selectedType !== '') {
 
     $stmtType = $conn->prepare("
@@ -60,14 +124,18 @@ if ($selectedType !== '') {
         ORDER BY name ASC
     ");
 
+
     $stmtType->bind_param(
         "s",
         $selectedType
     );
 
+
     $stmtType->execute();
 
-    $nameResult = $stmtType->get_result();
+
+    $nameResult =
+        $stmtType->get_result();
 
 } else {
 
@@ -78,7 +146,9 @@ if ($selectedType !== '') {
         ORDER BY name ASC
     ";
 
-    $nameResult = $conn->query($nameSql);
+
+    $nameResult =
+        $conn->query($nameSql);
 
 }
 
@@ -98,10 +168,12 @@ if (
     $firstLivestock =
         $nameResult->fetch_assoc();
 
+
     $selectedLivestockId =
         intval(
             $firstLivestock['livestock_id']
         );
+
 
     $nameResult->data_seek(0);
 
@@ -114,6 +186,7 @@ if (
 
 $livestockProfile = null;
 
+
 if ($selectedLivestockId > 0) {
 
     $stmt = $conn->prepare("
@@ -124,15 +197,19 @@ if ($selectedLivestockId > 0) {
         LIMIT 1
     ");
 
+
     $stmt->bind_param(
         "i",
         $selectedLivestockId
     );
 
+
     $stmt->execute();
+
 
     $profileResult =
         $stmt->get_result();
+
 
     if (
         $profileResult
@@ -144,6 +221,7 @@ if ($selectedLivestockId > 0) {
             $profileResult->fetch_assoc();
 
     }
+
 
     $stmt->close();
 
@@ -181,7 +259,9 @@ $livestockResult = $conn->query("
 </title>
 
 
-<!-- MAIN CSS -->
+<!-- =====================================================
+     MAIN CSS
+====================================================== -->
 
 <link
     rel="stylesheet"
@@ -189,7 +269,9 @@ $livestockResult = $conn->query("
 >
 
 
-<!-- SIDEBAR -->
+<!-- =====================================================
+     SIDEBAR CSS
+====================================================== -->
 
 <link
     rel="stylesheet"
@@ -197,7 +279,9 @@ $livestockResult = $conn->query("
 >
 
 
-<!-- LIVESTOCK CSS -->
+<!-- =====================================================
+     LIVESTOCK CSS
+====================================================== -->
 
 <link
     rel="stylesheet"
@@ -205,7 +289,9 @@ $livestockResult = $conn->query("
 >
 
 
-<!-- GOOGLE FONT -->
+<!-- =====================================================
+     GOOGLE FONT
+====================================================== -->
 
 <link
     rel="preconnect"
@@ -224,7 +310,9 @@ $livestockResult = $conn->query("
 >
 
 
-<!-- MATERIAL ICONS -->
+<!-- =====================================================
+     MATERIAL ICONS
+====================================================== -->
 
 <link
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:wght@400"
@@ -242,26 +330,28 @@ $livestockResult = $conn->query("
 
     <!-- =====================================================
          SIDEBAR
-         ===================================================== -->
+    ====================================================== -->
 
     <?php include '../sidebar.php'; ?>
 
 
     <!-- =====================================================
          MAIN
-         ===================================================== -->
+    ====================================================== -->
 
     <main class="dashboard">
 
 
-        <!-- TOP RIGHT BAR -->
+        <!-- =================================================
+             TOP RIGHT BAR
+        ================================================== -->
 
         <?php include '../topRightBar.php'; ?>
 
 
         <!-- =================================================
              PAGE HEADER
-             ================================================= -->
+        ================================================== -->
 
         <div class="livestock-page-header">
 
@@ -274,12 +364,14 @@ $livestockResult = $conn->query("
 
         <!-- =================================================
              TOP CONTROLS
-             ================================================= -->
+        ================================================== -->
 
         <div class="livestock-top-controls">
 
 
-            <!-- TYPE -->
+            <!-- =================================================
+                 TYPE
+            ================================================== -->
 
             <select
                 class="livestock-type-select"
@@ -322,7 +414,9 @@ $livestockResult = $conn->query("
             </select>
 
 
-            <!-- LIVESTOCK NAME -->
+            <!-- =================================================
+                 LIVESTOCK NAME
+            ================================================== -->
 
             <select
                 class="livestock-name-select"
@@ -370,7 +464,9 @@ $livestockResult = $conn->query("
             </select>
 
 
-            <!-- RIGHT SIDE -->
+            <!-- =================================================
+                 RIGHT SIDE
+            ================================================== -->
 
             <div class="livestock-header-right">
 
@@ -421,7 +517,7 @@ $livestockResult = $conn->query("
 
         <!-- =================================================
              PROFILE
-             ================================================= -->
+        ================================================== -->
 
         <?php if ($livestockProfile): ?>
 
@@ -684,7 +780,7 @@ $livestockResult = $conn->query("
 
         <!-- =================================================
              RECORDS SECTION
-             ================================================= -->
+        ================================================== -->
 
         <div class="livestock-records-section">
 
@@ -809,7 +905,7 @@ $livestockResult = $conn->query("
 
             <!-- =================================================
                  TABLE
-                 ================================================= -->
+            ================================================== -->
 
             <div class="livestock-table-container">
 
@@ -818,6 +914,10 @@ $livestockResult = $conn->query("
                     <thead>
 
                         <tr>
+
+                            <th class="row-number-col">
+                                #
+                            </th>
 
                             <th>
                                 TYPE
@@ -866,6 +966,9 @@ $livestockResult = $conn->query("
                     ): ?>
 
 
+                        <?php $livestockRowNumber = 1; ?>
+
+
                         <?php while (
                             $row =
                             $livestockResult->fetch_assoc()
@@ -873,6 +976,13 @@ $livestockResult = $conn->query("
 
 
                             <tr class="livestock-row">
+
+
+                                <!-- ROW NUMBER -->
+
+                                <td class="row-number">
+                                    <?= $livestockRowNumber++ ?>
+                                </td>
 
 
                                 <!-- TYPE -->
@@ -1003,7 +1113,7 @@ $livestockResult = $conn->query("
                                                 type="button"
                                                 class="action-icon archive-icon livestock-archive-btn"
                                                 title="Archive"
-                                                data-archive-url="archived_livestocks.php?id=<?= intval(
+                                                data-livestock-id="<?= intval(
                                                     $row['livestock_id']
                                                 ) ?>"
                                                 data-livestock-name="<?= htmlspecialchars(
@@ -1041,8 +1151,8 @@ $livestockResult = $conn->query("
 
                             <td
                                 colspan="<?= $role === 'admin'
-                                    ? '7'
-                                    : '6' ?>"
+                                    ? '8'
+                                    : '7' ?>"
                                 class="no-records"
                             >
 
@@ -1073,7 +1183,7 @@ $livestockResult = $conn->query("
 
 <!-- =========================================================
      EDIT MODAL
-     ========================================================= -->
+========================================================= -->
 
 <div
     class="modal-overlay"
@@ -1118,7 +1228,7 @@ $livestockResult = $conn->query("
 
 <!-- =========================================================
      ARCHIVE MODAL
-     ========================================================= -->
+========================================================= -->
 
 <div
     class="modal-overlay"
@@ -1182,16 +1292,16 @@ $livestockResult = $conn->query("
 
 <!-- =========================================================
      JAVASCRIPT
-     ========================================================= -->
+========================================================= -->
 
 <script>
 
 
 // =========================================================
-// GLOBAL ARCHIVE URL
+// ARCHIVE STATE
 // =========================================================
 
-let archiveUrl = '';
+let archiveLivestockId = 0;
 
 
 // =========================================================
@@ -1224,7 +1334,9 @@ function changeLivestockType(type) {
 function changeLivestock(id) {
 
     if (!id) {
+
         return;
+
     }
 
 
@@ -1252,7 +1364,8 @@ function changeLivestock(id) {
     }
 
 
-    window.location.href = url;
+    window.location.href =
+        url;
 
 }
 
@@ -1270,7 +1383,9 @@ function searchLivestock() {
 
 
     if (!input) {
+
         return;
+
     }
 
 
@@ -1340,7 +1455,9 @@ function filterRecords() {
 
 
     if (!searchInput) {
+
         return;
+
     }
 
 
@@ -1374,11 +1491,10 @@ function filterRecords() {
 
 
         /*
-        NOTE:
-        Month filtering can be connected
-        to a date column when the livestock
-        record date field is finalized.
-        */
+         * Month filtering can be connected
+         * to a date column when the livestock
+         * record date field is finalized.
+         */
 
         const matchesMonth =
             month === 'all'
@@ -1503,12 +1619,15 @@ function closeEditModal() {
 // =========================================================
 
 function openArchiveModal(
-    url,
+    livestockId,
     livestockName
 ) {
 
-    archiveUrl =
-        url;
+    archiveLivestockId =
+        parseInt(
+            livestockId,
+            10
+        );
 
 
     const modal =
@@ -1576,7 +1695,7 @@ function closeArchiveModal() {
     }
 
 
-    archiveUrl = '';
+    archiveLivestockId = 0;
 
 
     document.body.style.overflow =
@@ -1591,10 +1710,10 @@ function closeArchiveModal() {
 
 function confirmArchive() {
 
-    if (!archiveUrl) {
+    if (!archiveLivestockId) {
 
         console.error(
-            'No archive URL selected.'
+            'No livestock selected for archiving.'
         );
 
         return;
@@ -1602,8 +1721,59 @@ function confirmArchive() {
     }
 
 
-    window.location.href =
-        archiveUrl;
+    /*
+     * Create a POST form dynamically.
+     *
+     * This sends the livestock ID to
+     * livestocks.php, where PHP performs:
+     *
+     * UPDATE livestocks
+     * SET archived = 1
+     */
+
+    const form =
+        document.createElement(
+            'form'
+        );
+
+
+    form.method =
+        'POST';
+
+
+    form.action =
+        'livestocks.php';
+
+
+    const input =
+        document.createElement(
+            'input'
+        );
+
+
+    input.type =
+        'hidden';
+
+
+    input.name =
+        'archive_livestock_id';
+
+
+    input.value =
+        archiveLivestockId;
+
+
+    form.appendChild(
+        input
+    );
+
+
+    document.body.appendChild(
+        form
+    );
+
+
+    form.submit();
 
 }
 
@@ -1624,6 +1794,7 @@ document
 
                 const url =
                     this.dataset.editUrl;
+
 
                 const title =
                     this.dataset.editTitle
@@ -1659,18 +1830,19 @@ document
             'click',
             function() {
 
-                const url =
-                    this.dataset.archiveUrl;
+                const livestockId =
+                    this.dataset.livestockId;
+
 
                 const name =
                     this.dataset.livestockName
                     || 'this livestock';
 
 
-                if (!url) {
+                if (!livestockId) {
 
                     console.error(
-                        'Archive URL is missing.'
+                        'Livestock ID is missing.'
                     );
 
                     return;
@@ -1679,7 +1851,7 @@ document
 
 
                 openArchiveModal(
-                    url,
+                    livestockId,
                     name
                 );
 

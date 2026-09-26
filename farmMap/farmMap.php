@@ -16,6 +16,31 @@ include '../db.php';
 
 /*
 |--------------------------------------------------------------------------
+| SUMMARY COUNTS (ACTIVE RECORDS)
+|--------------------------------------------------------------------------
+*/
+
+$totalActiveCrops = 0;
+$totalActiveLivestock = 0;
+$totalHarvestReady = 0;
+
+if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived, 0) = 0")) {
+    $totalActiveCrops = (int)($result->fetch_assoc()['total'] ?? 0);
+    $result->free();
+}
+
+if ($result = $conn->query("SELECT COUNT(*) AS total FROM livestocks WHERE COALESCE(archived, 0) = 0")) {
+    $totalActiveLivestock = (int)($result->fetch_assoc()['total'] ?? 0);
+    $result->free();
+}
+
+if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived, 0) = 0 AND LOWER(COALESCE(status, '')) = 'ready'")) {
+    $totalHarvestReady = (int)($result->fetch_assoc()['total'] ?? 0);
+    $result->free();
+}
+
+/*
+|--------------------------------------------------------------------------
 | PLOTS
 |--------------------------------------------------------------------------
 */
@@ -166,7 +191,7 @@ foreach ($houseRowsByCode as $code => $h) {
     <!-- FARM MAP CSS -->
     <link
         rel="stylesheet"
-        href="<?= $basePath ?>farmMap/farmMap.css"
+        href="<?= $basePath ?>farmMap/farmMap.css?v=20260926-4"
     >
 
 
@@ -2204,6 +2229,108 @@ foreach ($houseRowsByCode as $code => $h) {
     background: #fff;
 }
 
+
+
+/* =========================================================
+   EXPANDED FARM MAP
+   Use the full available content width. The map no longer
+   needs horizontal panning because it now fits the space.
+========================================================= */
+
+.farm-map-layout {
+    display: block !important;
+    width: 100% !important;
+}
+
+.map-card {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+}
+
+.map-container {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 1706 / 600 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    cursor: default !important;
+    touch-action: auto !important;
+}
+
+.main-map-layer {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    transform: none !important;
+    cursor: default !important;
+    will-change: auto !important;
+}
+
+.farm-map-image {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    object-fit: fill !important;
+}
+
+/* The marker and map image use the exact same coordinate box. */
+.main-map-layer > .main-marker {
+    width: 2.5% !important;
+    height: 2.5% !important;
+    box-sizing: border-box !important;
+}
+
+.main-map-layer > .main-marker .new-map-icon {
+    width: 100% !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.map-container.dragging,
+.main-map-layer:active {
+    cursor: default !important;
+}
+
+@media (max-width: 700px) {
+    .map-card {
+        padding: 6px !important;
+    }
+
+    .map-container {
+        border-radius: 7px;
+    }
+}
+
+/* =========================================================
+   PLOT POPUP FIX
+   Keep the plot popup outside the expanded map so the popup
+   is not clipped by the map container.
+========================================================= */
+
+.plot-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9998 !important;
+    overflow: auto !important;
+    box-sizing: border-box !important;
+}
+
+.plot-overlay .plot-popup {
+    flex: 0 1 auto !important;
+    max-width: min(850px, 95vw) !important;
+    max-height: 92vh !important;
+    margin: auto !important;
+}
+
 </style>
 
 </head>
@@ -2369,7 +2496,7 @@ foreach ($houseRowsByCode as $code => $h) {
                     </span>
 
                     <strong class="summary-number">
-                        100
+                        <?= $totalActiveCrops ?>
                     </strong>
 
                 </div>
@@ -2391,8 +2518,8 @@ foreach ($houseRowsByCode as $code => $h) {
                         Total Livestocks
                     </span>
 
-                    <strong class="summary-number">
-                        100
+                    <strong class="summary-number" id="totalLivestockSummary">
+                        <?= $totalActiveLivestock ?>
                     </strong>
 
                 </div>
@@ -2415,12 +2542,14 @@ foreach ($houseRowsByCode as $code => $h) {
                     </span>
 
                     <strong class="summary-number">
-                        100
+                        <?= $totalHarvestReady ?>
                     </strong>
 
                 </div>
 
             </div>
+
+        </div>
 
     </section>
 
@@ -2688,17 +2817,6 @@ foreach ($houseRowsByCode as $code => $h) {
 
                 </div>
 
-
-                <!-- =================================================
-                     MAP HINT
-                ================================================== -->
-
-                <div
-                    class="map-hint"
-                    id="mapHint"
-                >
-                    Drag the map to view other areas • Click a plot to zoom
-                </div>
 
 
                 <!-- =================================================
@@ -3295,7 +3413,7 @@ foreach ($houseRowsByCode as $code => $h) {
      LIVESTOCK MARKER ICON
 ================================================== -->
 
-<div class="livestock-input-group full marker-icon-chooser">
+<div class="livestock-input-group full marker-icon-chooser" id="livestockMarkerIconChooser">
 
     <span class="marker-icon-chooser-label">
         Choose Livestock Icon
@@ -4466,274 +4584,79 @@ const farmMap =
 
 
 /* =========================================================
-   MAP PAN / DRAG
+   MAP POSITION
+   The map now fills the available width, so horizontal
+   panning/dragging is no longer needed. These functions are
+   kept as safe no-ops because other existing code calls them
+   during initialization and after edits.
 ========================================================= */
 
 let translateX = 0;
-
 let draggingMap = false;
-
 let mapStartX = 0;
-
 const mapScale = 1;
 
-
 function getMapWidth() {
-
-    return farmMap.offsetWidth ||
-           mainMapLayer.scrollWidth ||
-           0;
-
+    return farmMap.offsetWidth || mainMapLayer.clientWidth || 0;
 }
-
 
 function clampMap() {
-
-    const containerWidth =
-        mapContainer.clientWidth;
-
-    const mapWidth =
-        getMapWidth() * mapScale;
-
-
-    if (mapWidth <= containerWidth) {
-
-        translateX =
-            (containerWidth - mapWidth) / 2;
-
-        return;
-
-    }
-
-
-    const minX =
-        containerWidth - mapWidth;
-
-
-    translateX =
-        Math.max(
-            minX,
-            Math.min(0, translateX)
-        );
-
+    translateX = 0;
 }
-
 
 function updateMainMap() {
-
-    mainMapLayer.style.transform =
-        `translate3d(${translateX}px, 0, 0) scale(${mapScale})`;
-
+    mainMapLayer.style.transform = "none";
 }
-
 
 function initializeMap() {
-
     translateX = 0;
-
-    clampMap();
-
-    updateMainMap();
-
+    draggingMap = false;
+    mainMapLayer.style.transform = "none";
+    syncMainMapMarkers();
 }
 
+/* Keep every main-map marker locked to the rendered map image. */
+function syncMainMapMarkers() {
+    if (!mainMapLayer) return;
+
+    const mapWidth = mainMapLayer.clientWidth;
+    const mapHeight = mainMapLayer.clientHeight;
+    if (!mapWidth || !mapHeight) return;
+
+    const markerSize = mapWidth * 0.025;
+
+    mainMapLayer.querySelectorAll(".main-marker").forEach(marker => {
+        marker.style.width = `${markerSize}px`;
+        marker.style.height = `${markerSize}px`;
+    });
+}
+
+const mainMapResizeObserver =
+    typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(syncMainMapMarkers)
+        : null;
+
+if (mainMapResizeObserver) {
+    mainMapResizeObserver.observe(mainMapLayer);
+}
+
+window.addEventListener("resize", syncMainMapMarkers);
 
 if (farmMap.complete) {
-
-    requestAnimationFrame(
-        initializeMap
-    );
-
+    requestAnimationFrame(initializeMap);
 } else {
-
     farmMap.addEventListener(
         "load",
         () => requestAnimationFrame(initializeMap),
         { once: true }
     );
-
 }
 
-
 function isOverlayTarget(target) {
-
     return !!target.closest(
         ".plot-overlay, .plant-overlay, .nursery-overlay, .crop-profile-overlay, .livestock-overlay, .livestock-profile-overlay"
     );
-
 }
-
-
-mapContainer.addEventListener(
-    "mousedown",
-    function(event) {
-
-        if (
-            event.target.closest(".main-marker") ||
-            isOverlayTarget(event.target)
-        ) {
-            return;
-        }
-
-
-        if (
-            mapEditMode &&
-            mapEditTool !== "move"
-        ) {
-            return;
-        }
-
-
-        draggingMap = true;
-
-        mapStartX = event.clientX;
-
-        mapContainer.classList.add(
-            "dragging"
-        );
-
-        event.preventDefault();
-
-    }
-);
-
-
-document.addEventListener(
-    "mousemove",
-    function(event) {
-
-        if (!draggingMap) return;
-
-
-        const dx =
-            event.clientX - mapStartX;
-
-        mapStartX =
-            event.clientX;
-
-
-        translateX += dx;
-
-        clampMap();
-
-        updateMainMap();
-
-    }
-);
-
-
-document.addEventListener(
-    "mouseup",
-    function() {
-
-        draggingMap = false;
-
-        mapContainer.classList.remove(
-            "dragging"
-        );
-
-    }
-);
-
-
-farmMap.addEventListener(
-    "dragstart",
-    event => event.preventDefault()
-);
-
-
-/* =========================================================
-   TOUCH MAP DRAG
-========================================================= */
-
-let touchStartX = 0;
-
-let touchingMap = false;
-
-
-mapContainer.addEventListener(
-    "touchstart",
-    function(event) {
-
-        if (
-            event.target.closest(".main-marker") ||
-            isOverlayTarget(event.target)
-        ) {
-            return;
-        }
-
-
-        if (
-            mapEditMode &&
-            mapEditTool !== "move"
-        ) {
-            return;
-        }
-
-
-        touchingMap = true;
-
-        touchStartX =
-            event.touches[0].clientX;
-
-    },
-    {
-        passive: true
-    }
-);
-
-
-mapContainer.addEventListener(
-    "touchmove",
-    function(event) {
-
-        if (!touchingMap) return;
-
-
-        const currentX =
-            event.touches[0].clientX;
-
-
-        translateX +=
-            currentX - touchStartX;
-
-
-        touchStartX =
-            currentX;
-
-
-        clampMap();
-
-        updateMainMap();
-
-    },
-    {
-        passive: true
-    }
-);
-
-
-mapContainer.addEventListener(
-    "touchend",
-    function() {
-
-        touchingMap = false;
-
-    }
-);
-
-
-window.addEventListener(
-    "resize",
-    function() {
-
-        clampMap();
-
-        updateMainMap();
-
-    }
-);
-
 
 /* =========================================================
    PLOT DATA
@@ -8245,7 +8168,6 @@ let livestockHouseEditMode = false;
 let livestockPositionEditMode = false;
 let selectedLivestockMarker = null;
 let livestockAddMode = false;
-let livestockAddSlot = null;
 let livestockDeletedIds = {};
 let draggingLivestock = null;
 
@@ -8314,40 +8236,12 @@ function dbLivestockToAnimal(row, index, total) {
     };
 }
 
-function normalizeLivestockHouseKey(value) {
-    return String(value || "")
-        .toLowerCase()
-        .trim()
-        .replace(/[_\s]+/g, "-");
-}
-
-function resolveLivestockHouseEntry(houseId) {
-    if (!houseId) return null;
-
-    /* Exact match first. */
-    if (dbLivestockHouses[houseId]) {
-        return { key: houseId, entry: dbLivestockHouses[houseId] };
-    }
-
-    /* Then allow house_code values such as goat_house / goat-house. */
-    const wanted = normalizeLivestockHouseKey(houseId);
-
-    for (const key of Object.keys(dbLivestockHouses)) {
-        if (normalizeLivestockHouseKey(key) === wanted) {
-            return { key, entry: dbLivestockHouses[key] };
-        }
-    }
-
-    return null;
-}
-
 function getLivestockHouseData(houseId) {
 
-    const resolved = resolveLivestockHouseEntry(houseId);
+    const entry = dbLivestockHouses[houseId];
 
-    if (!resolved || !resolved.entry || !resolved.entry.house) return null;
+    if (!entry) return null;
 
-    const entry = resolved.entry;
     const total = entry.animals.length;
 
     const animals = entry.animals.map(
@@ -8355,10 +8249,7 @@ function getLivestockHouseData(houseId) {
     );
 
     return {
-        key: resolved.key,
-        houseId: entry.house.house_id,
-        houseCode: entry.house.house_code || resolved.key,
-        title: entry.house.house_name || resolved.key,
+        title: entry.house.house_name,
         image: entry.house.image ? `${basePath}${entry.house.image}` : "",
         description: entry.house.description || "",
         animals
@@ -8433,22 +8324,16 @@ function saveDeletedLivestock(data) {
 
 livestockDeletedIds = getDeletedLivestock();
 
-function createLivestockPlusMarker(index, x, y, deletedId = null) {
+function createLivestockPlusMarker(index, x, y) {
     const marker = document.createElement("button");
     marker.type = "button";
     marker.className = "livestock-plus-marker";
     marker.style.left = `${Number(x) || 50}%`;
     marker.style.top = `${Number(y) || 50}%`;
-    marker.dataset.deletedId = deletedId != null ? String(deletedId) : "";
     marker.innerHTML = `<i class="fa-solid fa-plus"></i><span>Add Livestock</span>`;
     marker.addEventListener("click", e => {
         e.preventDefault(); e.stopPropagation();
-        openNewLivestockForm(
-            index,
-            Number(x) || 50,
-            Number(y) || 50,
-            deletedId
-        );
+        openNewLivestockForm(index, Number(x) || 50, Number(y) || 50);
     });
     return marker;
 }
@@ -8579,15 +8464,9 @@ function renderLivestockMarkers(houseId) {
     house.animals.forEach((animal, index) => {
         const key = String(animal.id);
         if (livestockDeletedIds[houseId] && livestockDeletedIds[houseId][key]) {
-            const stored = getStoredLivestockMarkerData();
-            const saved = stored[key] || {};
-            const x = saved.x != null
-                ? Number(saved.x)
-                : (Number(animal.x) || (20 + (index % 5) * 15));
-            const y = saved.y != null
-                ? Number(saved.y)
-                : (Number(animal.y) || (20 + Math.floor(index / 5) * 15));
-            container.appendChild(createLivestockPlusMarker(index, x, y, animal.id));
+            const x = Number(animal.x) || (20 + (index % 5) * 15);
+            const y = Number(animal.y) || (20 + Math.floor(index / 5) * 15);
+            container.appendChild(createLivestockPlusMarker(index, x, y));
             return;
         }
         container.appendChild(createLivestockMarker(animal));
@@ -8664,13 +8543,78 @@ function editSelectedLivestock() {
     startLivestockProfileEditing();
 }
 
-function openNewLivestockForm(index, x, y, deletedId = null) {
+function getLivestockHouseDefaults(houseId) {
+    const entry = dbLivestockHouses[houseId];
+    if (!entry || !entry.house) {
+        return { type: "", icon: "" };
+    }
+
+    const raw = String(entry.house.house_code || entry.house.house_name || "")
+        .toLowerCase()
+        .replace(/[_\s]+/g, "-");
+
+    if (raw.includes("rabbit")) {
+        return { type: "Rabbit", icon: "rabbit" };
+    }
+
+    if (raw.includes("goat")) {
+        return { type: "Goat", icon: "goat" };
+    }
+
+    if (raw.includes("poultry") || raw.includes("chicken")) {
+        return { type: "Chicken", icon: "chicken" };
+    }
+
+    if (raw.includes("swine") || raw.includes("pig")) {
+        return { type: "Pig", icon: "pig" };
+    }
+
+    return { type: "", icon: "" };
+}
+
+function setLivestockAddHouseDefaults() {
+    const defaults = getLivestockHouseDefaults(currentLivestockHouse);
+    const typeInput = document.getElementById("editLivestockType");
+    const iconChooser = document.getElementById("livestockMarkerIconChooser");
+
+    if (typeInput) {
+        typeInput.value = defaults.type;
+        typeInput.readOnly = !!defaults.type;
+        typeInput.title = defaults.type
+            ? `Automatically set to ${defaults.type} for this livestock house.`
+            : "";
+    }
+
+    document.querySelectorAll('input[name="livestockMarkerIcon"]').forEach(input => {
+        input.disabled = !!defaults.icon;
+        input.checked = defaults.icon ? input.value === defaults.icon : false;
+    });
+
+    if (iconChooser) {
+        iconChooser.style.display = defaults.icon ? "none" : "";
+    }
+}
+
+function restoreLivestockTypeAndIconChooser() {
+    const typeInput = document.getElementById("editLivestockType");
+    const iconChooser = document.getElementById("livestockMarkerIconChooser");
+
+    if (typeInput) {
+        typeInput.readOnly = false;
+        typeInput.title = "";
+    }
+
+    document.querySelectorAll('input[name="livestockMarkerIcon"]').forEach(input => {
+        input.disabled = false;
+    });
+
+    if (iconChooser) {
+        iconChooser.style.display = "";
+    }
+}
+
+function openNewLivestockForm(index, x, y) {
     livestockAddMode = true;
-    livestockAddSlot = {
-        deletedId: deletedId != null ? String(deletedId) : null,
-        x: Number(x) || 50,
-        y: Number(y) || 50
-    };
     currentLivestockId = null;
     livestockProfileSnapshot = null;
     const profile = document.getElementById("livestockProfileOverlay");
@@ -8687,11 +8631,14 @@ function openNewLivestockForm(index, x, y, deletedId = null) {
     document.getElementById("editLivestockDOB").value = "";
     document.getElementById("editLivestockNumber").value = "1";
     document.getElementById("editLivestockForSale").value = "0";
+
+    // The house determines the livestock type and icon.
+    setLivestockAddHouseDefaults();
+
     document.getElementById("editLivestockMarkerX").value = x;
     document.getElementById("editLivestockMarkerY").value = y;
-    const goat = document.querySelector('input[name="livestockMarkerIcon"][value="goat"]');
-    if (goat) goat.checked = true;
     profile.classList.add("show");
+    setLivestockAddHouseDefaults();
 }
 
 // Livestock position dragging
@@ -8721,9 +8668,7 @@ function openLivestock(houseId) {
     const house = getLivestockHouseData(houseId);
 
     if (!house) {
-        alert(
-            `Livestock house "${houseId}" could not be matched to an active record in livestock_houses.`
-        );
+        alert("This livestock house does not have information yet.");
         return;
     }
 
@@ -8768,7 +8713,7 @@ function getCurrentLivestock() {
     if (!house) return null;
 
     return house.animals.find(
-        animal => String(animal.id) === String(currentLivestockId)
+        animal => animal.id === currentLivestockId
     ) || null;
 }
 
@@ -8854,6 +8799,8 @@ function openLivestockProfile(animalId) {
 
 function closeLivestockProfile() {
 
+    restoreLivestockTypeAndIconChooser();
+
     document.getElementById("livestockProfileOverlay").classList.remove("show");
     document.getElementById("livestockEditForm").classList.remove("show");
     setLivestockProfileEditButtons(false);
@@ -8861,7 +8808,6 @@ function closeLivestockProfile() {
     currentLivestockId = null;
     livestockProfileSnapshot = null;
     livestockAddMode = false;
-    livestockAddSlot = null;
 }
 
 function setLivestockProfileEditButtons(editing) {
@@ -8877,6 +8823,8 @@ function setLivestockProfileEditButtons(editing) {
 }
 
 function startLivestockProfileEditing() {
+
+    restoreLivestockTypeAndIconChooser();
 
     const animal =
         getCurrentLivestock();
@@ -9414,26 +9362,25 @@ if (markerKey) {
 
     const formData = new FormData();
 
-    const saveBtn = document.getElementById("saveLivestockProfileBtn");
 
     formData.append(
         "livestock_id",
         livestockAddMode ? "" : animal.id
     );
 
-    const currentHouseData = getLivestockHouseData(currentLivestockHouse);
+    // currentLivestockHouse is the house_code used by the Farm Map.
+    // The database endpoint needs the numeric livestock_houses.house_id.
+    const currentHouseEntry = dbLivestockHouses[currentLivestockHouse];
+    const currentHouseId = currentHouseEntry?.house?.house_id;
 
-    if (!currentHouseData || !currentHouseData.houseId) {
-        alert(
-            `Livestock house "${currentLivestockHouse}" was not found in the livestock_houses table.`
-        );
-        saveBtn.disabled = false;
+    if (!currentHouseId) {
+        alert("Invalid livestock house. Please close and reopen the livestock house.");
         return;
     }
 
     formData.append(
         "house_id",
-        String(currentHouseData.houseId)
+        currentHouseId
     );
 
     formData.append(
@@ -9515,10 +9462,8 @@ if (markerKey) {
     |--------------------------------------------------------------------------
     */
 
-    if (!saveBtn) {
-        alert("Save button was not found.");
-        return;
-    }
+    const saveBtn =
+        document.getElementById("saveLivestockProfileBtn");
 
     saveBtn.disabled = true;
 
@@ -9580,17 +9525,6 @@ if (markerKey) {
                     y: Number(livestockY?.value) || 50
                 };
                 saveStoredLivestockMarkerData(saved);
-
-                /* The deleted + slot is now occupied by the new livestock. */
-                if (livestockAddSlot?.deletedId) {
-                    if (livestockDeletedIds[currentLivestockHouse]) {
-                        delete livestockDeletedIds[currentLivestockHouse][livestockAddSlot.deletedId];
-                        if (Object.keys(livestockDeletedIds[currentLivestockHouse]).length === 0) {
-                            delete livestockDeletedIds[currentLivestockHouse];
-                        }
-                        saveDeletedLivestock(livestockDeletedIds);
-                    }
-                }
             }
 
 
@@ -9601,7 +9535,6 @@ if (markerKey) {
             );
 
             livestockAddMode = false;
-            livestockAddSlot = null;
             location.reload();
 
         })
@@ -9626,7 +9559,7 @@ function cancelLivestockProfileEditing() {
 
     if (livestockAddMode) {
         livestockAddMode = false;
-        livestockAddSlot = null;
+        restoreLivestockTypeAndIconChooser();
         document.getElementById("livestockEditForm")?.classList.remove("show");
         setLivestockProfileEditButtons(false);
         return;

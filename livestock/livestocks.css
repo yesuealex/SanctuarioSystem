@@ -467,8 +467,10 @@
 .livestock-table-container {
     width: 100%;
 
-    overflow-x: auto;
-
+    max-height: 62vh;
+    overflow: auto;
+    scrollbar-gutter: stable both-edges;
+    overscroll-behavior: contain;
     background: white;
 
     border-radius: 9px;
@@ -503,6 +505,7 @@
     padding: 13px 12px;
 
     border-bottom: 1px solid #ddd;
+    border-right: 1px solid #e7e7e7;
 
     color: #385f30;
 
@@ -514,6 +517,10 @@
     font-weight: 600;
 
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #ffffff;
 }
 
 
@@ -525,6 +532,7 @@
     padding: 13px 12px;
 
     border-bottom: 1px solid #ddd;
+    border-right: 1px solid #eeeeee;
 
     color: #222;
 
@@ -859,3 +867,11 @@
     }
 
 }
+
+/* Visible record scrollbar + numbering column */
+.livestock-table-container::-webkit-scrollbar { width: 12px; height: 12px; }
+.livestock-table-container::-webkit-scrollbar-track { background: #eef2eb; border-radius: 8px; }
+.livestock-table-container::-webkit-scrollbar-thumb { background: #8aa27d; border-radius: 8px; border: 2px solid #eef2eb; }
+.livestock-table-container { scrollbar-width: auto; }
+.row-number-col, .row-number { text-align: center !important; width: 52px; min-width: 52px; font-weight: 600; }
+.row-number { color: #6b7d66 !important; background: #fafcf8; }

@@ -11,11 +11,8 @@ include 'db.php';
 /* TOTAL CROPS */
 $totalCrops = $conn->query("SELECT COUNT(*) AS total FROM crops")->fetch_assoc()['total'];
 
-/* TOTAL PLOTS */
-$totalPlots = $conn->query("SELECT COUNT(*) AS total FROM plots")->fetch_assoc()['total'];
-
-/* HARVEST READY */
-$harvestReady = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE status = 'ready'")->fetch_assoc()['total'];
+/* TOTAL LIVESTOCKS */
+$totalLivestock = $conn->query("SELECT COUNT(*) AS total FROM livestocks")->fetch_assoc()['total'];
 
 /* ACTIVITY LOGS (FIXED) */
 $logs = $conn->query("

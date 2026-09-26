@@ -276,8 +276,11 @@
 
     width: 100%;
 
-    overflow-x: auto;
-
+    /* Keep the record area scrollable without making the whole page grow. */
+    max-height: 62vh;
+    overflow: auto;
+    scrollbar-gutter: stable both-edges;
+    overscroll-behavior: contain;
     background: #ffffff;
 
     border-radius: 10px;
@@ -321,6 +324,7 @@
 
     border-bottom:
         1px solid #e5e7eb;
+    border-right: 1px solid #e5e7eb;
 
     color: #444;
 
@@ -335,6 +339,9 @@
     font-weight: 600;
 
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 5;
 
 }
 
@@ -350,6 +357,7 @@
 
     border-bottom:
         1px solid #eee;
+    border-right: 1px solid #f0f0f0;
 
     color: #444;
 
@@ -960,3 +968,11 @@ tbody tr:last-child td {
     }
 
 }
+
+/* Visible record scrollbar + numbering column */
+.crop-table-wrapper::-webkit-scrollbar { width: 12px; height: 12px; }
+.crop-table-wrapper::-webkit-scrollbar-track { background: #eef2eb; border-radius: 8px; }
+.crop-table-wrapper::-webkit-scrollbar-thumb { background: #8aa27d; border-radius: 8px; border: 2px solid #eef2eb; }
+.crop-table-wrapper { scrollbar-width: auto; }
+.row-number-col, .row-number { text-align: center !important; width: 52px; min-width: 52px; font-weight: 600; }
+.row-number { color: #6b7d66 !important; background: #fafcf8; }

@@ -162,8 +162,8 @@ if (isset($_SESSION['user_id'])) {
     .login-logo {
         display: block;
 
-        width: 390px;
-        max-width: 90%;
+        width: 559px;
+        max-width: 120%;
 
         height: auto;
 
