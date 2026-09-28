@@ -336,7 +336,7 @@ body {
     position: absolute;
 
     /* Marker size is relative to the map layer, so it scales with the map. */
-    width: 2.5%;
+    width: var(--main-map-marker-size, 6%);
     aspect-ratio: 1 / 1;
 
     transform:
@@ -404,7 +404,7 @@ body {
 ========================================================= */
 
 .livestock-marker {
-    width: 2.5%;
+    width: var(--main-map-marker-size, 6%);
     aspect-ratio: 1 / 1;
 
     /* Match the normal plot/main markers: no extra circle, border, or shadow. */
@@ -2928,10 +2928,14 @@ a.edit-btn:hover {
 
 #mainMapLayer.main-map-layer {
     position: absolute !important;
-    inset: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: auto !important;
+    bottom: auto !important;
     width: 100% !important;
     height: 100% !important;
-    transform: none !important;
+    transform-origin: top left !important;
+    will-change: transform !important;
 }
 
 #farmMap.farm-map-image {
@@ -2944,8 +2948,8 @@ a.edit-btn:hover {
 }
 
 #mainMapLayer > .main-marker {
-    width: 2.5% !important;
-    height: 2.5% !important;
+    width: var(--main-map-marker-size, 6%) !important;
+    height: var(--main-map-marker-size, 6%) !important;
     aspect-ratio: 1 / 1 !important;
     box-sizing: border-box !important;
 }
@@ -2954,4 +2958,120 @@ a.edit-btn:hover {
     width: 100% !important;
     height: 100% !important;
     box-sizing: border-box !important;
+}
+
+
+/* =========================================================
+   SANCTUARIO MAP - FINAL MAP CONTROLS / ZOOM
+   These rules are intentionally at the end so they win over
+   older duplicate map rules above.
+========================================================= */
+
+:root {
+    --main-map-marker-size: 6%;
+    --farm-map-min-zoom: 1;
+    --farm-map-max-zoom: 3;
+    --farm-map-zoom-step: .25;
+}
+
+.map-container {
+    position: relative !important;
+    width: 100% !important;
+    aspect-ratio: 1706 / 600 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #dce8d2 !important;
+    cursor: grab !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    touch-action: none !important;
+}
+
+.map-container.is-dragging {
+    cursor: grabbing !important;
+}
+
+.main-map-layer {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: max-content !important;
+    height: 100% !important;
+    transform-origin: top left !important;
+    will-change: transform !important;
+    cursor: grab !important;
+}
+
+.main-map-layer.is-dragging {
+    cursor: grabbing !important;
+}
+
+.farm-map-image {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    height: 100% !important;
+    max-width: none !important;
+    object-fit: contain !important;
+    pointer-events: none !important;
+    user-select: none !important;
+    -webkit-user-drag: none !important;
+}
+
+.main-map-layer > .main-marker {
+    width: var(--main-map-marker-size) !important;
+    height: var(--main-map-marker-size) !important;
+    aspect-ratio: 1 / 1 !important;
+    box-sizing: border-box !important;
+}
+
+.farm-map-zoom-controls {
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
+    z-index: 5000 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    pointer-events: auto !important;
+}
+
+.farm-map-zoom-controls button {
+    width: 38px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    background: rgba(49, 93, 46, .96) !important;
+    color: #fff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    box-shadow: 0 2px 7px rgba(0,0,0,.2) !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+.farm-map-zoom-controls button:hover {
+    background: #254a23 !important;
+    transform: translateY(-1px);
+}
+
+.farm-map-zoom-controls button:active {
+    transform: scale(.96);
+}
+
+.farm-map-zoom-controls .zoom-reset {
+    font-size: 15px !important;
+}
+
+.map-container.edit-mode .farm-map-zoom-controls {
+    z-index: 6000 !important;
 }

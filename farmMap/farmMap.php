@@ -191,7 +191,7 @@ foreach ($houseRowsByCode as $code => $h) {
     <!-- FARM MAP CSS -->
     <link
         rel="stylesheet"
-        href="<?= $basePath ?>farmMap/farmMap.css?v=20260926-4"
+        href="<?= $basePath ?>farmMap/farmMap.css?v=20260928-zoomfix"
     >
 
 
@@ -2232,9 +2232,7 @@ foreach ($houseRowsByCode as $code => $h) {
 
 
 /* =========================================================
-   EXPANDED FARM MAP
-   Use the full available content width. The map no longer
-   needs horizontal panning because it now fits the space.
+   FARM MAP - FINAL LAYOUT
 ========================================================= */
 
 .farm-map-layout {
@@ -2255,35 +2253,34 @@ foreach ($houseRowsByCode as $code => $h) {
     aspect-ratio: 1706 / 600 !important;
     min-height: 0 !important;
     overflow: hidden !important;
-    cursor: default !important;
-    touch-action: auto !important;
+    cursor: grab !important;
+    touch-action: none !important;
 }
 
 .main-map-layer {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;
-    width: 100% !important;
+    width: max-content !important;
     height: 100% !important;
-    transform: none !important;
-    cursor: default !important;
-    will-change: auto !important;
+    transform-origin: top left !important;
+    will-change: transform !important;
+    cursor: grab !important;
 }
 
 .farm-map-image {
-    position: absolute !important;
-    inset: 0 !important;
+    position: static !important;
     display: block !important;
-    width: 100% !important;
+    width: auto !important;
     height: 100% !important;
     max-width: none !important;
-    object-fit: fill !important;
+    object-fit: contain !important;
 }
 
-/* The marker and map image use the exact same coordinate box. */
+/* One setting controls all main map marker sizes. */
 .main-map-layer > .main-marker {
-    width: 2.5% !important;
-    height: 2.5% !important;
+    width: var(--main-map-marker-size, 4%) !important;
+    height: var(--main-map-marker-size, 4%) !important;
     box-sizing: border-box !important;
 }
 
@@ -2293,19 +2290,21 @@ foreach ($houseRowsByCode as $code => $h) {
     box-sizing: border-box !important;
 }
 
-.map-container.dragging,
-.main-map-layer:active {
-    cursor: default !important;
+.farm-map-zoom-controls {
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
+    z-index: 5000 !important;
+    pointer-events: auto !important;
 }
 
-@media (max-width: 700px) {
-    .map-card {
-        padding: 6px !important;
-    }
+.farm-map-zoom-controls button {
+    pointer-events: auto !important;
+}
 
-    .map-container {
-        border-radius: 7px;
-    }
+.map-container.is-dragging,
+.main-map-layer.is-dragging {
+    cursor: grabbing !important;
 }
 
 /* =========================================================
@@ -2567,6 +2566,35 @@ foreach ($houseRowsByCode as $code => $h) {
                 class="map-container"
                 id="mapContainer"
             >
+
+                <!-- FARM MAP ZOOM CONTROLS -->
+                <div
+                    class="farm-map-zoom-controls"
+                    id="farmMapZoomControls"
+                    aria-label="Farm map zoom controls"
+                >
+                    <button
+                        type="button"
+                        id="farmMapZoomIn"
+                        title="Zoom in"
+                        aria-label="Zoom in"
+                    >+</button>
+
+                    <button
+                        type="button"
+                        id="farmMapZoomReset"
+                        class="zoom-reset"
+                        title="Reset zoom"
+                        aria-label="Reset zoom"
+                    >⛶</button>
+
+                    <button
+                        type="button"
+                        id="farmMapZoomOut"
+                        title="Zoom out"
+                        aria-label="Zoom out"
+                    >−</button>
+                </div>
 
                 <div
                     class="main-map-layer"
@@ -4584,70 +4612,319 @@ const farmMap =
 
 
 /* =========================================================
-   MAP POSITION
-   The map now fills the available width, so horizontal
-   panning/dragging is no longer needed. These functions are
-   kept as safe no-ops because other existing code calls them
-   during initialization and after edits.
+   FARM MAP ZOOM + PAN
+   Zooms the map itself, never the browser page.
+   When zoomed in, the map can be dragged like the Admin
+   Dashboard map.
 ========================================================= */
 
+let mapZoom = 1;
 let translateX = 0;
+let translateY = 0;
 let draggingMap = false;
 let mapStartX = 0;
-const mapScale = 1;
+let mapStartY = 0;
+let mapStartTranslateX = 0;
+let mapStartTranslateY = 0;
 
-function getMapWidth() {
-    return farmMap.offsetWidth || mainMapLayer.clientWidth || 0;
+const MAP_MIN_ZOOM = 1;
+const MAP_MAX_ZOOM = 3;
+const MAP_ZOOM_STEP = 0.25;
+
+function getMapBaseSize() {
+    if (!mainMapLayer || !mapContainer) {
+        return { width: 0, height: 0 };
+    }
+
+    const width = mainMapLayer.offsetWidth || farmMap.offsetWidth || 0;
+    const height = mainMapLayer.offsetHeight || farmMap.offsetHeight || 0;
+
+    return { width, height };
 }
 
 function clampMap() {
-    translateX = 0;
+    if (!mapContainer || !mainMapLayer) {
+        return;
+    }
+
+    const containerWidth = mapContainer.clientWidth;
+    const containerHeight = mapContainer.clientHeight;
+    const base = getMapBaseSize();
+
+    const scaledWidth = base.width * mapZoom;
+    const scaledHeight = base.height * mapZoom;
+
+    if (scaledWidth <= containerWidth) {
+        translateX = (containerWidth - scaledWidth) / 2;
+    } else {
+        const minX = containerWidth - scaledWidth;
+        translateX = Math.max(minX, Math.min(0, translateX));
+    }
+
+    if (scaledHeight <= containerHeight) {
+        translateY = (containerHeight - scaledHeight) / 2;
+    } else {
+        const minY = containerHeight - scaledHeight;
+        translateY = Math.max(minY, Math.min(0, translateY));
+    }
 }
 
 function updateMainMap() {
-    mainMapLayer.style.transform = "none";
+    if (!mainMapLayer) {
+        return;
+    }
+
+    mainMapLayer.style.transform =
+        `translate3d(${translateX}px, ${translateY}px, 0) scale(${mapZoom})`;
+
+    mainMapLayer.style.transformOrigin = "top left";
+}
+
+function setFarmMapZoom(newZoom, focusX, focusY) {
+    if (!mapContainer || !mainMapLayer) {
+        return;
+    }
+
+    const oldZoom = mapZoom;
+    const nextZoom = Math.max(
+        MAP_MIN_ZOOM,
+        Math.min(MAP_MAX_ZOOM, Number(newZoom))
+    );
+
+    if (nextZoom === oldZoom) {
+        return;
+    }
+
+    const rect = mapContainer.getBoundingClientRect();
+
+    const fx =
+        Number.isFinite(focusX)
+            ? focusX
+            : rect.width / 2;
+
+    const fy =
+        Number.isFinite(focusY)
+            ? focusY
+            : rect.height / 2;
+
+    /*
+     * Keep the point under the cursor/focus point in the same
+     * screen position while changing zoom.
+     */
+    const mapPointX =
+        (fx - translateX) / oldZoom;
+
+    const mapPointY =
+        (fy - translateY) / oldZoom;
+
+    mapZoom = nextZoom;
+
+    translateX =
+        fx - (mapPointX * mapZoom);
+
+    translateY =
+        fy - (mapPointY * mapZoom);
+
+    clampMap();
+    updateMainMap();
+}
+
+function resetFarmMapZoom() {
+    if (!mapContainer || !mainMapLayer) {
+        return;
+    }
+
+    mapZoom = 1;
+    translateX = 0;
+    translateY = 0;
+
+    clampMap();
+    updateMainMap();
 }
 
 function initializeMap() {
+    mapZoom = 1;
     translateX = 0;
+    translateY = 0;
     draggingMap = false;
-    mainMapLayer.style.transform = "none";
+
+    clampMap();
+    updateMainMap();
     syncMainMapMarkers();
 }
 
-/* Keep every main-map marker locked to the rendered map image. */
+/*
+ * Main markers are percentage-sized in CSS, so they naturally
+ * scale together with the map. This function remains available
+ * for existing code that calls it.
+ */
 function syncMainMapMarkers() {
-    if (!mainMapLayer) return;
+    return;
+}
 
-    const mapWidth = mainMapLayer.clientWidth;
-    const mapHeight = mainMapLayer.clientHeight;
-    if (!mapWidth || !mapHeight) return;
+function beginMapDrag(event) {
+    if (
+        !mapContainer ||
+        !mainMapLayer ||
+        mapEditMode ||
+        mapZoom <= 1 ||
+        isOverlayTarget(event.target) ||
+        event.target.closest(".farm-map-zoom-controls") ||
+        event.target.closest(".main-marker")
+    ) {
+        return;
+    }
 
-    const markerSize = mapWidth * 0.025;
+    draggingMap = true;
 
-    mainMapLayer.querySelectorAll(".main-marker").forEach(marker => {
-        marker.style.width = `${markerSize}px`;
-        marker.style.height = `${markerSize}px`;
+    mapStartX = event.clientX;
+    mapStartY = event.clientY;
+
+    mapStartTranslateX = translateX;
+    mapStartTranslateY = translateY;
+
+    mapContainer.classList.add("is-dragging");
+    mainMapLayer.classList.add("is-dragging");
+
+    event.preventDefault();
+}
+
+function moveMap(event) {
+    if (!draggingMap) {
+        return;
+    }
+
+    translateX =
+        mapStartTranslateX +
+        (event.clientX - mapStartX);
+
+    translateY =
+        mapStartTranslateY +
+        (event.clientY - mapStartY);
+
+    clampMap();
+    updateMainMap();
+
+    event.preventDefault();
+}
+
+function endMapDrag() {
+    draggingMap = false;
+
+    if (mapContainer) {
+        mapContainer.classList.remove("is-dragging");
+    }
+
+    if (mainMapLayer) {
+        mainMapLayer.classList.remove("is-dragging");
+    }
+}
+
+/* Buttons */
+const farmMapZoomIn =
+    document.getElementById("farmMapZoomIn");
+
+const farmMapZoomOut =
+    document.getElementById("farmMapZoomOut");
+
+const farmMapZoomReset =
+    document.getElementById("farmMapZoomReset");
+
+if (farmMapZoomIn) {
+    farmMapZoomIn.addEventListener("click", function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        setFarmMapZoom(mapZoom + MAP_ZOOM_STEP);
     });
 }
 
-const mainMapResizeObserver =
-    typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(syncMainMapMarkers)
-        : null;
-
-if (mainMapResizeObserver) {
-    mainMapResizeObserver.observe(mainMapLayer);
+if (farmMapZoomOut) {
+    farmMapZoomOut.addEventListener("click", function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        setFarmMapZoom(mapZoom - MAP_ZOOM_STEP);
+    });
 }
 
-window.addEventListener("resize", syncMainMapMarkers);
+if (farmMapZoomReset) {
+    farmMapZoomReset.addEventListener("click", function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        resetFarmMapZoom();
+    });
+}
+
+/* Mouse wheel zoom — prevent the browser from zooming/scrolling. */
+if (mapContainer) {
+    mapContainer.addEventListener(
+        "wheel",
+        function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const rect =
+                mapContainer.getBoundingClientRect();
+
+            const focusX =
+                event.clientX - rect.left;
+
+            const focusY =
+                event.clientY - rect.top;
+
+            const direction =
+                event.deltaY < 0 ? 1 : -1;
+
+            setFarmMapZoom(
+                mapZoom + (direction * MAP_ZOOM_STEP),
+                focusX,
+                focusY
+            );
+        },
+        { passive: false }
+    );
+
+    mapContainer.addEventListener(
+        "mousedown",
+        beginMapDrag
+    );
+
+    mapContainer.addEventListener(
+        "mousemove",
+        moveMap
+    );
+
+    mapContainer.addEventListener(
+        "mouseleave",
+        endMapDrag
+    );
+
+    mapContainer.addEventListener(
+        "mouseup",
+        endMapDrag
+    );
+}
+
+document.addEventListener(
+    "mouseup",
+    endMapDrag
+);
+
+window.addEventListener(
+    "resize",
+    function() {
+        clampMap();
+        updateMainMap();
+    }
+);
 
 if (farmMap.complete) {
     requestAnimationFrame(initializeMap);
 } else {
     farmMap.addEventListener(
         "load",
-        () => requestAnimationFrame(initializeMap),
+        function() {
+            requestAnimationFrame(initializeMap);
+        },
         { once: true }
     );
 }
@@ -9817,6 +10094,14 @@ function handleMapMarkerClick(marker) {
     if (
         type === "nursery"
     ) {
+
+        /*
+         * Nursery opens only its own overlay. Prevent the click
+         * from affecting/focusing the top-right bar or other page UI.
+         */
+        if (typeof document.activeElement?.blur === "function") {
+            document.activeElement.blur();
+        }
 
         openNursery();
 
