@@ -1,621 +1,270 @@
 <?php
 session_start();
 
-/*
-|--------------------------------------------------------------------------
-| LOGIN CHECK
-|--------------------------------------------------------------------------
-*/
-
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login.php");
+    header('Location: ../login.php');
     exit();
 }
 
+require_once '../db.php';
 
-/*
-|--------------------------------------------------------------------------
-| USER INFORMATION
-|--------------------------------------------------------------------------
-*/
+function e($value): string
+{
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
 
-$userName = $_SESSION['username']
-    ?? $_SESSION['name']
-    ?? 'User';
+$userId = (int)$_SESSION['user_id'];
+$message = '';
+$error = '';
+$messageType = '';
 
-$role = $_SESSION['role'] ?? 'staff';
+/* Handle profile and password updates on this page. */
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
 
+    try {
+        if ($action === 'update_profile') {
+            $name = trim($_POST['name'] ?? '');
+            $username = trim($_POST['username'] ?? '');
+
+            if ($name === '' || $username === '') {
+                throw new RuntimeException('Name and username are required.');
+            }
+
+            if (mb_strlen($name) > 100 || mb_strlen($username) > 100) {
+                throw new RuntimeException('Name and username must not exceed 100 characters.');
+            }
+
+            $check = $conn->prepare(
+                'SELECT user_id FROM users WHERE username = ? AND user_id <> ? LIMIT 1'
+            );
+            $check->bind_param('si', $username, $userId);
+            $check->execute();
+            $duplicate = $check->get_result()->fetch_assoc();
+            $check->close();
+
+            if ($duplicate) {
+                throw new RuntimeException('That username is already being used.');
+            }
+
+            $stmt = $conn->prepare(
+                'UPDATE users SET name = ?, username = ? WHERE user_id = ? LIMIT 1'
+            );
+            $stmt->bind_param('ssi', $name, $username, $userId);
+            $stmt->execute();
+            $stmt->close();
+
+            $_SESSION['name'] = $name;
+            $_SESSION['username'] = $username;
+            $message = 'Your profile information was updated successfully.';
+            $messageType = 'success';
+        }
+
+        if ($action === 'change_password') {
+            $currentPassword = (string)($_POST['current_password'] ?? '');
+            $newPassword = (string)($_POST['new_password'] ?? '');
+            $confirmPassword = (string)($_POST['confirm_password'] ?? '');
+
+            if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
+                throw new RuntimeException('Please complete all password fields.');
+            }
+
+            if ($newPassword !== $confirmPassword) {
+                throw new RuntimeException('The new passwords do not match.');
+            }
+
+            if (strlen($newPassword) < 8) {
+                throw new RuntimeException('The new password must contain at least 8 characters.');
+            }
+
+            $stmt = $conn->prepare('SELECT password FROM users WHERE user_id = ? LIMIT 1');
+            $stmt->bind_param('i', $userId);
+            $stmt->execute();
+            $account = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            /* The existing login_process.php uses the project's current plain-text format. */
+            if (!$account || !hash_equals((string)$account['password'], $currentPassword)) {
+                throw new RuntimeException('The current password is incorrect.');
+            }
+
+            $stmt = $conn->prepare('UPDATE users SET password = ? WHERE user_id = ? LIMIT 1');
+            $stmt->bind_param('si', $newPassword, $userId);
+            $stmt->execute();
+            $stmt->close();
+
+            $message = 'Your password was changed successfully.';
+            $messageType = 'success';
+        }
+    } catch (Throwable $exception) {
+        $error = $exception->getMessage();
+        $messageType = 'error';
+    }
+}
+
+$stmt = $conn->prepare(
+    'SELECT user_id, name, username, role FROM users WHERE user_id = ? LIMIT 1'
+);
+$stmt->bind_param('i', $userId);
+$stmt->execute();
+$user = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+if (!$user) {
+    session_unset();
+    session_destroy();
+    header('Location: ../login.php');
+    exit();
+}
+
+$userName = trim($user['name'] ?: $user['username']);
+$roleLabel = ucwords(str_replace('_', ' ', (string)$user['role']));
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Account Settings | Sanctuario Nature Farm</title>
-
-
-    <!-- =================================================
-         POPPINS
-         ================================================= -->
-
-    <link
-        rel="preconnect"
-        href="https://fonts.googleapis.com"
-    >
-
-    <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossorigin
-    >
-
-    <link
-        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-    >
-
-
-    <!-- =================================================
-         MATERIAL SYMBOLS
-         ================================================= -->
-
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:wght@400;500;600"
-        rel="stylesheet"
-    >
-
-
-    <!-- =================================================
-         MAIN CSS
-         ================================================= -->
-
-    <link
-        rel="stylesheet"
-        href="../style.css"
-    >
-
-
-    <!-- =================================================
-         SIDEBAR CSS
-         ================================================= -->
-
-    <link
-        rel="stylesheet"
-        href="../sidebar.css"
-    >
-
-
-    <!-- =================================================
-         ACCOUNT SETTINGS CSS
-         ================================================= -->
-
-    <link
-        rel="stylesheet"
-        href="accountSettings.css"
-    >
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../sidebar.css">
+    <link rel="stylesheet" href="accountSettings.css">
 </head>
-
-
 <body>
-
-
 <div class="layout">
-
-
-    <!-- =================================================
-         SIDEBAR
-         ================================================= -->
-
     <?php include '../sidebar.php'; ?>
 
-
-    <!-- =================================================
-         MAIN CONTENT
-         ================================================= -->
-
     <main class="dashboard">
-
-
-        <!-- =================================================
-             TOP RIGHT BAR
-             ================================================= -->
-
         <?php include '../topRightBar.php'; ?>
-
 
         <div class="account-page">
 
-
-            <!-- =================================================
-                 PAGE HEADER
-                 ================================================= -->
-
-            <div class="account-header">
-
-                <div>
-
-                    <h1>
-                        Account Settings
-                    </h1>
-
-                    <p>
-                        Manage your profile and account information.
-                    </p>
-
+            <?php if ($message !== ''): ?>
+                <div class="account-alert <?= e($messageType) ?>" role="status">
+                    <span class="material-symbols-rounded">check_circle</span>
+                    <?= e($message) ?>
                 </div>
-
-            </div>
-
-
-            <!-- =================================================
-                 PROFILE BOARD
-                 ================================================= -->
+            <?php elseif ($error !== ''): ?>
+                <div class="account-alert <?= e($messageType) ?>" role="alert">
+                    <span class="material-symbols-rounded">error</span>
+                    <?= e($error) ?>
+                </div>
+            <?php endif; ?>
 
             <section class="account-board profile-board">
-
-
                 <div class="profile-section">
-
-
-                    <!-- AVATAR -->
-
-                    <div class="avatar-container">
-
-                        <div class="avatar">
-
-                            <span class="material-symbols-rounded">
-                                person
-                            </span>
-
-                        </div>
-
-
-                        <button
-                            type="button"
-                            class="avatar-camera"
-                            title="Change profile picture"
-                        >
-
-                            <span class="material-symbols-rounded">
-                                photo_camera
-                            </span>
-
-                        </button>
-
+                    <div class="avatar" aria-hidden="true">
+                        <span class="material-symbols-rounded">person</span>
                     </div>
-
-
-                    <!-- PROFILE INFORMATION -->
-
                     <div class="profile-details">
-
-                        <h2>
-                            Xialienn B. Manalo
-                        </h2>
-
-                        <span class="profile-role">
-                            <?= htmlspecialchars(ucfirst($role)) ?>
-                        </span>
-
-                        <p>
-                            09123567890
-                        </p>
-
-                        <p>
-                            xialienn@gmail.com
-                        </p>
-
-
-                        <div class="profile-buttons">
-
-                            <button
-                                type="button"
-                                class="small-btn"
-                            >
-                                Upload Avatar
-                            </button>
-
-
-                            <button
-                                type="button"
-                                class="small-btn danger-btn"
-                            >
-                                Delete Avatar
-                            </button>
-
+                        <span class="profile-kicker">SIGNED IN AS</span>
+                        <h2><?= e($userName) ?></h2>
+                        <div class="profile-meta">
+                            <span class="profile-role"><?= e($roleLabel) ?></span>
+                            <span class="profile-username">@<?= e($user['username']) ?></span>
                         </div>
-
                     </div>
-
+                    <div class="profile-status">
+                        <span class="status-dot"></span>
+                        Active account
+                    </div>
                 </div>
-
             </section>
-
-
-            <!-- =================================================
-                 PERSONAL INFORMATION BOARD
-                 ================================================= -->
 
             <section class="account-board">
-
-
                 <div class="board-header">
-
-                    <div class="board-icon">
-
-                        <span class="material-symbols-rounded">
-                            person
-                        </span>
-
-                    </div>
-
-
+                    <div class="board-icon"><span class="material-symbols-rounded">person</span></div>
                     <div>
-
-                        <h2>
-                            Personal Information
-                        </h2>
-
-                        <p>
-                            Update your personal account information.
-                        </p>
-
+                        <h2>Personal Information</h2>
+                        <p>Update the information used by your Sanctuario account.</p>
                     </div>
-
                 </div>
 
+                <form class="account-form" method="post" autocomplete="on">
+                    <input type="hidden" name="action" value="update_profile">
 
-                <div class="account-form">
-
-
-                    <!-- FIRST NAME -->
-
-                    <div class="form-group">
-
-                        <label>
-                            First Name
-                        </label>
-
-                        <input
-                            type="text"
-                            name="first_name"
-                            value="Xialienn"
-                        >
-
+                    <div class="form-group form-group-wide">
+                        <label for="name">Full Name</label>
+                        <input id="name" type="text" name="name" value="<?= e($user['name']) ?>" maxlength="100" autocomplete="name" required>
                     </div>
 
-
-                    <!-- LAST NAME -->
-
-                    <div class="form-group">
-
-                        <label>
-                            Last Name
-                        </label>
-
-                        <input
-                            type="text"
-                            name="last_name"
-                            value="Manalo"
-                        >
-
+                    <div class="form-group form-group-wide">
+                        <label for="username">Username</label>
+                        <input id="username" type="text" name="username" value="<?= e($user['username']) ?>" maxlength="100" autocomplete="username" required>
+                        <small>Your username is used when signing in.</small>
                     </div>
 
-
-                    <!-- EMAIL -->
-
-                    <div class="form-group">
-
-                        <label>
-                            Email
-                        </label>
-
-                        <input
-                            type="email"
-                            name="email"
-                            value="xialienn@gmail.com"
-                        >
-
+                    <div class="account-actions form-group-wide">
+                        <button type="submit" class="save-btn">
+                            <span class="material-symbols-rounded">save</span>
+                            Save Profile
+                        </button>
                     </div>
-
-
-                    <!-- CONTACT -->
-
-                    <div class="form-group">
-
-                        <label>
-                            Contact Number
-                        </label>
-
-                        <input
-                            type="text"
-                            name="contact_number"
-                            value="09123567890"
-                        >
-
-                    </div>
-
-
-                    <!-- GENDER -->
-
-                    <div class="form-group">
-
-                        <label>
-                            Gender
-                        </label>
-
-
-                        <div class="gender-options">
-
-
-                            <label class="gender-option">
-
-                                <input
-                                    type="radio"
-                                    name="gender"
-                                    value="Male"
-                                >
-
-                                <span>
-                                    Male
-                                </span>
-
-                            </label>
-
-
-                            <label class="gender-option">
-
-                                <input
-                                    type="radio"
-                                    name="gender"
-                                    value="Female"
-                                    checked
-                                >
-
-                                <span>
-                                    Female
-                                </span>
-
-                            </label>
-
-
-                        </div>
-
-                    </div>
-
-
-                    <!-- ADDRESS -->
-
-                    <div class="form-group">
-
-                        <label>
-                            Current Address
-                        </label>
-
-                        <input
-                            type="text"
-                            name="address"
-                            value=""
-                        >
-
-                    </div>
-
-
-                </div>
-
+                </form>
             </section>
-
-
-            <!-- =================================================
-                 SECURITY BOARD
-                 ================================================= -->
 
             <section class="account-board security-board">
-
-
                 <div class="board-header">
-
-
-                    <div class="board-icon security-icon">
-
-                        <span class="material-symbols-rounded">
-                            lock
-                        </span>
-
-                    </div>
-
-
+                    <div class="board-icon security-icon"><span class="material-symbols-rounded">lock</span></div>
                     <div>
-
-                        <h2>
-                            Security
-                        </h2>
-
-                        <p>
-                            Change your account password.
-                        </p>
-
+                        <h2>Security</h2>
+                        <p>Change your password without leaving this page.</p>
                     </div>
-
-
                 </div>
 
+                <form class="password-form" method="post" autocomplete="off">
+                    <input type="hidden" name="action" value="change_password">
 
-                <div class="password-form">
-
-
-                    <!-- CURRENT PASSWORD -->
-
-                    <div class="form-group">
-
-                        <label>
-                            Current Password
-                        </label>
-
-
-                        <div class="password-input">
-
-                            <input
-                                type="password"
-                                name="current_password"
-                                placeholder="Enter current password"
-                            >
-
-
-                            <button
-                                type="button"
-                                class="show-password"
-                            >
-
-                                <span class="material-symbols-rounded">
-                                    visibility
-                                </span>
-
-                            </button>
-
+                    <div class="password-grid">
+                        <div class="form-group">
+                            <label for="current_password">Current Password</label>
+                            <div class="password-input">
+                                <input id="current_password" type="password" name="current_password" autocomplete="current-password" required>
+                                <button type="button" class="show-password" aria-label="Show current password"><span class="material-symbols-rounded">visibility</span></button>
+                            </div>
                         </div>
 
-                    </div>
-
-
-                    <!-- NEW PASSWORD -->
-
-                    <div class="form-group">
-
-                        <label>
-                            New Password
-                        </label>
-
-
-                        <div class="password-input">
-
-                            <input
-                                type="password"
-                                name="new_password"
-                                placeholder="Enter new password"
-                            >
-
-
-                            <button
-                                type="button"
-                                class="show-password"
-                            >
-
-                                <span class="material-symbols-rounded">
-                                    visibility
-                                </span>
-
-                            </button>
-
+                        <div class="form-group">
+                            <label for="new_password">New Password</label>
+                            <div class="password-input">
+                                <input id="new_password" type="password" name="new_password" minlength="8" autocomplete="new-password" required>
+                                <button type="button" class="show-password" aria-label="Show new password"><span class="material-symbols-rounded">visibility</span></button>
+                            </div>
                         </div>
 
+                        <div class="form-group">
+                            <label for="confirm_password">Confirm New Password</label>
+                            <div class="password-input">
+                                <input id="confirm_password" type="password" name="confirm_password" minlength="8" autocomplete="new-password" required>
+                                <button type="button" class="show-password" aria-label="Show confirmed password"><span class="material-symbols-rounded">visibility</span></button>
+                            </div>
+                        </div>
                     </div>
 
-
-                    <!-- PASSWORD HINT -->
-
-                    <div class="password-hint">
-
-                        <span class="material-symbols-rounded">
-                            info
-                        </span>
-
-                        <span>
-                            Use at least 8 characters for a stronger password.
-                        </span>
-
+                    <div class="password-footer">
+                        <p class="password-hint"><span class="material-symbols-rounded">info</span> Use at least 8 characters for a stronger password.</p>
+                        <button type="submit" class="save-btn"><span class="material-symbols-rounded">lock_reset</span> Change Password</button>
                     </div>
-
-
-                </div>
-
+                </form>
             </section>
-
-
-            <!-- =================================================
-                 ACTION BUTTONS
-                 ================================================= -->
-
-            <div class="account-actions">
-
-
-                <button
-                    type="button"
-                    class="cancel-btn"
-                >
-                    Cancel
-                </button>
-
-
-                <button
-                    type="button"
-                    class="save-btn"
-                >
-
-                    <span class="material-symbols-rounded">
-                        save
-                    </span>
-
-                    Save Changes
-
-                </button>
-
-
-            </div>
-
-
         </div>
-
-
     </main>
-
-
 </div>
 
-
-<!-- =================================================
-     PASSWORD VISIBILITY
-     ================================================= -->
-
 <script>
-
 document.querySelectorAll('.show-password').forEach(button => {
-
-    button.addEventListener('click', function () {
-
-        const input = this.parentElement.querySelector('input');
-
-        const icon = this.querySelector('.material-symbols-rounded');
-
-        if (input.type === 'password') {
-
-            input.type = 'text';
-
-            icon.textContent = 'visibility_off';
-
-        } else {
-
-            input.type = 'password';
-
-            icon.textContent = 'visibility';
-
-        }
-
+    button.addEventListener('click', () => {
+        const input = button.parentElement.querySelector('input');
+        const icon = button.querySelector('.material-symbols-rounded');
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        icon.textContent = showing ? 'visibility' : 'visibility_off';
+        button.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
     });
-
 });
-
 </script>
-
-
 </body>
-
 </html>

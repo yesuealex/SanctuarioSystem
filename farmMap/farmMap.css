@@ -3075,3 +3075,10 @@ a.edit-btn:hover {
 .map-container.edit-mode .farm-map-zoom-controls {
     z-index: 6000 !important;
 }
+
+/* Nursery is a page-level modal and must cover the top-right bar. */
+.nursery-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 12000 !important;
+}

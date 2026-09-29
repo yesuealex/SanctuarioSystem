@@ -2279,8 +2279,8 @@ foreach ($houseRowsByCode as $code => $h) {
 
 /* One setting controls all main map marker sizes. */
 .main-map-layer > .main-marker {
-    width: var(--main-map-marker-size, 4%) !important;
-    height: var(--main-map-marker-size, 4%) !important;
+    width: var(--main-map-marker-size, 6%) !important;
+    height: var(--main-map-marker-size, 6%) !important;
     box-sizing: border-box !important;
 }
 
@@ -3000,6 +3000,10 @@ foreach ($houseRowsByCode as $code => $h) {
                 <div
                     class="nursery-overlay"
                     id="nurseryOverlay"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="nurseryTitle"
+                    tabindex="-1"
                 >
 
                     <div class="nursery-popup">
@@ -3015,7 +3019,7 @@ foreach ($houseRowsByCode as $code => $h) {
                         </button>
 
 
-                        <h3>
+                        <h3 id="nurseryTitle">
 
                             <i class="fa-solid fa-seedling"></i>
 
@@ -8411,11 +8415,25 @@ function closePlant() {
 
 function openNursery() {
 
-    document.getElementById(
+    const overlay = document.getElementById(
         "nurseryOverlay"
-    ).classList.add(
-        "show"
     );
+
+    if (!overlay) {
+        return;
+    }
+
+    overlay.classList.add("show");
+
+    const closeButton = document.getElementById("closeNurseryBtn");
+
+    requestAnimationFrame(function() {
+        if (closeButton && typeof closeButton.focus === "function") {
+            closeButton.focus({ preventScroll: true });
+        } else if (typeof overlay.focus === "function") {
+            overlay.focus({ preventScroll: true });
+        }
+    });
 
 }
 
@@ -10099,8 +10117,8 @@ function handleMapMarkerClick(marker) {
          * Nursery opens only its own overlay. Prevent the click
          * from affecting/focusing the top-right bar or other page UI.
          */
-        if (typeof document.activeElement?.blur === "function") {
-            document.activeElement.blur();
+        if (typeof marker.blur === "function") {
+            marker.blur();
         }
 
         openNursery();
@@ -11585,6 +11603,10 @@ document.querySelectorAll(
             function(event) {
 
                 event.stopPropagation();
+
+                if (marker.dataset.marker === "nursery") {
+                    event.preventDefault();
+                }
 
                 handleMapMarkerClick(
                     marker

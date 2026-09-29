@@ -1,559 +1,446 @@
 /* =========================================================
-   ACCOUNT SETTINGS
+   SANCTUARIO ACCOUNT SETTINGS
    ========================================================= */
+
+:root {
+    --account-green-900: #214f2a;
+    --account-green-700: #326735;
+    --account-green-600: #4f8a50;
+    --account-green-100: #e8f3e5;
+    --account-ink: #273329;
+    --account-muted: #7b877d;
+    --account-line: #e5ebe3;
+    --account-surface: #ffffff;
+    --account-page: #f5f8f3;
+    --account-danger: #a84949;
+    --account-danger-bg: #fff0f0;
+}
 
 .account-page {
     width: 100%;
-    max-width: 1100px;
-
-    margin: 25px auto 40px;
-
-    padding: 0 25px;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 30px 0 56px;
 }
 
-
-/* =========================================================
-   HEADER
-   ========================================================= */
-
 .account-header {
-    margin-bottom: 20px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.eyebrow {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--account-green-600);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .14em;
 }
 
 .account-header h1 {
     margin: 0;
-
-    font-size: 25px;
+    color: var(--account-green-900);
+    font-size: clamp(26px, 3vw, 34px);
     font-weight: 700;
-
-    color: #365f31;
-
-    text-transform: uppercase;
+    letter-spacing: -.02em;
 }
 
 .account-header p {
-    margin: 4px 0 0;
-
+    margin: 7px 0 0;
+    color: var(--account-muted);
     font-size: 13px;
-
-    color: #8a8a8a;
 }
 
+.account-alert {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0 0 18px;
+    padding: 12px 15px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+}
 
-/* =========================================================
-   BOARD
-   ========================================================= */
+.account-alert .material-symbols-rounded {
+    font-size: 19px;
+}
+
+.account-alert.success {
+    border-color: #cde8d0;
+    background: #eff9ef;
+    color: #2f7140;
+}
+
+.account-alert.error {
+    border-color: #f0cece;
+    background: var(--account-danger-bg);
+    color: var(--account-danger);
+}
 
 .account-board {
-    width: 100%;
-
-    margin-bottom: 18px;
-
-    background: #ffffff;
-
-    border: 1px solid #e8ece5;
-
-    border-radius: 14px;
-
-    box-shadow:
-        0 4px 15px rgba(0, 0, 0, 0.05);
-
     overflow: hidden;
+    margin-bottom: 24px;
+    border: 1px solid var(--account-line);
+    border-radius: 16px;
+    background: var(--account-surface);
+    box-shadow: 0 8px 24px rgba(33, 63, 35, .06);
 }
 
-
-/* =========================================================
-   PROFILE BOARD
-   ========================================================= */
-
 .profile-board {
-    padding: 25px;
-
-    background: linear-gradient(135deg,#4F7D3A,#7EB26D);
+    border: 0;
+    background: linear-gradient(120deg, #2f6534 0%, #609d5e 100%);
+    box-shadow: 0 10px 26px rgba(43, 94, 47, .18);
 }
 
 .profile-section {
+    position: relative;
     display: flex;
     align-items: center;
-
-    gap: 25px;
-}
-
-
-/* =========================================================
-   AVATAR
-   ========================================================= */
-
-.avatar-container {
-    position: relative;
-
-    flex-shrink: 0;
+    gap: 20px;
+    min-height: 150px;
+    padding: 28px 34px;
 }
 
 .avatar {
-    width: 105px;
-    height: 105px;
-
     display: flex;
+    flex: 0 0 88px;
     align-items: center;
     justify-content: center;
-
-    background: #ffffff;
-
-    border: 4px solid rgba(255, 255, 255, 0.8);
-
+    width: 88px;
+    height: 88px;
+    border: 4px solid rgba(255, 255, 255, .7);
     border-radius: 50%;
-
-    box-shadow:
-        0 4px 12px rgba(0, 0, 0, 0.12);
-
-    color: #858585;
+    background: rgba(255, 255, 255, .95);
+    color: var(--account-green-700);
+    box-shadow: 0 7px 16px rgba(20, 53, 25, .18);
 }
 
 .avatar .material-symbols-rounded {
-    font-size: 65px;
+    font-size: 54px;
 }
 
-.avatar-camera {
-    position: absolute;
-
-    right: 0;
-    bottom: 2px;
-
-    width: 30px;
-    height: 30px;
-
-    border: none;
-
-    border-radius: 50%;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    background: #365f31;
-    color: #ffffff;
-
-    cursor: pointer;
+.profile-details {
+    min-width: 0;
 }
 
-.avatar-camera .material-symbols-rounded {
-    font-size: 16px;
+.profile-kicker {
+    display: block;
+    margin-bottom: 4px;
+    color: rgba(255, 255, 255, .72);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .12em;
 }
-
-
-/* =========================================================
-   PROFILE DETAILS
-   ========================================================= */
 
 .profile-details h2 {
+    overflow: hidden;
     margin: 0;
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
-    font-size: 21px;
+.profile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 7px;
+}
 
-    color: #ffffff;
+.profile-role,
+.profile-username {
+    display: inline-flex;
+    align-items: center;
+    min-height: 25px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
 }
 
 .profile-role {
-    display: inline-block;
-
-    margin-top: 2px;
-
-    font-size: 17px;
-    font-weight: 600;
-
-    color: #ffffff;
+    background: #f2c95c;
+    color: #55420e;
+    font-weight: 700;
 }
 
-.profile-details p {
-    margin: 2px 0;
-
-    font-size: 15px;
-
-    color: #162914;
+.profile-username {
+    border: 1px solid rgba(255, 255, 255, .28);
+    color: rgba(255, 255, 255, .9);
 }
 
-.profile-buttons {
-    display: flex;
-
+.profile-status {
+    display: inline-flex;
+    align-items: center;
     gap: 7px;
-
-    margin-top: 10px;
+    margin-left: auto;
+    align-self: flex-start;
+    color: rgba(255, 255, 255, .88);
+    font-size: 11px;
+    white-space: nowrap;
 }
 
-.small-btn {
-    padding: 6px 10px;
-
-    border: none;
-
-    border-radius: 6px;
-
-    background: #365f31;
-    color: #ffffff;
-
-    font-family: 'Poppins', sans-serif;
-
-    font-size: 13px;
-
-    cursor: pointer;
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #a8e39d;
+    box-shadow: 0 0 0 4px rgba(168, 227, 157, .16);
 }
-
-.danger-btn {
-    background: #ffffff;
-
-    color: #8d4d4d;
-
-    border: 1px solid #e2cfcf;
-}
-
-
-/* =========================================================
-   BOARD HEADER
-   ========================================================= */
 
 .board-header {
     display: flex;
     align-items: center;
-
-    gap: 12px;
-
-    padding: 19px 23px;
-
-    border-bottom: 1px solid #edf0eb;
+    gap: 13px;
+    padding: 23px 30px;
+    border-bottom: 1px solid var(--account-line);
 }
 
 .board-icon {
-    width: 38px;
-    height: 38px;
-
-    flex-shrink: 0;
-
     display: flex;
+    flex: 0 0 42px;
     align-items: center;
     justify-content: center;
-
-    border-radius: 10px;
-
-    background: #e8f3e5;
-    color: #416c38;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: var(--account-green-100);
+    color: var(--account-green-700);
 }
 
 .board-icon .material-symbols-rounded {
-    font-size: 21px;
+    font-size: 22px;
+}
+
+.security-icon {
+    background: #eef3fb;
+    color: #54729f;
 }
 
 .board-header h2 {
     margin: 0;
-
-    font-size: 20px;
-
-    color: #314c2d;
+    color: var(--account-ink);
+    font-size: 17px;
+    font-weight: 700;
 }
 
 .board-header p {
-    margin: 2px 0 0;
-
-    font-size: 13px;
-
-    color: #999;
+    margin: 4px 0 0;
+    color: var(--account-muted);
+    font-size: 12px;
 }
 
-
-/* =========================================================
-   FORM
-   ========================================================= */
+.account-form,
+.password-form {
+    padding: 30px;
+}
 
 .account-form {
     display: grid;
-
-    grid-template-columns: repeat(2, 1fr);
-
-    gap: 17px;
-
-    padding: 22px 23px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 30px;
 }
 
 .form-group {
-    width: 100%;
+    min-width: 0;
+}
+
+.form-group-wide {
+    grid-column: auto;
 }
 
 .form-group label {
     display: block;
-
-    margin-bottom: 6px;
-
-    font-size: 10px;
+    margin-bottom: 7px;
+    color: #506052;
+    font-size: 12px;
     font-weight: 600;
-
-    color: #52614f;
 }
 
 .form-group input {
+    box-sizing: border-box;
     width: 100%;
-    height: 42px;
-
-    padding: 0 12px;
-
-    border: 1px solid #cbd4c8;
-
-    border-radius: 8px;
-
+    height: 44px;
+    padding: 0 13px;
+    border: 1px solid #d5dfd3;
+    border-radius: 9px;
     outline: none;
-
-    background: #ffffff;
-
-    color: #394438;
-
-    font-family: 'Poppins', sans-serif;
-
-    font-size: 15px;
-
-    transition: 0.2s ease;
+    background: #fcfdfc;
+    color: var(--account-ink);
+    font: 500 13px 'Poppins', sans-serif;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
 }
 
 .form-group input:focus {
-    border-color: #6c9561;
-
-    box-shadow:
-        0 0 0 3px rgba(108, 149, 97, 0.10);
+    border-color: var(--account-green-600);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(79, 138, 80, .12);
 }
 
+.form-group small {
+    display: block;
+    margin-top: 6px;
+    color: var(--account-muted);
+    font-size: 11px;
+}
 
-/* =========================================================
-   GENDER
-   ========================================================= */
-
-.gender-options {
+.account-actions {
     display: flex;
-
-    gap: 10px;
+    justify-content: flex-end;
+    grid-column: 1 / -1;
+    padding-top: 2px;
 }
 
-.gender-option {
-    flex: 1;
-
-    height: 42px;
-
-    display: flex;
-    align-items: center;
-
-    gap: 8px;
-
-    padding: 0 12px;
-
-    border: 1px solid #cbd4c8;
-
-    border-radius: 8px;
-
-    cursor: pointer;
-
-    font-size: 15px;
-
-    color: #4b5549;
-
-    background: #ffffff;
+.password-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px 30px;
 }
-
-.gender-option input {
-    width: 18px;
-    height: 18px;
-
-    margin: 0;
-
-    accent-color: #365f31;
-}
-
-
-/* =========================================================
-   SECURITY
-   ========================================================= */
-
-.security-board {
-    margin-bottom: 12px;
-}
-
-.security-icon {
-    background: #edf2fb;
-
-    color: #526e9b;
-}
-
-.password-form {
-    padding: 22px 23px;
-
-    max-width: 600px;
-}
-
-.password-form .form-group {
-    margin-bottom: 16px;
-}
-
-
-/* =========================================================
-   PASSWORD INPUT
-   ========================================================= */
 
 .password-input {
     position: relative;
 }
 
 .password-input input {
-    padding-right: 45px;
+    padding-right: 44px;
 }
 
 .show-password {
     position: absolute;
-
     top: 50%;
-    right: 7px;
-
-    width: 32px;
-    height: 32px;
-
-    transform: translateY(-50%);
-
+    right: 5px;
     display: flex;
     align-items: center;
     justify-content: center;
-
-    border: none;
-
+    width: 34px;
+    height: 34px;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 7px;
     background: transparent;
-
-    color: #7b8778;
-
+    color: #7a877b;
     cursor: pointer;
+}
+
+.show-password:hover {
+    background: #eff5ed;
+    color: var(--account-green-700);
 }
 
 .show-password .material-symbols-rounded {
     font-size: 19px;
 }
 
-
-/* =========================================================
-   PASSWORD HINT
-   ========================================================= */
+.password-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-top: 22px;
+    padding-top: 19px;
+    border-top: 1px solid var(--account-line);
+}
 
 .password-hint {
     display: flex;
     align-items: center;
-
     gap: 6px;
-
-    margin-top: 4px;
-
-    font-size: 9px;
-
-    color: #899287;
+    margin: 0;
+    color: var(--account-muted);
+    font-size: 11px;
 }
 
 .password-hint .material-symbols-rounded {
-    font-size: 16px;
-}
-
-
-/* =========================================================
-   ACTION BUTTONS
-   ========================================================= */
-
-.account-actions {
-    display: flex;
-    justify-content: flex-end;
-
-    gap: 9px;
-
-    margin-top: 5px;
-}
-
-.cancel-btn,
-.save-btn {
-    height: 38px;
-
-    padding: 0 17px;
-
-    border-radius: 8px;
-
-    font-family: 'Poppins', sans-serif;
-
-    font-size: 13px;
-    font-weight: 600;
-
-    cursor: pointer;
-
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    gap: 6px;
-}
-
-.cancel-btn {
-    border: 1px solid #d9ded7;
-
-    background: #ffffff;
-
-    color: #6e766b;
-}
-
-.save-btn {
-    border: none;
-
-    background: #365f31;
-
-    color: #ffffff;
-}
-
-.save-btn:hover {
-    background: #2d5229;
-}
-
-.save-btn .material-symbols-rounded {
+    color: var(--account-green-600);
     font-size: 17px;
 }
 
+.save-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 42px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--account-green-700);
+    color: #fff;
+    font: 600 12px 'Poppins', sans-serif;
+    cursor: pointer;
+    transition: background .2s ease, transform .2s ease, box-shadow .2s ease;
+}
 
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
+.save-btn:hover {
+    background: var(--account-green-900);
+    box-shadow: 0 5px 12px rgba(33, 79, 42, .18);
+    transform: translateY(-1px);
+}
+
+.save-btn .material-symbols-rounded {
+    font-size: 18px;
+}
+
+@media (max-width: 980px) {
+    .password-grid {
+        grid-template-columns: 1fr;
+    }
+}
 
 @media (max-width: 800px) {
+    .account-page {
+        width: 100%;
+        padding-top: 24px;
+    }
 
     .account-form {
         grid-template-columns: 1fr;
     }
 
-    .profile-section {
-        align-items: flex-start;
+    .profile-status {
+        display: none;
     }
-
 }
 
-
 @media (max-width: 550px) {
-
     .account-page {
-        padding: 0 15px;
+        width: calc(100% - 24px);
+        padding-bottom: 30px;
+    }
+
+    .account-header {
+        margin-bottom: 18px;
     }
 
     .profile-section {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 23px;
+    }
+
+    .profile-details h2 {
+        font-size: 21px;
+    }
+
+    .board-header,
+    .account-form,
+    .password-form {
+        padding: 22px;
+    }
+
+    .password-footer {
+        align-items: stretch;
         flex-direction: column;
     }
 
-    .profile-details {
-        text-align: center;
+    .password-footer .save-btn,
+    .account-actions .save-btn {
+        width: 100%;
     }
-
-    .profile-buttons {
-        justify-content: center;
-    }
-
-    .account-actions {
-        justify-content: stretch;
-    }
-
-    .cancel-btn,
-    .save-btn {
-        flex: 1;
-    }
-
 }
