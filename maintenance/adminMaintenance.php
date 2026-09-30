@@ -26,6 +26,7 @@ if (($_SESSION['role'] ?? '') !== 'admin') {
 */
 
 require_once '../db.php';
+require_once '../archive/archive_functions.php';
 
 
 /*
@@ -105,6 +106,17 @@ try {
 
     $error =
         "The maintenance_requests table could not be accessed.";
+}
+
+
+try {
+    if ($tableReady) {
+        ensureArchiveTable($conn, 'maintenance_requests');
+    }
+} catch (Throwable $archiveSetupError) {
+    if (!$error) {
+        $error = $archiveSetupError->getMessage();
+    }
 }
 
 
@@ -270,6 +282,14 @@ if (
 
             $stmt->close();
 
+            if ($newStatus === 'Completed' || $newStatus === 'Cancelled') {
+                try {
+                    archiveRecord($conn, 'maintenance_requests', 'request_id', $requestId, (int)$_SESSION['user_id']);
+                } catch (Throwable $archiveError) {
+                    $error = $archiveError->getMessage();
+                }
+            }
+
 
             /*
             |--------------------------------------------------------------------------
@@ -334,6 +354,8 @@ if (
 
 
             $stmt->close();
+
+            archiveRecord($conn, 'maintenance_requests', 'request_id', $requestId, (int)$_SESSION['user_id']);
 
 
             $_SESSION['maintenance_message'] =
@@ -482,7 +504,7 @@ if ($tableReady) {
                 creator.name AS creator_name,
                 creator.username AS creator_username
 
-            FROM maintenance_requests mr
+            FROM archived_maintenance_requests mr
 
             LEFT JOIN users assigned
                 ON assigned.user_id = mr.assigned_to
@@ -633,7 +655,7 @@ if ($tableReady) {
             LEFT JOIN users creator
                 ON creator.user_id = mr.created_by
 
-            WHERE mr.status IN ('Completed', 'Cancelled')
+            
 
             ORDER BY
 

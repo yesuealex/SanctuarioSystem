@@ -609,7 +609,7 @@ $cropsResult = $conn->query("
                                             >
 
                                                 <span class="material-symbols-rounded">
-                                                    delete
+                                                    archive
                                                 </span>
 
                                             </button>

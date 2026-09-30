@@ -527,18 +527,11 @@ function toggleRecordsDropdown(event) {
 
 
 function toggleInventoryDropdown(event) {
-
     event.stopPropagation();
-
-    const dropdown =
-        event.currentTarget.closest('.menu-dropdown');
-
-    if (!dropdown) {
-        return;
-    }
-
+    const dropdown = event.currentTarget.closest('.menu-dropdown');
+    if (!dropdown) return;
     dropdown.classList.toggle('open');
-
 }
+
 
 </script>

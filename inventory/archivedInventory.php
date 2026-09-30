@@ -12,6 +12,7 @@ if (($_SESSION['role'] ?? '') !== 'admin') {
 }
 
 require_once '../db.php';
+require_once '../archive/archive_functions.php';
 
 function e($value) {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
@@ -36,27 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('Invalid inventory item.');
             }
 
-            $stmt = $conn->prepare("
-                UPDATE inventory_items
-                SET is_archived = 0
-                WHERE inventory_id = ?
-            ");
-
-            if (!$stmt) {
-                throw new Exception(
-                    'Could not prepare restore action: '
-                    . $conn->error
-                );
-            }
-
-            $stmt->bind_param(
-                "i",
-                $inventoryId
-            );
-
-            $stmt->execute();
-
-            $stmt->close();
+            restoreRecord($conn, 'inventory_items', 'inventory_id', $inventoryId);
 
             $message =
                 'Inventory item restored successfully.';
@@ -72,27 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('Invalid inventory item.');
             }
 
-            $stmt = $conn->prepare("
-                DELETE FROM inventory_items
-                WHERE inventory_id = ?
-                AND is_archived = 1
-            ");
-
-            if (!$stmt) {
-                throw new Exception(
-                    'Could not prepare delete action: '
-                    . $conn->error
-                );
-            }
-
-            $stmt->bind_param(
-                "i",
-                $inventoryId
-            );
-
-            $stmt->execute();
-
-            $stmt->close();
+            permanentlyDeleteArchived($conn, 'inventory_items', 'inventory_id', $inventoryId);
 
             $message =
                 'Archived inventory item permanently deleted.';
@@ -122,8 +83,7 @@ try {
             quantity,
             price,
             status
-        FROM inventory_items
-        WHERE is_archived = 1
+        FROM archived_inventory_items
         ORDER BY inventory_id DESC
     ");
 

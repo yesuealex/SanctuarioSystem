@@ -1,23 +1,41 @@
 <?php
-
 session_start();
-
 include '../db.php';
+require_once '../archive/archive_functions.php';
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login.php");
-    exit();
+if (!isset($_SESSION['user_id'])) { header("Location: ../login.php"); exit(); }
+if (($_SESSION['role'] ?? '') !== 'admin') { header("Location: ../records.php?type=crops"); exit(); }
+
+try { ensureArchiveTable($conn, 'crops'); } catch (Throwable $e) { $archiveError = $e->getMessage(); }
+$selectedCrop = trim($_GET['crop'] ?? '');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['archive_action'] ?? '';
+    $cropId = (int)($_POST['crop_id'] ?? 0);
+    if ($cropId > 0) {
+        try {
+            if ($action === 'restore') {
+                restoreRecord($conn, 'crops', 'crop_id', $cropId);
+                header("Location: archived_crops.php?restored=1" . ($selectedCrop !== '' ? '&crop=' . urlencode($selectedCrop) : '')); exit();
+            }
+            if ($action === 'delete') {
+                permanentlyDeleteArchived($conn, 'crops', 'crop_id', $cropId);
+                header("Location: archived_crops.php?deleted=1" . ($selectedCrop !== '' ? '&crop=' . urlencode($selectedCrop) : '')); exit();
+            }
+        } catch (Throwable $e) { $error = $e->getMessage(); }
+    }
 }
 
-$role = $_SESSION['role'] ?? 'staff';
+$typeResult = $conn->query("SELECT DISTINCT crop_name FROM archived_crops WHERE crop_name IS NOT NULL AND TRIM(crop_name) <> '' ORDER BY crop_name ASC");
+$cropTypes=[];
+if($typeResult){ while($r=$typeResult->fetch_assoc()) $cropTypes[]=$r['crop_name']; }
 
-
-$cropsResult = $conn->query("
-    SELECT *
-    FROM crops
-    WHERE archived = 1
-    ORDER BY crop_id DESC
-");
+if ($selectedCrop !== '') {
+    $stmt=$conn->prepare("SELECT * FROM archived_crops WHERE LOWER(crop_name)=LOWER(?) ORDER BY crop_id DESC");
+    $stmt->bind_param('s',$selectedCrop); $stmt->execute(); $cropsResult=$stmt->get_result();
+} else {
+    $cropsResult=$conn->query("SELECT * FROM archived_crops ORDER BY crop_id DESC");
+}
 
 ?>
 
@@ -92,6 +110,11 @@ body {
 .back-btn:hover {
     background: #e2e8f0;
 }
+
+
+.crop-filter { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px; }
+.crop-filter a { display:inline-flex; align-items:center; gap:6px; padding:8px 13px; border-radius:8px; background:#f1f5f9; color:#444; text-decoration:none; font-size:.82rem; transition:.2s; }
+.crop-filter a:hover, .crop-filter a.active { background:#e6f0e2; color:#3f6637; }
 
 .search-box {
     width: 300px;

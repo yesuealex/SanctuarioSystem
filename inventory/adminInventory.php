@@ -18,6 +18,7 @@ if (($_SESSION['role'] ?? '') !== 'admin') {
 }
 
 require_once '../db.php';
+require_once '../archive/archive_functions.php';
 
 function e($value) {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
@@ -267,19 +268,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableReady) {
                 throw new Exception('Invalid inventory item.');
             }
 
-            $stmt = $conn->prepare("
-                UPDATE inventory_items
-                SET is_archived = 1
-                WHERE inventory_id = ?
-            ");
-
-            if (!$stmt) {
-                throw new Exception('Could not prepare archive action: ' . $conn->error);
-            }
-
-            $stmt->bind_param("i", $inventoryId);
-            $stmt->execute();
-            $stmt->close();
+            archiveRecord($conn, 'inventory_items', 'inventory_id', $inventoryId, (int)$_SESSION['user_id']);
 
             redirectWithMessage('Inventory item archived successfully.');
         }

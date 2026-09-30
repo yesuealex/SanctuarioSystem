@@ -1,124 +1,72 @@
 <?php
-
 session_start();
-
 include '../db.php';
+require_once '../archive/archive_functions.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../login.php");
     exit();
 }
-
-$role = $_SESSION['role'] ?? 'staff';
-
-if ($role !== 'admin') {
-    http_response_code(403);
-    exit('Unauthorized');
+if (($_SESSION['role'] ?? '') !== 'admin') {
+    header("Location: ../records.php?type=livestock");
+    exit();
 }
 
-/*
-|--------------------------------------------------------------------------
-| RESTORE / PERMANENT DELETE
-|--------------------------------------------------------------------------
-*/
+try { ensureArchiveTable($conn, 'livestocks'); } catch (Throwable $e) { $archiveError = $e->getMessage(); }
+
+$selectedType = trim($_GET['type'] ?? '');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
     $action = $_POST['archive_action'] ?? '';
-    $livestockId = isset($_POST['livestock_id'])
-        ? (int) $_POST['livestock_id']
-        : 0;
+    $livestockId = (int)($_POST['livestock_id'] ?? 0);
+    $returnType = trim($_POST['return_type'] ?? '');
 
-    if ($livestockId <= 0) {
-        header("Location: archived_livestocks.php");
-        exit();
-    }
-
-    if ($action === 'restore') {
-
-        $stmt = $conn->prepare("
-            UPDATE livestocks
-            SET archived = 0
-            WHERE livestock_id = ?
-            AND archived = 1
-        ");
-
-        if ($stmt) {
-            $stmt->bind_param("i", $livestockId);
-            $stmt->execute();
-            $stmt->close();
-        }
-
-        header("Location: archived_livestocks.php?restored=1");
-        exit();
-    }
-
-    if ($action === 'delete') {
-
-        /*
-         * Remove monitoring records belonging to this livestock first.
-         * These table names match the monitoring tables used by livestocks.php.
-         * If a table does not exist, it is simply skipped.
-         */
-        $monitoringTables = [
-            'chicken_weight_records',
-            'chicken_egg_records',
-            'chicken_mortality_records',
-            'chicken_feed_ingredients',
-            'chicken_drinking_water',
-            'chicken_feeding_schedule',
-            'goat_monitoring_records',
-            'goat_forage_records'
-        ];
-
-        foreach ($monitoringTables as $table) {
-            $check = $conn->query("SHOW TABLES LIKE '" . $conn->real_escape_string($table) . "'");
-
-            if ($check && $check->num_rows > 0) {
-                $delete = $conn->prepare("
-                    DELETE FROM `$table`
-                    WHERE livestock_id = ?
-                ");
-
-                if ($delete) {
-                    $delete->bind_param("i", $livestockId);
-                    $delete->execute();
-                    $delete->close();
+    if ($livestockId > 0) {
+        try {
+            if ($action === 'restore') {
+                restoreRecord($conn, 'livestocks', 'livestock_id', $livestockId);
+                foreach (['chicken_weight_records','chicken_egg_records','chicken_mortality_records','chicken_feed_ingredients','chicken_drinking_water','chicken_feeding_schedule','goat_monitoring_records','goat_forage_records'] as $table) {
+                    if (archiveTableExists($conn, $table)) restoreLivestockRelated($conn, $table, $livestockId);
                 }
+                header("Location: archived_livestocks.php?restored=1" . ($returnType !== '' ? '&type=' . urlencode($returnType) : ''));
+                exit();
             }
 
-            if ($check) {
-                $check->free();
+            if ($action === 'delete') {
+                $conn->begin_transaction();
+                permanentlyDeleteArchived($conn, 'livestocks', 'livestock_id', $livestockId);
+                foreach (['chicken_weight_records','chicken_egg_records','chicken_mortality_records','chicken_feed_ingredients','chicken_drinking_water','chicken_feeding_schedule','goat_monitoring_records','goat_forage_records'] as $table) {
+                    if (archiveTableExists($conn, $table)) {
+                        $archive = archiveTableName($table);
+                        $st = $conn->prepare("DELETE FROM `{$archive}` WHERE livestock_id=?");
+                        if ($st) { $st->bind_param('i', $livestockId); $st->execute(); $st->close(); }
+                    }
+                }
+                $conn->commit();
+                header("Location: archived_livestocks.php?deleted=1" . ($returnType !== '' ? '&type=' . urlencode($returnType) : ''));
+                exit();
             }
+        } catch (Throwable $e) {
+            @$conn->rollback();
+            $error = $e->getMessage();
         }
-
-        $stmt = $conn->prepare("
-            DELETE FROM livestocks
-            WHERE livestock_id = ?
-            AND archived = 1
-        ");
-
-        if ($stmt) {
-            $stmt->bind_param("i", $livestockId);
-            $stmt->execute();
-            $stmt->close();
-        }
-
-        header("Location: archived_livestocks.php?deleted=1");
-        exit();
     }
 }
 
-/*
-|--------------------------------------------------------------------------
-| GET ARCHIVED LIVESTOCK
-|--------------------------------------------------------------------------
-*/
-$livestocksResult = $conn->query("
-    SELECT *
-    FROM livestocks
-    WHERE archived = 1
-    ORDER BY livestock_id DESC
-");
+$typeResult = $conn->query("SELECT DISTINCT type FROM archived_livestocks WHERE type IS NOT NULL AND TRIM(type) <> '' ORDER BY type ASC");
+$types = [];
+if ($typeResult) {
+    while ($t = $typeResult->fetch_assoc()) $types[] = $t['type'];
+}
+
+if ($selectedType !== '') {
+    $stmt = $conn->prepare("SELECT * FROM archived_livestocks WHERE LOWER(type)=LOWER(?) ORDER BY livestock_id DESC");
+    $stmt->bind_param('s', $selectedType);
+    $stmt->execute();
+    $livestocksResult = $stmt->get_result();
+} else {
+    $livestocksResult = $conn->query("SELECT * FROM archived_livestocks ORDER BY livestock_id DESC");
+}
 
 ?>
 <!DOCTYPE html>
@@ -204,6 +152,11 @@ body {
 .back-btn:hover {
     background: #e2e8f0;
 }
+
+
+.type-filter { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px; }
+.type-filter a { display:inline-flex; align-items:center; gap:6px; padding:8px 13px; border-radius:8px; background:#f1f5f9; color:#444; text-decoration:none; font-size:.82rem; transition:.2s; }
+.type-filter a:hover, .type-filter a.active { background:#e6f0e2; color:#3f6637; }
 
 .archive-toolbar {
     display: flex;
@@ -381,6 +334,18 @@ tbody tr:hover {
 
     </div>
 
+    <div class="type-filter">
+        <a href="archived_livestocks.php" class="<?= $selectedType === '' ? 'active' : '' ?>">
+            <span class="material-symbols-rounded">apps</span>All
+        </a>
+        <?php foreach ($types as $type): ?>
+            <a href="archived_livestocks.php?type=<?= urlencode($type) ?>" class="<?= strcasecmp($selectedType, $type) === 0 ? 'active' : '' ?>">
+                <span class="material-symbols-rounded">pets</span>
+                <?= htmlspecialchars($type) ?>
+            </a>
+        <?php endforeach; ?>
+    </div>
+
     <?php if (isset($_GET['restored'])): ?>
         <div class="archive-message">
             Livestock record restored successfully.
@@ -531,6 +496,9 @@ tbody tr:hover {
                                         value="<?= (int)$row['livestock_id'] ?>"
                                     >
 
+                                    <input type="hidden" name="return_type" value="<?= htmlspecialchars($selectedType, ENT_QUOTES) ?>"
+                                    >
+
                                     <button
                                         type="submit"
                                         class="action-icon restore-icon"
@@ -558,6 +526,9 @@ tbody tr:hover {
                                         type="hidden"
                                         name="livestock_id"
                                         value="<?= (int)$row['livestock_id'] ?>"
+                                    >
+
+                                    <input type="hidden" name="return_type" value="<?= htmlspecialchars($selectedType, ENT_QUOTES) ?>"
                                     >
 
                                     <button

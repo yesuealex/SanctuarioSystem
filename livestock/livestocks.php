@@ -4,6 +4,7 @@
 session_start();
 
 include '../db.php';
+require_once '../archive/archive_functions.php';
 
 
 // =========================================================
@@ -19,6 +20,9 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $role = $_SESSION['role'] ?? 'staff';
+
+/* Keep livestock archive physical: migrate any legacy soft-archived rows once. */
+try { ensureArchiveTable($conn, 'livestocks'); } catch (Throwable $e) { /* page remains usable */ }
 
 /* Ensure monitoring records support archiving even on an existing database. */
 $monitoringTables = [
@@ -97,10 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['monitoring_action']))
 
         if ($recordId > 0 && isset($archiveMap[$recordType])) {
             $table = $archiveMap[$recordType];
-            $stmt = $conn->prepare("UPDATE {$table} SET archived = 1 WHERE id = ? AND (livestock_id = ? OR livestock_id = 0)");
-            $stmt->bind_param("ii", $recordId, $livestockId);
-            $stmt->execute();
-            $stmt->close();
+            archiveRecord($conn, $table, 'id', $recordId, (int)$_SESSION['user_id']);
         }
 
         header("Location: livestocks.php?type=" . urlencode($_POST['return_type'] ?? '') . "&livestock_id=" . $livestockId);
@@ -221,6 +222,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['monitoring_action']))
 // ARCHIVE LIVESTOCK
 // =========================================================
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive_livestock_id'])) {
+    if ($role !== 'admin') {
+        http_response_code(403);
+        exit('Unauthorized');
+    }
+
+    $archiveId = (int)$_POST['archive_livestock_id'];
+
+    if ($archiveId > 0) {
+        try {
+            $conn->begin_transaction();
+
+            /*
+             * Physical archive: copy the current row into archived_livestocks,
+             * then DELETE it from livestocks. If it was already copied by an
+             * older archive attempt, remove the active copy instead of leaving
+             * it visible in the active list.
+             */
+            $sourceCols = archiveColumns($conn, 'livestocks');
+            $archiveTable = ensureArchiveTable($conn, 'livestocks', false);
+
+            $check = $conn->prepare("SELECT COUNT(*) FROM `livestocks` WHERE `livestock_id` = ?");
+            $check->bind_param('i', $archiveId);
+            $check->execute();
+            $check->bind_result($exists);
+            $check->fetch();
+            $check->close();
+
+            if (!$exists) {
+                throw new Exception('Livestock record was not found in the active records.');
+            }
+
+            $insertSql = "INSERT INTO `{$archiveTable}` (`" . implode('`,`', $sourceCols) . "`,`archived_at`,`archived_by`) SELECT `" . implode('`,`', $sourceCols) . "`,NOW(),? FROM `livestocks` WHERE `livestock_id`=? LIMIT 1";
+            $ins = $conn->prepare($insertSql);
+            if (!$ins) throw new Exception('Could not prepare livestock archive: ' . $conn->error);
+            $uid = (int)$_SESSION['user_id'];
+            $ins->bind_param('ii', $uid, $archiveId);
+            if (!$ins->execute()) {
+                /* If an older archive copy already exists, treat it as archived. */
+                $duplicate = stripos($ins->error, 'duplicate') !== false;
+                $err = $ins->error;
+                $ins->close();
+                if (!$duplicate) throw new Exception('Could not archive livestock: ' . $err);
+            } else {
+                $ins->close();
+            }
+
+            /* Always remove the active copy after a successful archive or a duplicate archive copy. */
+            $del = $conn->prepare("DELETE FROM `livestocks` WHERE `livestock_id` = ? LIMIT 1");
+            if (!$del) throw new Exception('Could not prepare active livestock removal: ' . $conn->error);
+            $del->bind_param('i', $archiveId);
+            if (!$del->execute()) {
+                $err = $del->error;
+                $del->close();
+                throw new Exception('Could not remove active livestock: ' . $err);
+            }
+            $del->close();
+
+            /* Archive all related monitoring records too. */
+            $monitoringTables = [
+                'chicken_weight_records','chicken_egg_records','chicken_mortality_records',
+                'chicken_feed_ingredients','chicken_drinking_water','chicken_feeding_schedule',
+                'goat_monitoring_records','goat_forage_records'
+            ];
+            foreach ($monitoringTables as $monitoringTable) {
+                if (archiveTableExists($conn, $monitoringTable)) {
+                    archiveTableRowsForLivestock($conn, $monitoringTable, $archiveId, $uid);
+                }
+            }
+
+            $conn->commit();
+            header("Location: livestocks.php?archived=1");
+            exit();
+        } catch (Throwable $e) {
+            $conn->rollback();
+            http_response_code(500);
+            exit('Could not archive livestock: ' . htmlspecialchars($e->getMessage()));
+        }
+    }
+}
+
+// =========================================================
+
 if (
     $_SERVER['REQUEST_METHOD'] === 'POST'
     &&
@@ -244,28 +328,25 @@ if (
 
 
     if ($archiveId > 0) {
-
-        $archiveStmt = $conn->prepare("
-            UPDATE livestocks
-            SET archived = 1
-            WHERE livestock_id = ?
-            AND archived = 0
-        ");
-
-
-        if ($archiveStmt) {
-
-            $archiveStmt->bind_param(
-                "i",
-                $archiveId
-            );
-
-            $archiveStmt->execute();
-
-            $archiveStmt->close();
-
+        $conn->begin_transaction();
+        try {
+            archiveRecordInTransaction($conn, 'livestocks', 'livestock_id', $archiveId, (int)$_SESSION['user_id']);
+            $monitoringTables = [
+                'chicken_weight_records','chicken_egg_records','chicken_mortality_records',
+                'chicken_feed_ingredients','chicken_drinking_water','chicken_feeding_schedule',
+                'goat_monitoring_records','goat_forage_records'
+            ];
+            foreach ($monitoringTables as $monitoringTable) {
+                if (archiveTableExists($conn, $monitoringTable)) {
+                    archiveTableRowsForLivestock($conn, $monitoringTable, $archiveId, (int)$_SESSION['user_id']);
+                }
+            }
+            $conn->commit();
+        } catch (Throwable $e) {
+            $conn->rollback();
+            http_response_code(500);
+            exit('Could not archive livestock: ' . htmlspecialchars($e->getMessage()));
         }
-
     }
 
 
@@ -302,49 +383,88 @@ $typeResult = $conn->query("
     SELECT DISTINCT type
     FROM livestocks
     WHERE archived = 0
+      AND type IS NOT NULL
+      AND TRIM(type) <> ''
     ORDER BY type ASC
 ");
+
+/* Always show the standard livestock types, even when there are currently
+   no active records of that type. */
+$livestockTypes = ['Chicken', 'Goat', 'Pig', 'Rabbit'];
+
+if ($typeResult) {
+    while ($typeRow = $typeResult->fetch_assoc()) {
+        $dbType = trim((string)($typeRow['type'] ?? ''));
+        if ($dbType === '') {
+            continue;
+        }
+
+        $alreadyExists = false;
+        foreach ($livestockTypes as $existingType) {
+            if (strcasecmp($existingType, $dbType) === 0) {
+                $alreadyExists = true;
+                break;
+            }
+        }
+
+        if (!$alreadyExists) {
+            $livestockTypes[] = $dbType;
+        }
+    }
+}
+
+$preferredOrder = ['Chicken', 'Goat', 'Pig', 'Rabbit'];
+usort($livestockTypes, function ($a, $b) use ($preferredOrder) {
+    $preferred = array_map('strtolower', $preferredOrder);
+    $ia = array_search(strtolower($a), $preferred, true);
+    $ib = array_search(strtolower($b), $preferred, true);
+    $ia = ($ia === false) ? PHP_INT_MAX : $ia;
+    $ib = ($ib === false) ? PHP_INT_MAX : $ib;
+
+    return $ia === $ib ? strcasecmp($a, $b) : ($ia <=> $ib);
+});
 
 
 // =========================================================
 // GET LIVESTOCK NAMES
 // =========================================================
 
+/* Include the separate pig_records table in the existing livestock selector.
+   Pig page IDs are negative so they cannot collide with livestocks.livestock_id. */
+$baseLivestockSql = "
+    SELECT CAST(livestock_id AS SIGNED) AS page_id, livestock_id, name, type
+    FROM livestocks
+    WHERE archived = 0
+";
+
+$pigSql = "
+    SELECT (0 - CAST(pig_id AS SIGNED)) AS page_id, NULL AS livestock_id, name, 'Pig' AS type
+    FROM pig_records
+";
+
 if ($selectedType !== '') {
 
-    $stmtType = $conn->prepare("
-        SELECT livestock_id, name, type
-        FROM livestocks
-        WHERE archived = 0
-        AND LOWER(type) = LOWER(?)
-        ORDER BY name ASC
-    ");
-
-
-    $stmtType->bind_param(
-        "s",
-        $selectedType
-    );
-
-
-    $stmtType->execute();
-
-
-    $nameResult =
-        $stmtType->get_result();
+    if (strcasecmp(trim($selectedType), 'Pig') === 0) {
+        $nameResult = $conn->query($pigSql . " ORDER BY name ASC");
+    } else {
+        $stmtType = $conn->prepare($baseLivestockSql . "
+            AND LOWER(type) = LOWER(?)
+            ORDER BY name ASC
+        ");
+        $stmtType->bind_param("s", $selectedType);
+        $stmtType->execute();
+        $nameResult = $stmtType->get_result();
+    }
 
 } else {
 
     $nameSql = "
-        SELECT livestock_id, name, type
-        FROM livestocks
-        WHERE archived = 0
+        (" . $baseLivestockSql . ")
+        UNION ALL
+        (" . $pigSql . ")
         ORDER BY name ASC
     ";
-
-
-    $nameResult =
-        $conn->query($nameSql);
+    $nameResult = $conn->query($nameSql);
 
 }
 
@@ -365,9 +485,11 @@ if (
         $nameResult->fetch_assoc();
 
 
+    // Use page_id because Pig records do not have a livestocks.livestock_id.
+    // Pig page IDs are negative; regular livestock IDs remain positive.
     $selectedLivestockId =
         intval(
-            $firstLivestock['livestock_id']
+            $firstLivestock['page_id']
         );
 
 
@@ -382,8 +504,53 @@ if (
 
 $livestockProfile = null;
 
+if ($selectedLivestockId < 0) {
 
-if ($selectedLivestockId > 0) {
+    $pigId = abs($selectedLivestockId);
+    $stmt = $conn->prepare("SELECT * FROM pig_records WHERE pig_id = ? LIMIT 1");
+    $stmt->bind_param("i", $pigId);
+    $stmt->execute();
+    $profileResult = $stmt->get_result();
+
+    if ($profileResult && $profileResult->num_rows > 0) {
+        $pig = $profileResult->fetch_assoc();
+        $ageText = '-';
+
+        if (!empty($pig['date_of_birth'])) {
+            try {
+                $dob = new DateTime($pig['date_of_birth']);
+                $today = new DateTime('today');
+                $age = $dob->diff($today);
+                $ageText = $age->y . ' yr' . ($age->y === 1 ? '' : 's');
+                if ($age->m > 0) {
+                    $ageText .= ' ' . $age->m . ' mo' . ($age->m === 1 ? '' : 's');
+                }
+            } catch (Throwable $e) {
+                $ageText = '-';
+            }
+        }
+
+        $livestockProfile = [
+            'livestock_id' => $selectedLivestockId,
+            'pig_id' => $pig['pig_id'],
+            'tag_number' => $pig['tag_number'] ?? '',
+            'name' => $pig['name'] ?? '-',
+            'type' => 'Pig',
+            'sex' => $pig['sex'] ?? '-',
+            'breed' => $pig['breed'] ?? '-',
+            'date_of_birth' => $pig['date_of_birth'] ?? null,
+            'age' => $ageText,
+            'estimated_weight' => $pig['weight'] ?? null,
+            'weight_unit' => $pig['weight_unit'] ?? 'kg',
+            'purpose' => $pig['purpose'] ?? '-',
+            'health_status' => $pig['health_status'] ?? 'Healthy',
+            'notes' => $pig['notes'] ?? '',
+            'for_sale' => '0'
+        ];
+    }
+    $stmt->close();
+
+} elseif ($selectedLivestockId > 0) {
 
     $stmt = $conn->prepare("
         SELECT *
@@ -392,35 +559,14 @@ if ($selectedLivestockId > 0) {
         AND archived = 0
         LIMIT 1
     ");
-
-
-    $stmt->bind_param(
-        "i",
-        $selectedLivestockId
-    );
-
-
+    $stmt->bind_param("i", $selectedLivestockId);
     $stmt->execute();
+    $profileResult = $stmt->get_result();
 
-
-    $profileResult =
-        $stmt->get_result();
-
-
-    if (
-        $profileResult
-        &&
-        $profileResult->num_rows > 0
-    ) {
-
-        $livestockProfile =
-            $profileResult->fetch_assoc();
-
+    if ($profileResult && $profileResult->num_rows > 0) {
+        $livestockProfile = $profileResult->fetch_assoc();
     }
-
-
     $stmt->close();
-
 }
 
 
@@ -642,33 +788,16 @@ $livestockResult = $conn->query("
                 </option>
 
 
-                <?php if ($typeResult): ?>
+                <?php foreach ($livestockTypes as $livestockType): ?>
 
-                    <?php while (
-                        $typeRow =
-                        $typeResult->fetch_assoc()
-                    ): ?>
+                    <option
+                        value="<?= htmlspecialchars($livestockType, ENT_QUOTES) ?>"
+                        <?= strtolower($selectedType) === strtolower($livestockType) ? 'selected' : '' ?>
+                    >
+                        <?= htmlspecialchars($livestockType) ?>
+                    </option>
 
-                        <option
-                            value="<?= htmlspecialchars(
-                                $typeRow['type'],
-                                ENT_QUOTES
-                            ) ?>"
-                            <?= strtolower($selectedType) ===
-                                strtolower($typeRow['type'])
-                                ? 'selected'
-                                : '' ?>
-                        >
-
-                            <?= htmlspecialchars(
-                                $typeRow['type']
-                            ) ?>
-
-                        </option>
-
-                    <?php endwhile; ?>
-
-                <?php endif; ?>
+                <?php endforeach; ?>
 
             </select>
 
@@ -695,10 +824,10 @@ $livestockResult = $conn->query("
 
                         <option
                             value="<?= intval(
-                                $nameRow['livestock_id']
+                                $nameRow['page_id']
                             ) ?>"
                             <?= intval(
-                                $nameRow['livestock_id']
+                                $nameRow['page_id']
                             ) === $selectedLivestockId
                                 ? 'selected'
                                 : '' ?>
@@ -792,7 +921,7 @@ $livestockResult = $conn->query("
                     </h2>
 
 
-                    <?php if ($role === 'admin'): ?>
+                    <?php if ($role === 'admin' && ($livestockProfile['type'] ?? '') !== 'Pig'): ?>
 
                         <button
                             type="button"
