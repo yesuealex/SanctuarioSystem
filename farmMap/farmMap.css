@@ -3082,3 +3082,69 @@ a.edit-btn:hover {
     inset: 0 !important;
     z-index: 12000 !important;
 }
+
+
+/* =========================================================
+   NURSERY IMAGE + DATABASE CROP MARKERS
+========================================================= */
+
+.nursery-image-map {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    margin: 0 0 22px;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #eef3e9;
+}
+
+.nursery-image-map > img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.nursery-crop-markers {
+    position: absolute;
+    inset: 0;
+}
+
+.nursery-crop-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 36px;
+    height: 36px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: #6b8e23;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(0,0,0,.22);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    transition: transform .15s ease;
+}
+
+.nursery-crop-marker:hover {
+    transform: translate(-50%, -50%) scale(1.12);
+}
+
+.nursery-crop-info {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    z-index: 10;
+    max-width: 260px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.95);
+    color: #334133;
+    box-shadow: 0 4px 14px rgba(0,0,0,.15);
+    font-size: 11px;
+    line-height: 1.55;
+}

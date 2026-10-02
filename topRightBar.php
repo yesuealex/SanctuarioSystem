@@ -252,14 +252,25 @@ $trb_loggedInUser = null;
 
 if ($trb_loggedInUserId > 0) {
 
+    $trb_hasProfileColumn = false;
+    $trb_profileColumnResult = mysqli_query(
+        $conn,
+        "SHOW COLUMNS FROM users LIKE 'profile_picture'"
+    );
+
+    if ($trb_profileColumnResult) {
+        $trb_hasProfileColumn = mysqli_num_rows($trb_profileColumnResult) > 0;
+        mysqli_free_result($trb_profileColumnResult);
+    }
+
+    $trb_userSelect = $trb_hasProfileColumn
+        ? "user_id, name, username, role, profile_picture"
+        : "user_id, name, username, role";
+
     $trb_userStmt = mysqli_prepare(
         $conn,
         "
-        SELECT
-            user_id,
-            name,
-            username,
-            role
+        SELECT {$trb_userSelect}
         FROM users
         WHERE user_id = ?
         LIMIT 1
@@ -317,7 +328,9 @@ if (!$trb_loggedInUser) {
 
         'username' => 'User',
 
-        'role'     => 'staff'
+        'role'     => 'staff',
+
+        'profile_picture' => ''
     ];
 }
 
@@ -351,6 +364,9 @@ $trb_userRole =
         $trb_loggedInUser['role']
         ?? 'staff'
     );
+
+$trb_profilePicture =
+    trim((string)($trb_loggedInUser['profile_picture'] ?? ''));
 
 
 /* =========================================================
@@ -1624,13 +1640,25 @@ $trb_badgeText =
 
             <div class="profile-avatar">
 
-                <span
-                    class="
-                        material-symbols-rounded
-                    "
-                >
-                    account_circle
-                </span>
+                <?php if ($trb_profilePicture !== ''): ?>
+
+                    <img
+                        src="<?= trb_escape($trb_profilePicture) ?>"
+                        alt="Profile"
+                        class="topbar-profile-image"
+                    >
+
+                <?php else: ?>
+
+                    <span
+                        class="
+                            material-symbols-rounded
+                        "
+                    >
+                        account_circle
+                    </span>
+
+                <?php endif; ?>
 
             </div>
 
@@ -1673,13 +1701,25 @@ $trb_badgeText =
                     "
                 >
 
-                    <span
-                        class="
-                            material-symbols-rounded
-                        "
-                    >
-                        account_circle
-                    </span>
+                    <?php if ($trb_profilePicture !== ''): ?>
+
+                        <img
+                            src="<?= trb_escape($trb_profilePicture) ?>"
+                            alt="Profile"
+                            class="topbar-profile-image"
+                        >
+
+                    <?php else: ?>
+
+                        <span
+                            class="
+                                material-symbols-rounded
+                            "
+                        >
+                            account_circle
+                        </span>
+
+                    <?php endif; ?>
 
                 </div>
 
@@ -1991,3 +2031,16 @@ $trb_badgeText =
 })();
 
 </script>
+<style>
+.topbar-profile-image {
+    width: 43px;
+    height: 43px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+.profile-dropdown-avatar .topbar-profile-image {
+    width: 42px;
+    height: 42px;
+}
+</style>

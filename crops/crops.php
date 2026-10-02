@@ -171,35 +171,31 @@ $cropsResult = $conn->query("
                 <div class="crop-filters">
 
 
-                    <!-- FILTER -->
+                    <!-- LOCATION BUTTONS -->
 
-                    <select
-                        id="cropPlotFilter"
-                        class="crop-select"
-                        onchange="filterCropRecords()"
-                    >
+                    <div class="crop-location-buttons" id="cropLocationButtons">
 
-                        <option value="all">
+                        <button type="button" class="crop-location-btn active" data-filter="all">
                             All
-                        </option>
+                        </button>
 
-                        <option value="nursery">
+                        <button type="button" class="crop-location-btn" data-filter="nursery">
                             Nursery
-                        </option>
+                        </button>
 
-                        <option value="plot a">
+                        <button type="button" class="crop-location-btn" data-filter="plot a">
                             Plot A
-                        </option>
+                        </button>
 
-                        <option value="plot b">
+                        <button type="button" class="crop-location-btn" data-filter="plot b">
                             Plot B
-                        </option>
+                        </button>
 
-                        <option value="plot c">
+                        <button type="button" class="crop-location-btn" data-filter="plot c">
                             Plot C
-                        </option>
+                        </button>
 
-                    </select>
+                    </div>
 
 
                     <!-- SEARCH -->
@@ -214,6 +210,26 @@ $cropsResult = $conn->query("
                             type="text"
                             id="cropSearch"
                             placeholder="Search here..."
+                            onkeyup="filterCropRecords()"
+                        >
+
+                    </div>
+
+                    <div class="crop-extra-filters">
+
+                        <input
+                            type="date"
+                            id="cropDateFilter"
+                            class="crop-date-filter"
+                            title="Filter by date"
+                            onchange="filterCropRecords()"
+                        >
+
+                        <input
+                            type="text"
+                            id="cropStaffFilter"
+                            class="crop-staff-filter"
+                            placeholder="Staff / recipient"
                             onkeyup="filterCropRecords()"
                         >
 
@@ -374,7 +390,13 @@ $cropsResult = $conn->query("
                         ): ?>
 
 
-                            <tr class="crop-row">
+                            <tr
+                                class="crop-row"
+                                data-sowing="<?= htmlspecialchars($row['date_sowing'] ?? '', ENT_QUOTES) ?>"
+                                data-transplanted="<?= htmlspecialchars($row['date_transplanted'] ?? '', ENT_QUOTES) ?>"
+                                data-harvest="<?= htmlspecialchars($row['expected_harvest'] ?? '', ENT_QUOTES) ?>"
+                                data-recipient="<?= htmlspecialchars($row['recipient'] ?? '', ENT_QUOTES) ?>"
+                            >
 
                                 <td class="row-number"><?= $cropRowNumber++ ?></td>
 
@@ -609,7 +631,7 @@ $cropsResult = $conn->query("
                                             >
 
                                                 <span class="material-symbols-rounded">
-                                                    archive
+                                                    delete
                                                 </span>
 
                                             </button>
@@ -967,85 +989,64 @@ function confirmArchive() {
 
 function filterCropRecords() {
 
-    const searchInput =
-        document.getElementById(
-            'cropSearch'
-        );
+    const searchInput = document.getElementById('cropSearch');
+    const dateFilter = document.getElementById('cropDateFilter');
+    const staffFilter = document.getElementById('cropStaffFilter');
+    const activeButton = document.querySelector('.crop-location-btn.active');
 
+    const search = (searchInput?.value || '').toLowerCase().trim();
+    const date = dateFilter?.value || '';
+    const staff = (staffFilter?.value || '').toLowerCase().trim();
+    const location = activeButton?.dataset.filter || 'all';
 
-    const plotFilter =
-        document.getElementById(
-            'cropPlotFilter'
-        );
+    document.querySelectorAll('.crop-row').forEach(function(row) {
 
+        const text = row.textContent.toLowerCase();
+        const recipient = (row.dataset.recipient || '').toLowerCase();
 
-    if (
-        !searchInput ||
-        !plotFilter
-    ) {
+        const matchesSearch = !search || text.includes(search);
+        const matchesStaff = !staff || recipient.includes(staff);
 
-        return;
+        const matchesLocation =
+            location === 'all' ||
+            text.includes(location);
 
-    }
+        const rowDates = [
+            row.dataset.sowing || '',
+            row.dataset.transplanted || '',
+            row.dataset.harvest || ''
+        ];
 
+        const matchesDate =
+            !date || rowDates.includes(date);
 
-    const search =
-        searchInput.value
-            .toLowerCase()
-            .trim();
-
-
-    const plot =
-        plotFilter.value
-            .toLowerCase();
-
-
-    const rows =
-        document.querySelectorAll(
-            '.crop-row'
-        );
-
-
-    rows.forEach(
-        function(row) {
-
-            const text =
-                row.textContent
-                    .toLowerCase();
-
-
-            const matchesSearch =
-                text.includes(search);
-
-
-            let matchesPlot = true;
-
-
-            if (plot !== 'all') {
-
-                matchesPlot =
-                    text.includes(plot);
-
-            }
-
-
-            if (
-                matchesSearch &&
-                matchesPlot
-            ) {
-
-                row.style.display = '';
-
-            } else {
-
-                row.style.display = 'none';
-
-            }
-
-        }
-    );
-
+        row.style.display =
+            matchesSearch &&
+            matchesStaff &&
+            matchesLocation &&
+            matchesDate
+                ? ''
+                : 'none';
+    });
 }
+
+
+/* =========================================================
+   LOCATION BUTTONS
+   ========================================================= */
+
+document.querySelectorAll('.crop-location-btn').forEach(function(button) {
+
+    button.addEventListener('click', function() {
+
+        document.querySelectorAll('.crop-location-btn').forEach(function(item) {
+            item.classList.remove('active');
+        });
+
+        this.classList.add('active');
+        filterCropRecords();
+    });
+});
 
 
 /* =========================================================

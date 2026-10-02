@@ -18,7 +18,6 @@ if (($_SESSION['role'] ?? '') !== 'admin') {
 }
 
 require_once '../db.php';
-require_once '../archive/archive_functions.php';
 
 function e($value) {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
@@ -62,6 +61,40 @@ try {
 }
 
 /* ============================================================
+   STOCK TRANSACTION TABLE
+   Stores every IN / OUT movement without replacing the
+   existing inventory_items structure.
+============================================================ */
+$transactionTableReady = false;
+
+if ($tableReady) {
+    try {
+        $conn->query("
+            CREATE TABLE IF NOT EXISTS inventory_transactions (
+                transaction_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                inventory_id INT UNSIGNED NOT NULL,
+                transaction_type ENUM('IN','OUT') NOT NULL,
+                quantity DECIMAL(12,2) NOT NULL,
+                note VARCHAR(255) DEFAULT NULL,
+                created_by INT UNSIGNED DEFAULT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (transaction_id),
+                KEY idx_inventory_transaction_item (inventory_id),
+                KEY idx_inventory_transaction_created (created_at),
+                CONSTRAINT fk_inventory_transaction_item
+                    FOREIGN KEY (inventory_id)
+                    REFERENCES inventory_items(inventory_id)
+                    ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+        $transactionTableReady = true;
+    } catch (Throwable $ex) {
+        $transactionTableReady = false;
+        $error = $error ?: 'Could not prepare the inventory IN/OUT table: ' . $ex->getMessage();
+    }
+}
+
+/* ============================================================
    POST ACTIONS
 ============================================================ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableReady) {
@@ -69,6 +102,147 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableReady) {
     $action = $_POST['action'] ?? '';
 
     try {
+
+        /* ----------------------------------------------------
+           STOCK IN / OUT
+        ---------------------------------------------------- */
+        if ($action === 'stock_transaction') {
+
+            if (!$transactionTableReady) {
+                throw new Exception('Inventory transaction table is not available.');
+            }
+
+            $inventoryId = (int)($_POST['inventory_id'] ?? 0);
+            $transactionType = strtoupper(trim($_POST['transaction_type'] ?? ''));
+            $transactionQty = (float)($_POST['transaction_quantity'] ?? 0);
+            $note = trim($_POST['transaction_note'] ?? '');
+
+            if ($inventoryId <= 0) {
+                throw new Exception('Invalid inventory item.');
+            }
+
+            if (!in_array($transactionType, ['IN', 'OUT'], true)) {
+                throw new Exception('Invalid transaction type.');
+            }
+
+            if ($transactionQty <= 0) {
+                throw new Exception('Transaction quantity must be greater than zero.');
+            }
+
+            $conn->begin_transaction();
+
+            $stmt = $conn->prepare("
+                SELECT quantity
+                FROM inventory_items
+                WHERE inventory_id = ?
+                  AND is_archived = 0
+                LIMIT 1
+                FOR UPDATE
+            ");
+
+            if (!$stmt) {
+                throw new Exception('Could not prepare inventory lookup.');
+            }
+
+            $stmt->bind_param('i', $inventoryId);
+            $stmt->execute();
+            $currentItem = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            if (!$currentItem) {
+                throw new Exception('Inventory item was not found.');
+            }
+
+            /*
+             * Existing quantity is VARCHAR because the project allows
+             * values such as "10 Grams". The first numeric value is used
+             * for stock movement while the original field remains usable.
+             */
+            $rawQuantity = (string)($currentItem['quantity'] ?? '');
+            $currentQuantity = 0.0;
+
+            if (preg_match('/-?\d+(?:\.\d+)?/', $rawQuantity, $matches)) {
+                $currentQuantity = (float)$matches[0];
+            }
+
+            if ($transactionType === 'OUT' && $transactionQty > $currentQuantity) {
+                throw new Exception(
+                    'Cannot stock OUT more than the current recorded quantity (' .
+                    rtrim(rtrim(number_format($currentQuantity, 2, '.', ''), '0'), '.') .
+                    ').'
+                );
+            }
+
+            $newQuantity = $transactionType === 'IN'
+                ? $currentQuantity + $transactionQty
+                : $currentQuantity - $transactionQty;
+
+            $newStatus =
+                $newQuantity <= 0
+                    ? 'No Stock'
+                    : ($newQuantity <= 5 ? 'Low Stock' : 'In Stock');
+
+            $quantityText = rtrim(
+                rtrim(number_format($newQuantity, 2, '.', ''), '0'),
+                '.'
+            );
+
+            $stmt = $conn->prepare("
+                UPDATE inventory_items
+                SET quantity = ?, status = ?
+                WHERE inventory_id = ?
+                LIMIT 1
+            ");
+
+            if (!$stmt) {
+                throw new Exception('Could not update inventory quantity.');
+            }
+
+            $stmt->bind_param(
+                'ssi',
+                $quantityText,
+                $newStatus,
+                $inventoryId
+            );
+            $stmt->execute();
+            $stmt->close();
+
+            $adminId = (int)$_SESSION['user_id'];
+
+            $stmt = $conn->prepare("
+                INSERT INTO inventory_transactions
+                (
+                    inventory_id,
+                    transaction_type,
+                    quantity,
+                    note,
+                    created_by
+                )
+                VALUES (?, ?, ?, ?, ?)
+            ");
+
+            if (!$stmt) {
+                throw new Exception('Could not save the inventory transaction.');
+            }
+
+            $stmt->bind_param(
+                'isdsi',
+                $inventoryId,
+                $transactionType,
+                $transactionQty,
+                $note,
+                $adminId
+            );
+            $stmt->execute();
+            $stmt->close();
+
+            $conn->commit();
+
+            redirectWithMessage(
+                'Stock ' . $transactionType . ' completed successfully.'
+            );
+        }
+
 
         /* ----------------------------------------------------
            ADD ITEM
@@ -268,7 +442,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tableReady) {
                 throw new Exception('Invalid inventory item.');
             }
 
-            archiveRecord($conn, 'inventory_items', 'inventory_id', $inventoryId, (int)$_SESSION['user_id']);
+            $stmt = $conn->prepare("
+                UPDATE inventory_items
+                SET is_archived = 1
+                WHERE inventory_id = ?
+            ");
+
+            if (!$stmt) {
+                throw new Exception('Could not prepare archive action: ' . $conn->error);
+            }
+
+            $stmt->bind_param("i", $inventoryId);
+            $stmt->execute();
+            $stmt->close();
 
             redirectWithMessage('Inventory item archived successfully.');
         }
@@ -392,6 +578,42 @@ if ($tableReady) {
             $items[] = $row;
         }
 
+    } catch (Throwable $ex) {
+        $error = $error ?: $ex->getMessage();
+    }
+}
+
+
+/* ============================================================
+   LOAD RECENT STOCK TRANSACTIONS
+============================================================ */
+$recentTransactions = [];
+
+if ($transactionTableReady) {
+    try {
+        $result = $conn->query("
+            SELECT
+                it.transaction_id,
+                it.transaction_type,
+                it.quantity,
+                it.note,
+                it.created_at,
+                ii.item_name,
+                u.name AS created_by_name
+            FROM inventory_transactions it
+            INNER JOIN inventory_items ii
+                ON ii.inventory_id = it.inventory_id
+            LEFT JOIN users u
+                ON u.user_id = it.created_by
+            ORDER BY it.transaction_id DESC
+            LIMIT 20
+        ");
+
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $recentTransactions[] = $row;
+            }
+        }
     } catch (Throwable $ex) {
         $error = $error ?: $ex->getMessage();
     }
@@ -1005,6 +1227,16 @@ $modalEditMode = ($editItem !== null);
 
                                     <div class="table-actions">
 
+                                        <!-- STOCK IN / OUT -->
+                                        <button
+                                            type="button"
+                                            class="stock-move-button"
+                                            onclick="openStockMove(<?= (int)$item['inventory_id'] ?>, '<?= e($item['item_name']) ?>', '<?= e($item['quantity']) ?>')"
+                                            title="Stock In / Out"
+                                        >
+                                            <i class="fa-solid fa-right-left"></i>
+                                        </button>
+
 
                                         <!-- EDIT -->
 
@@ -1590,6 +1822,129 @@ $modalEditMode = ($editItem !== null);
 
 
 <!-- ============================================================
+     STOCK IN / OUT MODAL
+============================================================ -->
+
+<div class="inventory-modal-overlay" id="stockMoveModal">
+
+    <div class="inventory-modal">
+
+        <div class="inventory-modal-header">
+            <h2>Stock Movement</h2>
+            <button type="button" class="modal-close" onclick="closeStockMove()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form method="post" id="stockMoveForm">
+
+            <input type="hidden" name="action" value="stock_transaction">
+            <input type="hidden" name="inventory_id" id="stockMoveInventoryId">
+
+            <div class="stock-move-item">
+                <strong id="stockMoveItemName">Inventory Item</strong>
+                <span>Current quantity: <b id="stockMoveCurrentQty">0</b></span>
+            </div>
+
+            <div class="stock-move-type">
+                <label>
+                    <input type="radio" name="transaction_type" value="IN" checked>
+                    <span><i class="fa-solid fa-arrow-down"></i> Stock IN</span>
+                </label>
+
+                <label>
+                    <input type="radio" name="transaction_type" value="OUT">
+                    <span><i class="fa-solid fa-arrow-up"></i> Stock OUT</span>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="transactionQuantity">Quantity</label>
+                <input
+                    type="number"
+                    id="transactionQuantity"
+                    name="transaction_quantity"
+                    min="0.01"
+                    step="0.01"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="transactionNote">Note</label>
+                <input
+                    type="text"
+                    id="transactionNote"
+                    name="transaction_note"
+                    maxlength="255"
+                    placeholder="e.g. New delivery / used for sowing"
+                >
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="modal-cancel" onclick="closeStockMove()">
+                    Cancel
+                </button>
+
+                <button type="submit" class="modal-save">
+                    Save Movement
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- ============================================================
+     RECENT STOCK MOVEMENTS
+============================================================ -->
+
+<div class="inventory-panel stock-history-panel">
+
+    <div class="panel-title">
+        RECENT STOCK MOVEMENTS
+    </div>
+
+    <?php if (!$recentTransactions): ?>
+
+        <div class="inventory-empty">
+            No stock IN/OUT transactions yet.
+        </div>
+
+    <?php else: ?>
+
+        <?php foreach ($recentTransactions as $transaction): ?>
+
+            <div class="stock-history-row">
+
+                <div>
+                    <strong><?= e($transaction['item_name']) ?></strong>
+                    <small>
+                        <?= date('M d, Y h:i A', strtotime($transaction['created_at'])) ?>
+                        <?php if (!empty($transaction['created_by_name'])): ?>
+                            • <?= e($transaction['created_by_name']) ?>
+                        <?php endif; ?>
+                    </small>
+                </div>
+
+                <span class="stock-history-type <?= strtolower($transaction['transaction_type']) ?>">
+                    <?= e($transaction['transaction_type']) ?>
+                    <?= e($transaction['quantity']) ?>
+                </span>
+
+            </div>
+
+        <?php endforeach; ?>
+
+    <?php endif; ?>
+
+</div>
+
+
+<!-- ============================================================
      JAVASCRIPT
 ============================================================ -->
 
@@ -1890,6 +2245,26 @@ function viewRequest(id) {
         encodeURIComponent(id);
 
 }
+
+
+function openStockMove(id, name, currentQty) {
+    document.getElementById('stockMoveInventoryId').value = id;
+    document.getElementById('stockMoveItemName').textContent = name;
+    document.getElementById('stockMoveCurrentQty').textContent = currentQty || '0';
+    document.getElementById('transactionQuantity').value = '';
+    document.getElementById('transactionNote').value = '';
+    document.getElementById('stockMoveModal').classList.add('show');
+}
+
+function closeStockMove() {
+    document.getElementById('stockMoveModal').classList.remove('show');
+}
+
+document.getElementById('stockMoveModal')?.addEventListener('click', function(event) {
+    if (event.target === this) {
+        closeStockMove();
+    }
+});
 
 </script>
 

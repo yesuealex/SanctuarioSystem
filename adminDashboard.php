@@ -83,20 +83,110 @@ $logs = $conn->query("
     pointer-events: auto;
 }
 
-.map-popup {
-    position: absolute;
-    z-index: 1000;
-    max-width: 260px;
-    max-height: 280px;
+ .map-popup {
+    position: fixed;
+    z-index: 99999;
+    width: min(360px, calc(100vw - 24px));
+    max-width: 360px;
+    max-height: min(520px, calc(100vh - 24px));
     overflow-y: auto;
-    padding: 12px 14px;
-    border-radius: 10px;
+    padding: 0;
+    border: 1px solid rgba(82, 123, 66, .16);
+    border-radius: 16px;
     background: #fff;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+    box-shadow: 0 18px 50px rgba(32, 58, 42, .28);
+    color: #334337;
+    font-family: 'Poppins', sans-serif;
+    box-sizing: border-box;
 }
 
-.map-popup.hidden {
-    display: none;
+.map-popup::-webkit-scrollbar { width: 6px; }
+.map-popup::-webkit-scrollbar-thumb {
+    background: #b8c9b0;
+    border-radius: 10px;
+}
+.map-popup::-webkit-scrollbar-track { background: transparent; }
+.map-popup.hidden { display: none; }
+.map-popup-head {
+    padding: 16px 18px 15px;
+    background: linear-gradient(135deg, #527b42, #6b8e5a);
+    color: #fff;
+}
+.map-popup-head .popup-kicker {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    opacity: .78;
+}
+.map-popup-head h4 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.3;
+}
+.map-popup-body { padding: 14px; }
+.map-popup-section-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0 2px 9px;
+    color: #365a3c;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .7px;
+    text-transform: uppercase;
+}
+.map-popup-section-title i { font-size: 12px; }
+.map-popup-card {
+    padding: 12px 13px;
+    margin-bottom: 9px;
+    border: 1px solid #e1ebdd;
+    border-radius: 11px;
+    background: #f9fbf8;
+}
+.map-popup-card:last-child { margin-bottom: 0; }
+.map-popup-card-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 7px;
+    color: #2f4f35;
+    font-size: 13px;
+    font-weight: 700;
+}
+.map-popup-card-title i {
+    color: #527b42;
+    font-size: 12px;
+}
+.map-popup-detail {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 7px 0;
+    border-bottom: 1px solid #edf2ea;
+    font-size: 11px;
+    line-height: 1.35;
+}
+.map-popup-detail:last-child { border-bottom: 0; padding-bottom: 0; }
+.map-popup-detail span:first-child { color: #718075; }
+.map-popup-detail strong { color: #3f4d42; text-align: right; }
+.map-popup-empty {
+    padding: 14px;
+    border: 1px dashed #cbd9c5;
+    border-radius: 10px;
+    color: #7a867b;
+    background: #fbfcfa;
+    text-align: center;
+    font-size: 11px;
+}
+.map-popup-error {
+    padding: 14px;
+    color: #8a4d4d;
+    background: #fff8f8;
+    font-size: 11px;
 }
 </style>
 
@@ -540,13 +630,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 svg.getScreenCTM()
             );
 
-            const rect = container.getBoundingClientRect();
-
-            popup.style.left =
-                `${screen.x - rect.left + 12}px`;
-
-            popup.style.top =
-                `${screen.y - rect.top + 12}px`;
+            popup.style.left = `${screen.x + 14}px`;
+            popup.style.top = `${screen.y + 14}px`;
 
             popup.classList.remove("hidden");
             popup.innerHTML = "Loading...";
@@ -577,84 +662,109 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
 
-                let html =
-                    `<strong>${
-                        data.plot || plot
-                    }</strong><br><br>`;
+                const safe = (value) => String(value ?? "--")
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
 
+                const formatNumber = (value) =>
+                    Number(value || 0).toLocaleString();
 
-                /* CROPS */
+                let html = "";
 
-                if (
-                    Array.isArray(data.crops) &&
-                    data.crops.length
-                ) {
-
-                    data.crops.forEach(c => {
-
-                        html += `
-                            <div style="margin-bottom:8px;">
-                                🌾 <b>${
-                                    c.crop_name ?? "--"
-                                }</b><br>
-                                👤 ${
-                                    c.staff_name ?? "--"
-                                }<br>
-                                🌱 ${
-                                    c.pcs ?? "--"
-                                } pcs<br>
-                                📅 ${
-                                    c.date_transplanted ?? "--"
-                                }
+                if (data.type === "livestock") {
+                    html = `
+                        <div class="map-popup-head">
+                            <span class="popup-kicker">Farm map location</span>
+                            <h4>${safe(data.plot_house_name || plot)}</h4>
+                        </div>
+                        <div class="map-popup-body">
+                            <div class="map-popup-section-title">
+                                <i class="fa-solid fa-house-chimney"></i> Livestock house records
                             </div>
-                        `;
-                    });
-                }
-
-
-                /* LIVESTOCK */
-
-                if (
-                    Array.isArray(data.livestock) &&
-                    data.livestock.length
-                ) {
-
-                    data.livestock.forEach(l => {
-
-                        html += `
-                            <div style="margin-bottom:8px;">
-                                🐄 <b>${
-                                    l.type ?? "--"
-                                }</b><br>
-                                📦 ${
-                                    l.number ?? "--"
-                                }<br>
-                                🍽 ${
-                                    l.feeding_schedule ?? "--"
-                                }
+                            <div class="map-popup-card">
+                                <div class="map-popup-card-title">
+                                    <span>Livestock house</span>
+                                    <i class="fa-solid fa-paw"></i>
+                                </div>
+                                <div class="map-popup-detail">
+                                    <span>PLOT HOUSE NAME:</span>
+                                    <strong>${safe(data.plot_house_name)}</strong>
+                                </div>
+                                <div class="map-popup-detail">
+                                    <span>NUMBER OF LIVESTOCKS:</span>
+                                    <strong>${formatNumber(data.number_of_livestock)}</strong>
+                                </div>
                             </div>
-                        `;
-                    });
-                }
-
-
-                /* NO DATA */
-
-                if (
-                    (!Array.isArray(data.crops) ||
-                        !data.crops.length) &&
-                    (!Array.isArray(data.livestock) ||
-                        !data.livestock.length)
-                ) {
-
-                    html += `
-                        <span style="color:#888;">
-                            No data found
-                        </span>
+                        </div>
+                    `;
+                } else {
+                    html = `
+                        <div class="map-popup-head">
+                            <span class="popup-kicker">Farm map location</span>
+                            <h4>${safe(data.plot_name || plot)}</h4>
+                        </div>
+                        <div class="map-popup-body">
+                            <div class="map-popup-section-title">
+                                <i class="fa-solid fa-seedling"></i> Crop records
+                            </div>
+                            <div class="map-popup-card">
+                                <div class="map-popup-card-title">
+                                    <span>Plot crop summary</span>
+                                    <i class="fa-solid fa-leaf"></i>
+                                </div>
+                                <div class="map-popup-detail">
+                                    <span>PLOT NAME:</span>
+                                    <strong>${safe(data.plot_name)}</strong>
+                                </div>
+                                <div class="map-popup-detail">
+                                    <span>PLANTS PLANTED:</span>
+                                    <strong>${formatNumber(data.plants_planted)}</strong>
+                                </div>
+                                <div class="map-popup-detail">
+                                    <span>BED AVAILABLE:</span>
+                                    <strong>${formatNumber(data.bed_available)}</strong>
+                                </div>
+                                <div class="map-popup-detail">
+                                    <span>SOON TO HARVEST:</span>
+                                    <strong>${formatNumber(data.soon_to_harvest)}</strong>
+                                </div>
+                                <div class="map-popup-detail">
+                                    <span>READY TO HARVEST:</span>
+                                    <strong>${formatNumber(data.ready_to_harvest)}</strong>
+                                </div>
+                            </div>
+                        </div>
                     `;
                 }
 
                 popup.innerHTML = html;
+
+                /* The popup is viewport-level now, so it can never be clipped
+                   by the dashboard map/card. Keep it beside the clicked marker
+                   and automatically flip it above/left when near an edge. */
+                requestAnimationFrame(() => {
+                    const margin = 12;
+                    const gap = 14;
+                    const popupRect = popup.getBoundingClientRect();
+                    let left = screen.x + gap;
+                    let top = screen.y + gap;
+
+                    if (left + popupRect.width > window.innerWidth - margin) {
+                        left = screen.x - popupRect.width - gap;
+                    }
+                    if (top + popupRect.height > window.innerHeight - margin) {
+                        top = screen.y - popupRect.height - gap;
+                    }
+
+                    left = Math.max(margin, Math.min(left, window.innerWidth - popupRect.width - margin));
+                    top = Math.max(margin, Math.min(top, window.innerHeight - popupRect.height - margin));
+
+                    popup.style.left = `${left}px`;
+                    popup.style.top = `${top}px`;
+                });
 
             } catch (err) {
 

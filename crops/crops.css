@@ -976,3 +976,79 @@ tbody tr:last-child td {
 .crop-table-wrapper { scrollbar-width: auto; }
 .row-number-col, .row-number { text-align: center !important; width: 52px; min-width: 52px; font-weight: 600; }
 .row-number { color: #6b7d66 !important; background: #fafcf8; }
+
+
+/* =========================================================
+   LOCATION BUTTONS + RECORD FILTERS
+   Added without changing the existing crop-record theme.
+========================================================= */
+
+.crop-location-buttons {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.crop-location-btn {
+    border: 1px solid #d9e3d4;
+    background: #fff;
+    color: #526052;
+    border-radius: 8px;
+    padding: 8px 13px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .18s ease;
+}
+
+.crop-location-btn:hover {
+    border-color: #6b8e23;
+    color: #426331;
+    background: #f5f8f1;
+}
+
+.crop-location-btn.active {
+    background: #6b8e23;
+    border-color: #6b8e23;
+    color: #fff;
+}
+
+.crop-extra-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 8px;
+}
+
+.crop-date-filter,
+.crop-staff-filter {
+    height: 38px;
+    border: 1px solid #dfe6da;
+    border-radius: 8px;
+    background: #fff;
+    color: #4c574d;
+    padding: 0 10px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    outline: none;
+}
+
+.crop-date-filter:focus,
+.crop-staff-filter:focus {
+    border-color: #6b8e23;
+    box-shadow: 0 0 0 3px rgba(107,142,35,.08);
+}
+
+.crop-staff-filter {
+    min-width: 170px;
+}
+
+@media (max-width: 900px) {
+    .crop-location-buttons,
+    .crop-extra-filters {
+        width: 100%;
+    }
+}

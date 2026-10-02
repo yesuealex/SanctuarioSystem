@@ -2226,7 +2226,31 @@ foreach ($houseRowsByCode as $code => $h) {
     gap: 8px;
 }
 #startEditBedsBtn.is-done {
-    background: #fff;
+    background: #527b42 !important;
+    color: #fff !important;
+    border-color: #527b42 !important;
+    box-shadow: 0 4px 12px rgba(82,123,66,.20);
+}
+
+#startEditBedsBtn.is-done:hover {
+    background: #436735 !important;
+    color: #fff !important;
+}
+
+#startEditBedsBtn,
+#editPositionBtn,
+#deleteBedBtn,
+#editSelectedCropBtn,
+#saveBedsBtn,
+#cancelBedsBtn {
+    min-height: 36px;
+    border-radius: 9px;
+    font-family: inherit;
+}
+
+.bed-edit-toolbar.is-editing {
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 
@@ -2305,6 +2329,69 @@ foreach ($houseRowsByCode as $code => $h) {
 .map-container.is-dragging,
 .main-map-layer.is-dragging {
     cursor: grabbing !important;
+}
+
+/* =========================================================
+   DATABASE RECORD SUMMARY IN PLOT POPUP
+========================================================= */
+.plot-record-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    margin: 12px 0 14px;
+}
+.plot-record-item {
+    min-width: 0;
+    padding: 10px 11px;
+    border: 1px solid #e4ecdf;
+    border-radius: 10px;
+    background: #f8faf7;
+}
+.plot-record-item.full {
+    grid-column: 1 / -1;
+}
+.plot-record-item span {
+    display: block;
+    margin-bottom: 3px;
+    color: #7b877d;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .45px;
+    text-transform: uppercase;
+}
+.plot-record-item strong {
+    display: block;
+    color: #365a3c;
+    font-size: 13px;
+    line-height: 1.25;
+}
+@media (max-width: 560px) {
+    .plot-record-summary {
+        grid-template-columns: 1fr;
+    }
+    .plot-record-item.full {
+        grid-column: auto;
+    }
+}
+
+/* Popup is moved to <body> when opened so map-container overflow can never clip it. */
+.plot-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: auto !important;
+    padding: 18px !important;
+    box-sizing: border-box !important;
+    z-index: 99999 !important;
+}
+.plot-overlay .plot-popup {
+    width: min(850px, 96vw) !important;
+    max-width: 850px !important;
+    max-height: calc(100vh - 36px) !important;
+    margin: auto !important;
 }
 
 /* =========================================================
@@ -2898,9 +2985,31 @@ foreach ($houseRowsByCode as $code => $h) {
 
                             </div>
 
-                            <p id="plotDescription">
-                                Main Vegetable Production Area
-                            </p>
+                            <div
+                                class="plot-record-summary"
+                                id="plotRecordSummary"
+                            >
+                                <div class="plot-record-item full">
+                                    <span>PLOT NAME:</span>
+                                    <strong id="plotSummaryName">--</strong>
+                                </div>
+                                <div class="plot-record-item">
+                                    <span>PLANTS PLANTED:</span>
+                                    <strong id="plotSummaryPlants">0</strong>
+                                </div>
+                                <div class="plot-record-item">
+                                    <span>BED AVAILABLE:</span>
+                                    <strong id="plotSummaryBeds">0</strong>
+                                </div>
+                                <div class="plot-record-item">
+                                    <span>SOON TO HARVEST:</span>
+                                    <strong id="plotSummarySoon">0</strong>
+                                </div>
+                                <div class="plot-record-item">
+                                    <span>READY TO HARVEST:</span>
+                                    <strong id="plotSummaryReady">0</strong>
+                                </div>
+                            </div>
 
                               <!-- =================================================
                                  BED EDIT CONTROLS
@@ -2914,6 +3023,8 @@ foreach ($houseRowsByCode as $code => $h) {
                                 <button
                                     type="button"
                                     id="startEditBedsBtn"
+                                    title="Finish editing this plot"
+                                    aria-label="Done editing this plot"
                                 >
 
                                     <i class="fa-solid fa-pen"></i>
@@ -5793,6 +5904,64 @@ function saveCurrentBedState() {
 
 
 /* =========================================================
+   DATABASE-CONNECTED PLOT SUMMARY
+========================================================= */
+function updatePlotRecordSummary(plot) {
+    const rows = Array.isArray(dbCropsByPlot[plot])
+        ? dbCropsByPlot[plot]
+        : [];
+
+    const fallbackBeds = Number(FIXED_PLOT_MARKER_COUNTS[plot] || plotData[plot]?.beds || 0);
+    const occupiedBeds = new Set();
+    let plants = 0;
+    let soon = 0;
+    let ready = 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const soonLimit = new Date(today);
+    soonLimit.setDate(soonLimit.getDate() + 14);
+
+    rows.forEach(row => {
+        plants += Math.max(0, Number(row.pcs || 0));
+
+        if (row.bed_id !== null && row.bed_id !== undefined && row.bed_id !== "") {
+            occupiedBeds.add(String(row.bed_id));
+        }
+
+        const status = String(row.status || "").toLowerCase();
+        if (status === "ready") {
+            ready += Math.max(0, Number(row.pcs || 0));
+        }
+
+        if (row.expected_harvest && status !== "ready" && status !== "harvested") {
+            const harvestDate = new Date(`${row.expected_harvest}T00:00:00`);
+            if (!Number.isNaN(harvestDate.getTime()) && harvestDate >= today && harvestDate <= soonLimit) {
+                soon += Math.max(0, Number(row.pcs || 0));
+            }
+        }
+    });
+
+    const totalBeds = fallbackBeds;
+    const availableBeds = Math.max(0, totalBeds - occupiedBeds.size);
+    const plotName = plotData[plot]?.title || `Plot ${plot}`;
+
+    const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = Number.isFinite(Number(value))
+            ? Number(value).toLocaleString()
+            : String(value ?? "--");
+    };
+
+    const nameEl = document.getElementById("plotSummaryName");
+    if (nameEl) nameEl.textContent = plotName;
+    set("plotSummaryPlants", plants);
+    set("plotSummaryBeds", availableBeds);
+    set("plotSummarySoon", soon);
+    set("plotSummaryReady", ready);
+}
+
+/* =========================================================
    OPEN PLOT
 ========================================================= */
 
@@ -5853,22 +6022,16 @@ function openPlot(plot) {
         data.title;
 
 
-    document.getElementById(
-        "plotDescription"
-    ).textContent =
-        data.description;
-
-
-
+    updatePlotRecordSummary(plot);
 
     renderBedMarkers(plot);
 
 
-    document.getElementById(
-        "plotOverlay"
-    ).classList.add(
-        "show"
-    );
+    const plotOverlay = document.getElementById("plotOverlay");
+    if (plotOverlay && plotOverlay.parentElement !== document.body) {
+        document.body.appendChild(plotOverlay);
+    }
+    plotOverlay.classList.add("show");
 
 
     updateBedEditUI();
@@ -6094,7 +6257,7 @@ function updateBedEditUI() {
 
     editButton.style.display = "inline-flex";
     editButton.classList.add("is-done");
-    editButton.innerHTML = '<i class="fa-solid fa-check"></i> Done';
+    editButton.innerHTML = '<i class="fa-solid fa-check"></i> Done Editing';
     if (addButton) addButton.style.display = "none";
     if (deleteButton) deleteButton.style.display = "inline-flex";
     if (saveButton) saveButton.style.display = "none";

@@ -444,3 +444,162 @@
         width: 100%;
     }
 }
+
+
+/* =========================================================
+   PROFILE PICTURE
+========================================================= */
+
+.account-profile-image,
+.profile-picture-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
+.profile-picture-form {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 18px;
+    padding: 26px 30px 30px;
+}
+
+.profile-picture-preview {
+    width: 92px;
+    height: 92px;
+    flex: 0 0 92px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 3px solid #dbe7d7;
+    border-radius: 50%;
+    background: #f3f7f1;
+    color: #5f8f45;
+}
+
+.profile-picture-preview .material-symbols-rounded {
+    font-size: 48px;
+}
+
+.profile-picture-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 9px;
+}
+
+.upload-picture-btn,
+.remove-picture-btn {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 14px;
+    border-radius: 9px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.upload-picture-btn {
+    border: 1px solid #d7e3d2;
+    background: #f5f8f3;
+    color: #426331;
+}
+
+.upload-picture-btn input {
+    display: none;
+}
+
+.remove-picture-btn {
+    border: 1px solid #efd5d5;
+    background: #fff5f5;
+    color: #a84949;
+}
+
+.profile-picture-note {
+    grid-column: 2;
+    margin-top: -8px;
+    color: var(--account-muted);
+    font-size: 11px;
+}
+
+@media (max-width: 650px) {
+    .profile-picture-form {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-picture-note {
+        grid-column: 1;
+    }
+}
+
+
+/* =========================================================
+   UPDATED PAGE HEADER AND AVATAR FALLBACK
+========================================================= */
+.account-intro {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.account-intro h1 {
+    margin: 0;
+    color: var(--account-green-900);
+    font-size: clamp(26px, 3vw, 34px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+}
+
+.account-intro p {
+    margin: 7px 0 0;
+    color: var(--account-muted);
+    font-size: 13px;
+}
+
+.account-intro-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 13px;
+    border: 1px solid #d8e9d5;
+    border-radius: 999px;
+    background: #f5faf3;
+    color: var(--account-green-700);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.account-intro-badge .material-symbols-rounded {
+    font-size: 17px;
+}
+
+.avatar .account-profile-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.avatar > span:not(.material-symbols-rounded) {
+    font-size: 32px;
+    font-weight: 700;
+}
+
+@media (max-width: 550px) {
+    .account-intro {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 14px;
+    }
+}
