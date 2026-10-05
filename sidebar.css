@@ -3,6 +3,13 @@
    ========================================================= */
 
 .sidebar {
+    /* =====================================================
+       MASTER SIDEBAR GAP
+       Change ONLY this value to adjust all sidebar gaps.
+       Example: 15px, 20px, 25px, 30px, etc.
+       ===================================================== */
+    --sidebar-gap: 25px;
+
     position: fixed;
 
     top: 0;
@@ -93,21 +100,15 @@
     display: flex;
     flex-direction: column;
 
-    gap: 50px;
+    gap: var(--sidebar-gap);
 
-    /*
-     * IMPORTANT
-     * The menu takes the remaining sidebar height.
-     */
+
     flex: 1;
-    min-height: 0;
 
-    /*
-     * When browser zoom makes the menu taller
-     * than the available screen, scroll INSIDE
-     * the sidebar instead of overlapping.
-     */
+    min-height: 40px;
+
     overflow-y: auto;
+
     overflow-x: hidden;
 
     /*
@@ -152,13 +153,13 @@
 
 .menu > li:not(.menu-dropdown) {
 
-    min-height: 48px;
+    min-height: 50px;
 
     display: flex;
 
     align-items: center;
 
-    gap: 12px;
+    gap: var(--sidebar-gap);
 
     padding: 0 15px;
 
@@ -267,7 +268,7 @@
 
     width: 100%;
 
-    min-height: 48px;
+    min-height: 50px;
 
     margin: 0;
 
@@ -317,7 +318,7 @@
 
     align-items: center;
 
-    gap: 30px;
+    gap: var(--sidebar-gap);
 
     min-width: 0;
 }
@@ -448,7 +449,7 @@
 
 .sidebar-records-submenu > li {
 
-    min-height: 42px;
+    min-height: 40px;
 
     margin: 3px 8px 3px 15px;
 
@@ -460,7 +461,7 @@
 
     align-items: center;
 
-    gap: 20px;
+    gap: var(--sidebar-gap);
 
     background: transparent;
 
@@ -555,7 +556,7 @@
 
     margin-top: auto;
 
-    min-height: 48px;
+    min-height: 40px;
 
     flex-shrink: 0;
 
@@ -563,7 +564,7 @@
 
     align-items: center;
 
-    gap: 12px;
+    gap: var(--sidebar-gap);
 
     padding: 0 15px;
 
@@ -638,4 +639,34 @@
 
     }
 
+}
+
+/* =========================================================
+   SIDEBAR LAYOUT / FLEX FIX
+   Moved from sidebar.php so all sidebar CSS is controlled
+   from this stylesheet.
+   ========================================================= */
+
+.sidebar-top {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.sidebar-top .menu {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.sidebar-top .logout-menu-item {
+    margin-top: auto;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.sidebar-top .logout-menu-item span {
+    flex-shrink: 0;
 }
