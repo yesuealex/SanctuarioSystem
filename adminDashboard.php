@@ -9,10 +9,10 @@ if (!isset($_SESSION['user_id'])) {
 include 'db.php';
 
 /* TOTAL CROPS */
-$totalCrops = $conn->query("SELECT COUNT(*) AS total FROM crops")->fetch_assoc()['total'];
+$totalCrops = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived,0) = 0")->fetch_assoc()['total'];
 
 /* TOTAL LIVESTOCKS */
-$totalLivestock = $conn->query("SELECT COUNT(*) AS total FROM livestocks")->fetch_assoc()['total'];
+$totalLivestock = $conn->query("SELECT COALESCE(SUM(number),0) AS total FROM livestocks WHERE COALESCE(archived,0) = 0")->fetch_assoc()['total'];
 
 /* ACTIVITY LOGS (FIXED) */
 $logs = $conn->query("
@@ -22,6 +22,25 @@ $logs = $conn->query("
     ORDER BY activity_logs.created_at DESC
     LIMIT 10
 ");
+
+/* SEEDS INVENTORY BY MONTH (ACTIVE RECORDS) */
+$seedInventoryByMonth = array_fill(1, 12, 0);
+$seedRes = $conn->query("
+    SELECT MONTH(date_received) AS month_no,
+           COALESCE(SUM(CAST(NULLIF(pieces, '') AS DECIMAL(18,2))), 0) AS total
+    FROM inventory_items
+    WHERE category = 'Seeds'
+      AND COALESCE(is_archived,0) = 0
+    GROUP BY MONTH(date_received)
+");
+if ($seedRes) {
+    while ($seedRow = $seedRes->fetch_assoc()) {
+        $monthNo = (int)$seedRow['month_no'];
+        if ($monthNo >= 1 && $monthNo <= 12) {
+            $seedInventoryByMonth[$monthNo] = (float)$seedRow['total'];
+        }
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -407,9 +426,9 @@ $logs = $conn->query("
         <div class="pie-header">
 
             <select id="plotSelector">
-                <option>Plot A</option>
-                <option>Plot B</option>
-                <option>Plot C</option>
+                <option value="plot_a">Plot A</option>
+                <option value="plot_b">Plot B</option>
+                <option value="plot_c">Plot C</option>
             </select>
 
         </div>
@@ -421,19 +440,19 @@ $logs = $conn->query("
                 <div>
                     <span class="legend growing"></span>
                     Growing
-                    <b>18</b>
+                    <b id="plotGrowingCount">0</b>
                 </div>
 
                 <div>
                     <span class="legend soon"></span>
                     Soon
-                    <b>5</b>
+                    <b id="plotSoonCount">0</b>
                 </div>
 
                 <div>
                     <span class="legend ready"></span>
                     Ready
-                    <b>2</b>
+                    <b id="plotReadyCount">0</b>
                 </div>
 
             </div>
@@ -829,20 +848,7 @@ new Chart(seedInventoryChart, {
 
             {
 
-                data: [
-                    2650,
-                    1650,
-                    1950,
-                    1000,
-                    2300,
-                    2650,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0
-                ],
+                data: <?= json_encode(array_values($seedInventoryByMonth), JSON_NUMERIC_CHECK) ?>,
 
                 backgroundColor: [
                     '#96c08b',
@@ -928,66 +934,73 @@ new Chart(seedInventoryChart, {
 const cropStatusChart =
     document.getElementById('cropStatusChart');
 
+const plotSelector = document.getElementById('plotSelector');
+const growingCountEl = document.getElementById('plotGrowingCount');
+const soonCountEl = document.getElementById('plotSoonCount');
+const readyCountEl = document.getElementById('plotReadyCount');
 
-new Chart(cropStatusChart, {
-
+const cropStatusChartInstance = new Chart(cropStatusChart, {
     type: 'pie',
-
-
     data: {
-
-        labels: [
-            'Growing',
-            'Soon',
-            'Ready'
-        ],
-
-
-        datasets: [
-
-            {
-
-                data: [
-                    18,
-                    5,
-                    2
-                ],
-
-
-                backgroundColor: [
-                    '#f1d778',
-                    '#ed9f69',
-                    '#95bd87'
-                ],
-
-
-                borderWidth: 0
-
-            }
-
-        ]
-
+        labels: ['Growing', 'Soon', 'Ready'],
+        datasets: [{
+            data: [0, 0, 0],
+            backgroundColor: [
+                '#f1d778',
+                '#ed9f69',
+                '#95bd87'
+            ],
+            borderWidth: 0
+        }]
     },
-
-
     options: {
-
         responsive: true,
-
         maintainAspectRatio: false,
-
-
         plugins: {
-
-            legend: {
-                display: false
-            }
-
+            legend: { display: false }
         }
-
     }
-
 });
+
+async function loadPlotStatusChart(plotCode) {
+    if (!plotCode) return;
+
+    try {
+        const response = await fetch(
+            `get_plot_data.php?plot=${encodeURIComponent(plotCode)}`,
+            { cache: 'no-store' }
+        );
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        const growing = Number(data.growing || 0);
+        const soon = Number(data.soon_to_harvest || 0);
+        const ready = Number(data.ready_to_harvest || 0);
+
+        cropStatusChartInstance.data.datasets[0].data = [growing, soon, ready];
+        cropStatusChartInstance.update();
+
+        if (growingCountEl) growingCountEl.textContent = growing.toLocaleString();
+        if (soonCountEl) soonCountEl.textContent = soon.toLocaleString();
+        if (readyCountEl) readyCountEl.textContent = ready.toLocaleString();
+    } catch (error) {
+        console.error('Unable to load crop status chart:', error);
+        cropStatusChartInstance.data.datasets[0].data = [0, 0, 0];
+        cropStatusChartInstance.update();
+        if (growingCountEl) growingCountEl.textContent = '0';
+        if (soonCountEl) soonCountEl.textContent = '0';
+        if (readyCountEl) readyCountEl.textContent = '0';
+    }
+}
+
+if (plotSelector) {
+    plotSelector.addEventListener('change', () => {
+        loadPlotStatusChart(plotSelector.value);
+    });
+
+    loadPlotStatusChart(plotSelector.value || 'plot_a');
+}
 
 </script>
 </body>

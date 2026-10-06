@@ -255,7 +255,7 @@ $accountSettingsActive = (
                             agriculture
                         </span>
 
-                        <span>
+                        <span class="menu-text">
                             Crops
                         </span>
 
@@ -275,7 +275,7 @@ $accountSettingsActive = (
                             pets
                         </span>
 
-                        <span>
+                        <span class="menu-text">
                             Livestock
                         </span>
 
@@ -364,7 +364,7 @@ $accountSettingsActive = (
                             grass
                         </span>
 
-                        <span>
+                        <span class="menu-text">
                             Seed
                         </span>
 
@@ -384,7 +384,7 @@ $accountSettingsActive = (
                             construction
                         </span>
 
-                        <span>
+                        <span class="menu-text">
                             Sowing Material
                         </span>
 

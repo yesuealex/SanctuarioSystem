@@ -1283,7 +1283,7 @@ $trb_badgeText =
 
     .notification-dropdown {
 
-        right: -55px;
+        right: 0;
 
         width: min(
             390px,

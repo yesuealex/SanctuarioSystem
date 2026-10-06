@@ -1,3 +1,7 @@
+ :root {
+    --sidebar-width: 250px;
+}
+
 /* =========================================================
    SIDEBAR
    ========================================================= */
@@ -632,13 +636,41 @@
    ========================================================= */
 
 @media (max-width: 900px) {
+    :root { --sidebar-width: 72px; }
 
     .sidebar {
-
-        width: 220px;
-
+        width: 72px;
+        padding: 14px 8px;
     }
 
+    .sidebar-logo-container { padding: 6px 0 24px; }
+    .sidebar-logo { width: 54px; }
+    .menu { gap: 12px; }
+    .menu-text { display: none; }
+
+    .menu > li:not(.menu-dropdown),
+    .sidebar-records-header,
+    .menu > .logout-menu-item {
+        justify-content: center;
+        gap: 0;
+        padding: 0;
+    }
+
+    .sidebar-records-left { justify-content: center; }
+
+    .sidebar-records-submenu > li {
+        justify-content: center;
+        gap: 0;
+        margin-left: 0;
+        margin-right: 0;
+        padding: 0;
+    }
+
+    .sidebar-records-submenu > li > span:not(.material-symbols-rounded) {
+        display: none;
+    }
+
+    .sidebar-records-arrow { display: none; }
 }
 
 /* =========================================================

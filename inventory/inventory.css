@@ -46,8 +46,9 @@ button {
 ================================================================ */
 
 .inventory-page {
-
-    margin-left: 265px;
+    margin-left: var(--sidebar-width, 250px);
+    width: calc(100% - var(--sidebar-width, 250px));
+    min-width: 0;
 
     min-height: 100vh;
 
@@ -277,9 +278,13 @@ button {
 
     display: flex;
 
+    flex-wrap: wrap;
+
     align-items: center;
 
     gap: 10px;
+
+    row-gap: 8px;
 
     margin-bottom: 7px;
 
@@ -458,6 +463,121 @@ button {
 
 
 /* ================================================================
+   FILTER DROPDOWNS (Seed / Sowing Material pages)
+================================================================ */
+
+.inventory-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+
+.inventory-filter-select {
+    height: 32px;
+    max-width: 150px;
+    padding: 0 28px 0 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 18px;
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    color: #333;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    text-overflow: ellipsis;
+}
+
+
+.inventory-filter-select:focus {
+    border-color: #326735;
+}
+
+
+
+/* ================================================================
+   PAGINATION (Seed / Sowing Material pages)
+================================================================ */
+
+.inventory-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-top: 1px solid #dedede;
+    border-radius: 0 0 7px 7px;
+    background: #fff;
+}
+
+
+.pagination-info {
+    color: #8b8b8b;
+    font-size: 12px;
+}
+
+
+.pagination-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+
+.pagination-controls button {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 8px;
+    border: none;
+    border-radius: 15px;
+    background: #f1f1f1;
+    color: #555;
+    font-size: 12px;
+}
+
+
+.pagination-controls button:hover:not(:disabled) {
+    background: #edf5ea;
+}
+
+
+.pagination-controls button.active {
+    background: #326735;
+    color: #fff;
+}
+
+
+.pagination-controls button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+
+.pagination-ellipsis {
+    padding: 0 4px;
+    color: #8b8b8b;
+    font-size: 12px;
+}
+
+
+.pagination-size {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #8b8b8b;
+    font-size: 12px;
+}
+
+
+
+/* ================================================================
    TOOLBAR BUTTONS
 ================================================================ */
 
@@ -508,6 +628,7 @@ button {
     background: #326735;
 
     color: white;
+    text-decoration: none;
 
     display: flex;
 
@@ -602,6 +723,16 @@ button {
 
     white-space: nowrap;
 
+}
+
+
+/* Keep both action controls visible instead of letting the fixed table
+   layout collapse the final column. The wrapper may scroll when needed. */
+.inventory-table.has-actions th:last-child,
+.inventory-table.has-actions td:last-child {
+    width: 104px;
+    min-width: 104px;
+    white-space: nowrap;
 }
 
 
@@ -736,6 +867,12 @@ button {
 
     gap: 12px;
 
+    flex-wrap: nowrap;
+}
+
+
+.table-actions form {
+    flex: 0 0 auto;
 }
 
 
@@ -1241,6 +1378,140 @@ button {
 
 
 /* ================================================================
+   SEED / SOWING MATERIAL PAGES
+   (moved from the inline <style> blocks of seed.php / sowingMaterial.php)
+================================================================ */
+
+.inventory-page-alert {
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.inventory-page-alert.success {
+    background: #e1f4e7;
+    color: #2f7b4b;
+}
+
+.inventory-page-alert.error {
+    background: #f9dddd;
+    color: #b34343;
+}
+
+.inventory-page-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.inventory-manage-button {
+    height: 32px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 18px;
+    background: #326735;
+    color: #fff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+}
+
+.inventory-manage-button:hover {
+    background: #28582a;
+}
+
+.inventory-empty {
+    padding: 22px 18px;
+    color: #8b8b8b;
+    font-size: 12px;
+}
+
+.inventory-table td.item-name {
+    text-align: left;
+}
+
+/* Single-column layout (no right-side panels) - opt in with
+   class="inventory-layout inventory-layout-single" so the admin
+   pages that use the two-column grid are not affected. */
+.inventory-layout.inventory-layout-single {
+    display: block;
+}
+
+.inventory-layout-single .inventory-main {
+    width: 100%;
+}
+
+.inventory-layout-single .inventory-table-wrapper {
+    min-height: 420px;
+    border-radius: 0;
+}
+
+
+
+/* ================================================================
+   GRID-STYLE TABLE (Seed / Sowing Material pages)
+   Column + row partitions, tinted header, soft action buttons.
+   Scoped to .inventory-layout-single so other inventory pages
+   keep their current look.
+================================================================ */
+
+.inventory-layout-single .inventory-table th {
+    background: #f3f6fb;
+    border-right: 1px solid #e3e6ec;
+}
+
+.inventory-layout-single .inventory-table td {
+    border-right: 1px solid #e3e6ec;
+}
+
+.inventory-layout-single .inventory-table th:last-child,
+.inventory-layout-single .inventory-table td:last-child {
+    border-right: none;
+}
+
+.inventory-layout-single .table-actions {
+    gap: 8px;
+}
+
+.inventory-layout-single .table-actions .edit-button,
+.inventory-layout-single .table-actions .delete-button {
+    width: 30px;
+    height: 28px;
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    text-decoration: none;
+    transition: background .15s ease;
+}
+
+.inventory-layout-single .table-actions .edit-button {
+    background: #e3f4e6;
+    color: #326735;
+}
+
+.inventory-layout-single .table-actions .edit-button:hover {
+    background: #cfead4;
+    color: #28582a;
+}
+
+.inventory-layout-single .table-actions .delete-button {
+    background: #fdf0dc;
+    color: #d9953a;
+}
+
+.inventory-layout-single .table-actions .delete-button:hover {
+    background: #f9e2bf;
+    color: #c4811f;
+}
+
+
+
+/* ================================================================
    RESPONSIVE
 ================================================================ */
 
@@ -1310,8 +1581,8 @@ button {
 @media (max-width: 950px) {
 
     .inventory-page {
-
-        margin-left: 220px;
+        margin-left: 72px;
+        width: calc(100% - 72px);
 
         padding: 18px;
 
@@ -1340,8 +1611,8 @@ button {
 @media (max-width: 750px) {
 
     .inventory-page {
-
         margin-left: 70px;
+        width: calc(100% - 70px);
 
         padding: 15px;
 
@@ -1379,6 +1650,31 @@ button {
     .inventory-search {
 
         width: 190px;
+
+    }
+
+
+    .inventory-page-actions {
+
+        width: 100%;
+
+        justify-content: flex-end;
+
+    }
+
+
+    .inventory-filters {
+
+        width: 100%;
+
+    }
+
+
+    .inventory-filter-select {
+
+        flex: 1 1 110px;
+
+        max-width: none;
 
     }
 

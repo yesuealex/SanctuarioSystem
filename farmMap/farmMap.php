@@ -29,7 +29,7 @@ if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(a
     $result->free();
 }
 
-if ($result = $conn->query("SELECT COUNT(*) AS total FROM livestocks WHERE COALESCE(archived, 0) = 0")) {
+if ($result = $conn->query("SELECT COALESCE(SUM(number), 0) AS total FROM livestocks WHERE COALESCE(archived, 0) = 0")) {
     $totalActiveLivestock = (int)($result->fetch_assoc()['total'] ?? 0);
     $result->free();
 }
@@ -63,36 +63,68 @@ $plotCodeByLetter = [
 
 /*
 |--------------------------------------------------------------------------
-| CROPS (grouped by plot, active only)
+| CROPS (grouped by ACTUAL FARM LOCATION, active only)
 |--------------------------------------------------------------------------
+|
+| The crop record's transplanted_area is the authoritative farm-map
+| location. This is important because older records may have a plot_id
+| that points to a production plot even when the crop is currently in the
+| Nursery or another named area such as MNO.
 */
 
-$cropsByPlotId = [];
+$cropsByLocation = [];
 
 $cropsRes2 = $conn->query("
     SELECT *
     FROM crops
-    WHERE archived = 0
+    WHERE COALESCE(archived, 0) = 0
     ORDER BY crop_id ASC
 ");
 
+$normaliseCropLocation = static function ($area, $plotId = null) use ($plotCodeByLetter, $plotRowsByCode) {
+    $area = trim((string)$area);
+    $compact = preg_replace('/\s+/', '', $area);
+    $lower = strtolower($compact);
+
+    if ($lower === 'nursery') {
+        return 'NURSERY';
+    }
+
+    if ($lower === 'mno') {
+        return 'MNO';
+    }
+
+    if (preg_match('/^([abc])(?:[0-9]+)?$/i', $compact, $m)) {
+        return strtoupper($m[1]);
+    }
+
+    if ($plotId !== null) {
+        foreach ($plotCodeByLetter as $letter => $code) {
+            if ((int)($plotRowsByCode[$code]['plot_id'] ?? 0) === (int)$plotId) {
+                return $letter;
+            }
+        }
+    }
+
+    return '';
+};
+
 if ($cropsRes2) {
     while ($c = $cropsRes2->fetch_assoc()) {
-        $cropsByPlotId[$c['plot_id']][] = $c;
+        $location = $normaliseCropLocation($c['transplanted_area'] ?? '', $c['plot_id'] ?? null);
+        if ($location !== '') {
+            $cropsByLocation[$location][] = $c;
+        }
     }
 }
 
-$dbCropsByPlot = [];
-
-foreach ($plotCodeByLetter as $letter => $code) {
-
-    $pid = $plotRowsByCode[$code]['plot_id'] ?? null;
-
-    $dbCropsByPlot[$letter] =
-        ($pid !== null && isset($cropsByPlotId[$pid]))
-            ? array_values($cropsByPlotId[$pid])
-            : [];
-}
+$dbCropsByPlot = [
+    'A' => array_values($cropsByLocation['A'] ?? []),
+    'B' => array_values($cropsByLocation['B'] ?? []),
+    'C' => array_values($cropsByLocation['C'] ?? []),
+    'NURSERY' => array_values($cropsByLocation['NURSERY'] ?? []),
+    'MNO' => array_values($cropsByLocation['MNO'] ?? [])
+];
 
 /*
 |--------------------------------------------------------------------------
@@ -111,29 +143,66 @@ if ($housesRes) {
 }
 
 $livestocksByHouseId = [];
+$unassignedLivestocks = [];
 
 $liveRes = $conn->query("
     SELECT *
     FROM livestocks
-    WHERE archived = 0
+    WHERE COALESCE(archived, 0) = 0
     ORDER BY livestock_id ASC
 ");
 
 if ($liveRes) {
     while ($l = $liveRes->fetch_assoc()) {
-        $livestocksByHouseId[$l['house_id']][] = $l;
+        if (!empty($l['house_id'])) {
+            $livestocksByHouseId[(int)$l['house_id']][] = $l;
+        } else {
+            $unassignedLivestocks[] = $l;
+        }
     }
 }
 
+/*
+ * Older livestock records may not have house_id populated yet.
+ * Connect those records to the matching existing house by type so the
+ * farm map still reflects the livestock module's actual records.
+ */
+$houseTypeForCode = static function ($code) {
+    $code = strtolower((string)$code);
+    if (strpos($code, 'rabbit') !== false) return 'rabbit';
+    if (strpos($code, 'poultry') !== false || strpos($code, 'chicken') !== false) return 'chicken';
+    if (strpos($code, 'swine') !== false || strpos($code, 'pig') !== false) return 'pig';
+    if (strpos($code, 'goat') !== false) return 'goat';
+    return '';
+};
+
+$unassignedByType = [];
+foreach ($unassignedLivestocks as $animal) {
+    $type = strtolower(trim((string)($animal['type'] ?? '')));
+    if (strpos($type, 'rabbit') !== false) $key = 'rabbit';
+    elseif (strpos($type, 'chicken') !== false || strpos($type, 'poultry') !== false || strpos($type, 'hen') !== false) $key = 'chicken';
+    elseif (strpos($type, 'pig') !== false || strpos($type, 'swine') !== false) $key = 'pig';
+    elseif (strpos($type, 'goat') !== false) $key = 'goat';
+    else $key = '';
+    if ($key !== '') $unassignedByType[$key][] = $animal;
+}
+
 $dbLivestockHouses = [];
+$assignedFallbackTypes = [];
 
 foreach ($houseRowsByCode as $code => $h) {
+    $animals = $livestocksByHouseId[(int)$h['house_id']] ?? [];
+    $houseType = $houseTypeForCode($code);
+
+    // Use unassigned records only for the first matching house of a type.
+    if (!$animals && $houseType !== '' && empty($assignedFallbackTypes[$houseType])) {
+        $animals = $unassignedByType[$houseType] ?? [];
+        $assignedFallbackTypes[$houseType] = true;
+    }
 
     $dbLivestockHouses[$code] = [
         'house'   => $h,
-        'animals' => array_values(
-            $livestocksByHouseId[$h['house_id']] ?? []
-        )
+        'animals' => array_values($animals)
     ];
 }
 
@@ -2487,26 +2556,7 @@ foreach ($houseRowsByCode as $code => $h) {
                     class="map-edit-controls"
                 >
 
-                    <button
-                        type="button"
-                        data-tool="plot"
-                    >
-
-                        <i class="fa-solid fa-vector-square"></i>
-
-                        Add Plot
-
-                    </button>
-
-
-                    <button
-                        type="button"
-                        data-tool="marker"
-                    >
-
-                        <i class="fa-solid fa-location-dot"></i>
-
-                        Add Marker
+            
 
                     </button>
 
@@ -5122,7 +5172,25 @@ const plotData = {
 const FIXED_PLOT_MARKER_COUNTS = {
     A: 17,
     B: 15,
-    C: 19
+    C: 19,
+    NURSERY: 20,
+    MNO: 20
+};
+
+plotData.NURSERY = {
+    image: "",
+    title: "Nursery",
+    description: "Nursery Bed Area",
+    beds: 20,
+    area: "Nursery"
+};
+
+plotData.MNO = {
+    image: "",
+    title: "MNO",
+    description: "MNO Crop Area",
+    beds: 20,
+    area: "MNO"
 };
 
 
@@ -5816,22 +5884,31 @@ function renderBedMarkers(plot) {
 
     const fixedCount = FIXED_PLOT_MARKER_COUNTS[plot] || 0;
     const beds = getBedsForPlot(plot);
+    const rows = Array.isArray(dbCropsByPlot[plot]) ? dbCropsByPlot[plot] : [];
     const slots = Array.isArray(deletedBedSlots[plot])
         ? deletedBedSlots[plot].filter(slot => Number(slot.number) >= 1 && Number(slot.number) <= fixedCount)
         : [];
 
-    const deletedNumbers = new Set(
-        slots.map(slot => Number(slot.number))
-    );
+    const deletedNumbers = new Set(slots.map(slot => Number(slot.number)));
 
-    beds.forEach(bed => {
+    // Normal viewing shows one crop marker per active crop RECORD.
+    // This prevents empty bed slots from being mistaken for planted crops.
+    const visibleCount = Math.min(rows.length, beds.length);
+    beds.slice(0, visibleCount).forEach(bed => {
         if (deletedNumbers.has(Number(bed.number))) return;
         container.appendChild(createBedMarker(bed));
     });
 
-    slots.forEach(slot => {
-        container.appendChild(createDeletedBedSlotMarker(slot));
-    });
+    // Keep the existing +/empty-bed editing behavior when the user enters edit mode.
+    if (bedEditMode) {
+        beds.slice(visibleCount).forEach(bed => {
+            if (deletedNumbers.has(Number(bed.number))) return;
+            container.appendChild(createDeletedBedSlotMarker(bed));
+        });
+        slots.forEach(slot => {
+            container.appendChild(createDeletedBedSlotMarker(slot));
+        });
+    }
 
     updateBedCount();
 }
@@ -5913,7 +5990,7 @@ function updatePlotRecordSummary(plot) {
 
     const fallbackBeds = Number(FIXED_PLOT_MARKER_COUNTS[plot] || plotData[plot]?.beds || 0);
     const occupiedBeds = new Set();
-    let plants = 0;
+    let plants = rows.length;
     let soon = 0;
     let ready = 0;
 
@@ -5923,27 +6000,26 @@ function updatePlotRecordSummary(plot) {
     soonLimit.setDate(soonLimit.getDate() + 14);
 
     rows.forEach(row => {
-        plants += Math.max(0, Number(row.pcs || 0));
-
         if (row.bed_id !== null && row.bed_id !== undefined && row.bed_id !== "") {
             occupiedBeds.add(String(row.bed_id));
         }
 
         const status = String(row.status || "").toLowerCase();
         if (status === "ready") {
-            ready += Math.max(0, Number(row.pcs || 0));
+            ready += 1;
         }
 
         if (row.expected_harvest && status !== "ready" && status !== "harvested") {
             const harvestDate = new Date(`${row.expected_harvest}T00:00:00`);
             if (!Number.isNaN(harvestDate.getTime()) && harvestDate >= today && harvestDate <= soonLimit) {
-                soon += Math.max(0, Number(row.pcs || 0));
+                soon += 1;
             }
         }
     });
 
     const totalBeds = fallbackBeds;
-    const availableBeds = Math.max(0, totalBeds - occupiedBeds.size);
+    const occupiedCount = occupiedBeds.size > 0 ? occupiedBeds.size : rows.length;
+    const availableBeds = Math.max(0, totalBeds - occupiedCount);
     const plotName = plotData[plot]?.title || `Plot ${plot}`;
 
     const set = (id, value) => {
@@ -6046,6 +6122,11 @@ function openPlot(plot) {
 ========================================================= */
 
 function closePlot() {
+
+    if (currentPlot === "NURSERY") {
+        closeNursery();
+        return;
+    }
 
     if (bedEditMode) {
 
@@ -6188,6 +6269,9 @@ function startBedEditing() {
     bedEditMode = true;
     bedPositionEditMode = false;
     selectedBed = null;
+
+    // Re-render so unused bed slots become available as + markers while editing.
+    renderBedMarkers(currentPlot);
 
     const popup = document.getElementById("plotPopup");
     if (popup) popup.classList.add("bed-editing");
@@ -8578,38 +8662,136 @@ function closePlant() {
 
 function openNursery() {
 
-    const overlay = document.getElementById(
-        "nurseryOverlay"
-    );
+    const legacyNurseryOverlay = document.getElementById("nurseryOverlay");
+    if (legacyNurseryOverlay) {
+        legacyNurseryOverlay.classList.remove("show");
+    }
 
-    if (!overlay) {
+    /*
+     * Nursery uses the same bed-board concept as the crop plots,
+     * but is completely isolated to the Nursery marker.
+     *
+     * It has exactly 20 permanent bed slots.
+     */
+    currentPlot = "NURSERY";
+
+    bedEditMode = false;
+    bedPositionEditMode = false;
+    selectedBed = null;
+    draggingBed = null;
+    bedSnapshot = null;
+
+    const plotPopup = document.getElementById("plotPopup");
+    const plotOverlay = document.getElementById("plotOverlay");
+    const plotImage = document.getElementById("plotImage");
+    const plotTitle = document.getElementById("plotTitle");
+    const plotSummary = document.getElementById("plotRecordSummary");
+    const bedToolbar = document.getElementById("bedEditToolbar");
+
+    if (!plotPopup || !plotOverlay) {
         return;
     }
 
-    overlay.classList.add("show");
+    /*
+     * Mark the existing plot popup as Nursery-only.
+     * No Plot A/B/C data is changed.
+     */
+    plotPopup.classList.remove("bed-editing");
+    plotPopup.classList.add("nursery-bed-popup");
 
-    const closeButton = document.getElementById("closeNurseryBtn");
+    if (plotImage) {
+        plotImage.src = "<?= $basePath ?>farmMap/nursery.jpg";
+        plotImage.alt = "Nursery";
+        plotImage.style.display = "block";
+    }
 
-    requestAnimationFrame(function() {
-        if (closeButton && typeof closeButton.focus === "function") {
-            closeButton.focus({ preventScroll: true });
-        } else if (typeof overlay.focus === "function") {
-            overlay.focus({ preventScroll: true });
-        }
-    });
+    if (plotTitle) {
+        plotTitle.textContent = "Nursery";
+    }
 
+    /*
+     * The existing plot summary is not needed for Nursery.
+     * Keep the existing plot design untouched by simply hiding it
+     * while Nursery is open.
+     */
+    if (plotSummary) {
+        plotSummary.style.display = "none";
+    }
+
+    if (bedToolbar) {
+        bedToolbar.style.display = "flex";
+    }
+
+    renderBedMarkers("NURSERY");
+    updateBedEditUI();
+
+    /*
+     * Move the same popup to body, exactly like the existing plot popup,
+     * so it cannot be clipped by the map container.
+     */
+    if (plotOverlay.parentElement !== document.body) {
+        document.body.appendChild(plotOverlay);
+    }
+
+    plotOverlay.classList.add("show");
+
+    /*
+     * Make sure the Nursery marker itself does not remain focused.
+     */
+    const nurseryMarker = document.getElementById("marker-nursery");
+    if (nurseryMarker && typeof nurseryMarker.blur === "function") {
+        nurseryMarker.blur();
+    }
 }
+
 
 
 function closeNursery() {
 
-    document.getElementById(
-        "nurseryOverlay"
-    ).classList.remove(
-        "show"
-    );
+    /*
+     * Nursery now uses the existing plot popup/bed board.
+     * Close only when the current board belongs to Nursery.
+     */
+    if (currentPlot === "NURSERY") {
+
+        bedEditMode = false;
+        bedPositionEditMode = false;
+        selectedBed = null;
+        draggingBed = null;
+        bedSnapshot = null;
+
+        const plotPopup = document.getElementById("plotPopup");
+        const plotOverlay = document.getElementById("plotOverlay");
+        const plotImage = document.getElementById("plotImage");
+        const plotSummary = document.getElementById("plotRecordSummary");
+
+        if (plotPopup) {
+            plotPopup.classList.remove(
+                "bed-editing",
+                "nursery-bed-popup"
+            );
+        }
+
+        if (plotImage) {
+            plotImage.style.display = "";
+            plotImage.removeAttribute("alt");
+        }
+
+        if (plotSummary) {
+            plotSummary.style.display = "";
+        }
+
+        if (plotOverlay) {
+            plotOverlay.classList.remove("show");
+        }
+
+        currentPlot = null;
+
+        updateBedEditUI();
+    }
 
 }
+
 
 
 /* =========================================================
@@ -8796,7 +8978,7 @@ function createLivestockPlusMarker(index, x, y) {
     return marker;
 }
 
-function createLivestockMarker(animal) {
+function createLivestockMarker(animal, unitIndex = 0, unitTotal = 1) {
 
     const marker =
         document.createElement("button");
@@ -8854,16 +9036,22 @@ function createLivestockMarker(animal) {
      * Preserve existing automatically generated
      * positions unless the user has manually saved one.
      */
-    const x =
-        saved.x != null
-            ? Number(saved.x)
-            : Number(animal.x) || 0;
+    let x;
+    let y;
 
-
-    const y =
-        saved.y != null
-            ? Number(saved.y)
-            : Number(animal.y) || 0;
+    if (unitTotal > 1) {
+        // A database record can represent multiple animals through `number`.
+        // Give every animal its own visible marker instead of one marker with a count.
+        const columns = Math.min(5, unitTotal);
+        const col = unitIndex % columns;
+        const row = Math.floor(unitIndex / columns);
+        const spreadX = columns > 1 ? 70 / (columns - 1) : 0;
+        x = 15 + col * spreadX;
+        y = 20 + row * 20;
+    } else {
+        x = saved.x != null ? Number(saved.x) : Number(animal.x) || 0;
+        y = saved.y != null ? Number(saved.y) : Number(animal.y) || 0;
+    }
 
 
     marker.style.left =
@@ -8919,19 +9107,27 @@ function renderLivestockMarkers(houseId) {
     const house = getLivestockHouseData(houseId);
     if (!house) return;
 
+    let totalAnimals = 0;
+
     house.animals.forEach((animal, index) => {
         const key = String(animal.id);
+        const quantity = Math.max(1, Number(animal.number) || 1);
+        totalAnimals += quantity;
+
         if (livestockDeletedIds[houseId] && livestockDeletedIds[houseId][key]) {
             const x = Number(animal.x) || (20 + (index % 5) * 15);
             const y = Number(animal.y) || (20 + Math.floor(index / 5) * 15);
             container.appendChild(createLivestockPlusMarker(index, x, y));
             return;
         }
-        container.appendChild(createLivestockMarker(animal));
+
+        for (let unitIndex = 0; unitIndex < quantity; unitIndex++) {
+            container.appendChild(createLivestockMarker(animal, unitIndex, quantity));
+        }
     });
 
     const count = document.getElementById("livestockCount");
-    if (count) count.textContent = `${house.animals.length} ${house.animals.length === 1 ? "animal" : "animals"}`;
+    if (count) count.textContent = `${totalAnimals} ${totalAnimals === 1 ? "animal" : "animals"}`;
 }
 
 function selectLivestockMarker(marker) {
@@ -11753,33 +11949,28 @@ document.getElementById(
 
 
 /* =========================================================
+   RELIABLE MAP MARKER CLICK HANDLING
+========================================================= */
+if (mainMapLayer) {
+    mainMapLayer.addEventListener("click", function(event) {
+        const marker = event.target.closest(".main-marker");
+
+        if (!marker || !mainMapLayer.contains(marker)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        handleMapMarkerClick(marker);
+    });
+}
+
+
+/* =========================================================
    EXISTING MAP MARKERS
 ========================================================= */
 
-document.querySelectorAll(
-    ".main-marker"
-).forEach(
-    marker => {
-
-        marker.addEventListener(
-            "click",
-            function(event) {
-
-                event.stopPropagation();
-
-                if (marker.dataset.marker === "nursery") {
-                    event.preventDefault();
-                }
-
-                handleMapMarkerClick(
-                    marker
-                );
-
-            }
-        );
-
-    }
-);
+/* Existing markers are handled by the delegated listener above. */
 
 
 /* =========================================================

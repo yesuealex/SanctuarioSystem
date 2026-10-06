@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded');
 
+:root {
+    --sidebar-width: 250px;
+}
 
 *{
     margin:0;
@@ -22,11 +25,13 @@ body{
 .layout{
     display:flex;
     min-height:100vh;
+    min-width:0;
 }
 
 .dashboard{
-    margin-left:250px;
-    width:calc(100% - 250px);
+    margin-left:var(--sidebar-width);
+    width:calc(100% - var(--sidebar-width));
+    min-width:0;
     padding:30px;
 }
 
@@ -49,6 +54,8 @@ body{
     display:flex;
     justify-content:space-between;
     align-items:flex-start;
+    flex-wrap:wrap;
+    gap:16px;
     margin-bottom:30px;
 }
 
@@ -87,7 +94,7 @@ body{
 
 .hero-cards{
     display:grid;
-    grid-template-columns:repeat(3,1fr);
+    grid-template-columns:repeat(3,minmax(0,1fr));
     gap:20px;
 }
 
@@ -154,7 +161,7 @@ body{
 .top-grid {
     display: grid;
 
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: minmax(0,2fr) minmax(260px,1fr);
 
     gap: 16px;
 
@@ -220,35 +227,29 @@ body{
 ========================================= */
 
 .dashboard-charts {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: 260px 260px;
     gap: 16px;
-
     min-width: 0;
+    min-height: 0;
     width: 100%;
+    height: auto;
+    align-self: start;
 }
-
 
 .chart-box {
     background-color: #ffffff;
-
     border-radius: 10px;
-
     padding: 14px;
-
     width: 100%;
-
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
     box-sizing: border-box;
-
     border: 1px solid #eeeeee;
-
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-
     overflow: hidden;
-
-    flex: 1;
 }
-
 
 /* =========================================
    CHART TITLE
@@ -256,13 +257,11 @@ body{
 
 .chart-box h3 {
     margin: 0 0 8px 0;
-
     color: #3e642f;
-
     font-size: 24px;
     font-weight: 700;
+    line-height: 1.2;
 }
-
 
 /* =========================================
    BAR GRAPH
@@ -271,35 +270,41 @@ body{
 .bar-chart {
     position: relative;
     width: 100%;
-    height: 240px;
+    height: calc(100% - 38px);
+    min-height: 0;
 }
 
+.bar-chart canvas,
+.pie-chart canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+}
 
 /* =========================================
    PIE HEADER
 ========================================= */
 
 .pie-header {
-    margin-bottom: 3px;
+    height: 36px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: flex-start;
 }
-
 
 #plotSelector {
     background: #416735;
     color: #fff;
-
     border: none;
     border-radius: 7px;
-
     padding: 6px 12px;
-
     font-family: 'Poppins', sans-serif;
     font-size: 13px;
     font-weight: 600;
-
     cursor: pointer;
 }
-
 
 /* =========================================
    PIE CONTENT
@@ -307,16 +312,14 @@ body{
 
 .pie-content {
     display: grid;
-
-    grid-template-columns: 1fr 1.2fr;
-
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
     align-items: center;
-
     gap: 5px;
-
+    width: 100%;
     height: calc(100% - 40px);
+    min-width: 0;
+    min-height: 0;
 }
-
 
 /* =========================================
    PIE CHART
@@ -325,65 +328,36 @@ body{
 .pie-chart {
     position: relative;
     width: 100%;
-    height: 220px;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
 }
 
-
-/* =========================================
-   PIE LEGEND
-========================================= */
-
+/* Prevent long labels from forcing the chart column wider. */
 .pie-legend {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 20px;
-
-    margin: 0;
-    padding: 0;
-
-    list-style: none;
-
-    font-size: 16px;
+    min-width: 0;
 }
 
+@media (max-width: 900px) {
+    .dashboard-charts {
+        height: auto;
+        grid-template-rows: 260px 260px;
+    }
 
-.pie-legend div {
-    display: grid;
-
-    grid-template-columns: 14px 1fr auto;
-
-    align-items: center;
-
-    gap: 8px;
+    .chart-box {
+        height: 100%;
+    }
 }
 
+@media (max-width: 600px) {
+    .dashboard-charts {
+        grid-template-rows: 240px auto;
+    }
 
-/* LEGEND SQUARE */
-
-.legend {
-    width: 14px;
-    height: 14px;
-
-    display: block;
+    .pie-content {
+        grid-template-columns: 1fr 1fr;
+    }
 }
-
-
-.legend.growing {
-    background: #f1d778;
-}
-
-
-.legend.soon {
-    background: #ed9f69;
-}
-
-
-.legend.ready {
-    background: #95bd87;
-}
-
 
 /* =========================================
    TABLET
@@ -496,13 +470,13 @@ grid-template-columns:repeat(2,1fr);
 }
 
 @media(max-width:900px){
+    :root { --sidebar-width: 72px; }
 
-.dashboard{
-
-margin-left:0;
-
-width:100%;
-}
+    .dashboard{
+        margin-left:var(--sidebar-width);
+        width:calc(100% - var(--sidebar-width));
+        padding:20px;
+    }
 
 .hero-cards{
 
@@ -515,14 +489,17 @@ grid-template-columns:1fr;
 grid-template-columns:1fr;
 }
 
-.sidebar{
-
-position:relative;
-
-width:100%;
-
-height:auto;
 }
 
+@media(max-width:520px){
+    .dashboard{ padding:14px; }
+    .hero-container{ padding:22px 16px; }
+    .hero-text h2{ font-size:clamp(24px,7vw,34px); }
+    .hero-date{ width:100%; justify-content:center; }
+    .hero-cards{ gap:12px; }
+    .hero-card{ padding:14px; gap:12px; }
+    .hero-icon{ width:52px; height:52px; }
+    .hero-icon span{ font-size:27px; }
+    .hero-info h3{ font-size:32px; }
 }
 

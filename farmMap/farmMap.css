@@ -1,3 +1,7 @@
+:root {
+    --sidebar-width: 250px;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -14,8 +18,9 @@ body {
 ========================================================= */
 
 .farm-map-page {
-    margin-left: 250px;
-    width: calc(100% - 250px);
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+    min-width: 0;
     min-height: 100vh;
     padding: 18px 28px 30px;
 }
@@ -28,6 +33,7 @@ body {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: 20px;
     width: 100%;
     margin-bottom: 18px;
@@ -61,7 +67,7 @@ body {
 
 .summary-cards {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 25px;
 }
 
@@ -1212,8 +1218,9 @@ a.edit-btn:hover {
 @media (max-width: 900px) {
 
     .farm-map-page {
-        margin-left: 220px;
-        width: calc(100% - 220px);
+        --sidebar-width: 72px;
+        margin-left: var(--sidebar-width);
+        width: calc(100% - var(--sidebar-width));
         padding: 15px;
     }
 
@@ -2895,14 +2902,22 @@ a.edit-btn:hover {
 
 @media (max-width: 600px) {
     .farm-map-page {
-        margin-left: 220px;
-        width: calc(100% - 220px);
+        --sidebar-width: 72px;
+        margin-left: var(--sidebar-width);
+        width: calc(100% - var(--sidebar-width));
         padding: 12px;
     }
 
     .summary-card {
         padding: 10px 14px;
     }
+
+    .farm-map-title-area { gap: 12px; }
+    .map-edit-toolbar-wrapper,
+    .map-edit-toolbar,
+    .map-edit-controls { width: 100%; justify-content: flex-start; }
+    .map-edit-btn,
+    .map-edit-controls button { flex: 1 1 auto; min-width: 0; }
 
     .summary-icon {
         width: 52px;
@@ -3147,4 +3162,59 @@ a.edit-btn:hover {
     box-shadow: 0 4px 14px rgba(0,0,0,.15);
     font-size: 11px;
     line-height: 1.55;
+}
+
+/* =========================================================
+   NURSERY BED BOARD
+   Nursery uses the existing plot popup with its own 20-bed board.
+========================================================= */
+.plot-popup.nursery-bed-popup .popup-map {
+    min-height: 460px;
+    background:
+        linear-gradient(rgba(255,255,255,.32), rgba(255,255,255,.32)),
+        repeating-linear-gradient(
+            0deg,
+            transparent 0,
+            transparent 72px,
+            rgba(95,143,69,.08) 73px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            transparent 0,
+            transparent 100px,
+            rgba(95,143,69,.08) 101px
+        ),
+        #eef4ea;
+}
+
+.plot-popup.nursery-bed-popup .popup-map::before {
+    content: "NURSERY • 20 BEDS";
+    position: absolute;
+    left: 50%;
+    top: 14px;
+    transform: translateX(-50%);
+    z-index: 2;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(49,93,46,.92);
+    color: #fff;
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .4px;
+    pointer-events: none;
+}
+
+.plot-popup.nursery-bed-popup .bed-marker {
+    z-index: 20;
+}
+
+.plot-popup.nursery-bed-popup .bed-edit-toolbar {
+    margin-top: 0;
+}
+
+@media (max-width: 600px) {
+    .plot-popup.nursery-bed-popup .popup-map {
+        min-height: 380px;
+    }
 }
