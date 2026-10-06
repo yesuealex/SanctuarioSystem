@@ -23,23 +23,49 @@ $logs = $conn->query("
     LIMIT 10
 ");
 
-/* SEEDS INVENTORY BY MONTH (ACTIVE RECORDS) */
-$seedInventoryByMonth = array_fill(1, 12, 0);
-$seedRes = $conn->query("
-    SELECT MONTH(date_received) AS month_no,
-           COALESCE(SUM(CAST(NULLIF(pieces, '') AS DECIMAL(18,2))), 0) AS total
-    FROM inventory_items
-    WHERE category = 'Seeds'
-      AND COALESCE(is_archived,0) = 0
-    GROUP BY MONTH(date_received)
+/* LIVESTOCK MONITORING BY TYPE (ACTIVE RECORDS) */
+$livestockCounts = [
+    'Chicken' => 0,
+    'Pig' => 0,
+    'Goat' => 0,
+    'Rabbit' => 0
+];
+
+$livestockRes = $conn->query("
+    SELECT LOWER(TRIM(type)) AS livestock_type,
+           COALESCE(SUM(number), 0) AS total
+    FROM livestocks
+    WHERE COALESCE(archived, 0) = 0
+    GROUP BY LOWER(TRIM(type))
 ");
-if ($seedRes) {
-    while ($seedRow = $seedRes->fetch_assoc()) {
-        $monthNo = (int)$seedRow['month_no'];
-        if ($monthNo >= 1 && $monthNo <= 12) {
-            $seedInventoryByMonth[$monthNo] = (float)$seedRow['total'];
+
+if ($livestockRes) {
+    while ($livestockRow = $livestockRes->fetch_assoc()) {
+        $type = strtolower(trim($livestockRow['livestock_type'] ?? ''));
+        $total = (int)($livestockRow['total'] ?? 0);
+
+        if (in_array($type, ['chicken', 'poultry'], true)) {
+            $livestockCounts['Chicken'] += $total;
+        } elseif (in_array($type, ['pig', 'swine'], true)) {
+            $livestockCounts['Pig'] += $total;
+        } elseif ($type === 'goat') {
+            $livestockCounts['Goat'] += $total;
+        } elseif ($type === 'rabbit') {
+            $livestockCounts['Rabbit'] += $total;
         }
     }
+}
+
+/* LOW STOCK ITEMS (ACTIVE INVENTORY) */
+$lowStockItems = 0;
+$lowStockRes = $conn->query("
+    SELECT COUNT(*) AS total
+    FROM inventory_items
+    WHERE COALESCE(is_archived, 0) = 0
+      AND status = 'Low Stock'
+");
+if ($lowStockRes) {
+    $lowStockItems = (int)$lowStockRes->fetch_assoc()['total'];
 }
 ?>
 
@@ -152,12 +178,12 @@ if ($seedRes) {
     gap: 7px;
     margin: 0 2px 9px;
     color: #365a3c;
-    font-size: 11px;
+    font-size: 15px;
     font-weight: 700;
     letter-spacing: .7px;
     text-transform: uppercase;
 }
-.map-popup-section-title i { font-size: 12px; }
+.map-popup-section-title i { font-size: 15px; }
 .map-popup-card {
     padding: 12px 13px;
     margin-bottom: 9px;
@@ -186,7 +212,7 @@ if ($seedRes) {
     gap: 14px;
     padding: 7px 0;
     border-bottom: 1px solid #edf2ea;
-    font-size: 11px;
+    font-size: 15px;
     line-height: 1.35;
 }
 .map-popup-detail:last-child { border-bottom: 0; padding-bottom: 0; }
@@ -199,7 +225,7 @@ if ($seedRes) {
     color: #7a867b;
     background: #fbfcfa;
     text-align: center;
-    font-size: 11px;
+    font-size: 15px;
 }
 .map-popup-error {
     padding: 14px;
@@ -288,7 +314,7 @@ if ($seedRes) {
 
             <div class="hero-info">
                 <span>Low Stock Items</span>
-                <h3><?= $Inventory ?? '--' ?></h3>
+                <h3><?= $lowStockItems ?></h3>
             </div>
 
         </div>
@@ -353,6 +379,15 @@ if ($seedRes) {
         height="35"
         data-plot="plot_c"/>
 
+    <!-- MNO -->
+    <image class="marker"
+        href="markers/mno.png"
+        x="728"
+        y="420"
+        width="35"
+        height="35"
+        data-plot="mno"/>
+
     <!-- Rabbit -->
     <image class="marker"
         href="markers/rabbit_house.png"
@@ -411,10 +446,20 @@ if ($seedRes) {
     <!-- BAR GRAPH -->
     <div class="chart-box">
 
-        <h3>SEEDS INVENTORY</h3>
+        <div class="chart-title-row">
+            <h3>LIVESTOCK MONITORING</h3>
+
+            <select id="livestockSelector" aria-label="Select livestock type">
+                <option value="all">All Livestock</option>
+                <option value="Chicken">Chicken</option>
+                <option value="Pig">Pig</option>
+                <option value="Goat">Goat</option>
+                <option value="Rabbit">Rabbit</option>
+            </select>
+        </div>
 
         <div class="bar-chart">
-            <canvas id="seedInventoryChart"></canvas>
+            <canvas id="livestockMonitoringChart"></canvas>
         </div>
 
     </div>
@@ -429,6 +474,7 @@ if ($seedRes) {
                 <option value="plot_a">Plot A</option>
                 <option value="plot_b">Plot B</option>
                 <option value="plot_c">Plot C</option>
+                <option value="mno">MNO</option>
             </select>
 
         </div>
@@ -717,6 +763,19 @@ document.addEventListener("DOMContentLoaded", () => {
                                     <strong>${formatNumber(data.number_of_livestock)}</strong>
                                 </div>
                             </div>
+                            <div class="map-popup-section-title" style="margin-top:12px;">
+                                <i class="fa-solid fa-list"></i> Livestock records from livestock.php
+                            </div>
+                            <div class="map-popup-record-list">
+                                ${(Array.isArray(data.livestock_records) && data.livestock_records.length)
+                                    ? data.livestock_records.map((animal, index) => `
+                                        <div class="map-popup-record-item">
+                                            <strong>${safe(animal.name || animal.tag_number || `${animal.type || "Livestock"} ${index + 1}`)}</strong>
+                                            <span>${safe(animal.type || "Livestock")} · Qty ${formatNumber(animal.number || 1)}</span>
+                                        </div>
+                                    `).join("")
+                                    : '<div class="map-popup-empty">No active livestock records assigned to this house.</div>'}
+                            </div>
                         </div>
                     `;
                 } else {
@@ -754,6 +813,19 @@ document.addEventListener("DOMContentLoaded", () => {
                                     <span>READY TO HARVEST:</span>
                                     <strong>${formatNumber(data.ready_to_harvest)}</strong>
                                 </div>
+                            </div>
+                            <div class="map-popup-section-title" style="margin-top:12px;">
+                                <i class="fa-solid fa-list"></i> Crop records from crops.php
+                            </div>
+                            <div class="map-popup-record-list">
+                                ${(Array.isArray(data.crop_records) && data.crop_records.length)
+                                    ? data.crop_records.map((crop, index) => `
+                                        <div class="map-popup-record-item">
+                                            <strong>${safe(crop.crop_name || crop.crop || crop.name || crop.variety || `Crop ${index + 1}`)}</strong>
+                                            <span>Bed ${safe(crop.bed_id || "--")} · ${safe(crop.status || "No status")}</span>
+                                        </div>
+                                    `).join("")
+                                    : '<div class="map-popup-empty">No active crop records assigned to this plot.</div>'}
                             </div>
                         </div>
                     `;
@@ -816,115 +888,89 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /* =========================================
-   SEEDS INVENTORY BAR GRAPH
+   LIVESTOCK MONITORING BAR GRAPH
    ========================================= */
 
-const seedInventoryChart =
-    document.getElementById('seedInventoryChart');
+const livestockMonitoringCanvas =
+    document.getElementById('livestockMonitoringChart');
 
+const livestockSelector =
+    document.getElementById('livestockSelector');
 
-new Chart(seedInventoryChart, {
+const livestockCounts = <?= json_encode($livestockCounts, JSON_NUMERIC_CHECK) ?>;
 
+const livestockLabels = Object.keys(livestockCounts);
+
+const livestockChart = new Chart(livestockMonitoringCanvas, {
     type: 'bar',
-
     data: {
-
-        labels: [
-            'Jan',
-            'Feb',
-            'Mar',
-            'Apr',
-            'May',
-            'Jun',
-            'Jul',
-            'Aug',
-            'Sep',
-            'Oct',
-            'Nov',
-            'Dec'
-        ],
-
-        datasets: [
-
-            {
-
-                data: <?= json_encode(array_values($seedInventoryByMonth), JSON_NUMERIC_CHECK) ?>,
-
-                backgroundColor: [
-                    '#96c08b',
-                    '#f36b68',
-                    '#f1d778',
-                    '#4d82df',
-                    '#9077bf',
-                    '#eda064',
-                    '#96c08b',
-                    '#f36b68',
-                    '#f1d778',
-                    '#4d82df',
-                    '#9077bf',
-                    '#eda064'
-                ],
-
-                borderRadius: 4,
-
-                borderSkipped: false
-
-            }
-
-        ]
-
+        labels: livestockLabels,
+        datasets: [{
+            label: 'Number of Livestock',
+            data: Object.values(livestockCounts),
+            backgroundColor: [
+                '#96c08b',
+                '#f1d778',
+                '#ed9f69',
+                '#9077bf'
+            ],
+            borderRadius: 5,
+            borderSkipped: false
+        }]
     },
-
-
     options: {
-
         responsive: true,
-
         maintainAspectRatio: false,
-
         plugins: {
-
-            legend: {
-                display: false
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return ' ' + Number(context.raw || 0).toLocaleString() + ' livestock';
+                    }
+                }
             }
-
         },
-
-
         scales: {
-
             y: {
-
                 beginAtZero: true,
-
-                suggestedMax: 3000,
-
                 ticks: {
-
-                    stepSize: 500
-
+                    precision: 0,
+                    stepSize: 1
                 },
-
-                grid: {
-                    display: false
-                }
-
+                grid: { display: false }
             },
-
-
             x: {
-
-                grid: {
-                    display: false
-                }
-
+                grid: { display: false }
             }
+        }
+    }
+});
 
+if (livestockSelector) {
+    livestockSelector.addEventListener('change', () => {
+        const selected = livestockSelector.value;
+
+        if (selected === 'all') {
+            livestockChart.data.labels = livestockLabels;
+            livestockChart.data.datasets[0].data = livestockLabels.map(
+                label => livestockCounts[label]
+            );
+            livestockChart.data.datasets[0].backgroundColor = [
+                '#96c08b',
+                '#f1d778',
+                '#ed9f69',
+                '#9077bf'
+            ];
+        } else {
+            livestockChart.data.labels = [selected];
+            livestockChart.data.datasets[0].data = [livestockCounts[selected] || 0];
+            livestockChart.data.datasets[0].backgroundColor = ['#96c08b'];
         }
 
-    }
-
-});
+        livestockChart.update();
+    });
+}
 
 
 /* =========================================

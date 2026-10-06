@@ -263,6 +263,50 @@ body{
     line-height: 1.2;
 }
 
+.chart-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+    height: 36px;
+    margin-bottom: 2px;
+}
+
+.chart-title-row h3 {
+    margin: 0;
+    min-width: 0;
+}
+
+#livestockSelector {
+    flex: 0 0 auto;
+    max-width: 145px;
+    background: #416735;
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 6px 10px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+@media (max-width: 600px) {
+    .chart-title-row {
+        gap: 6px;
+    }
+
+    .chart-title-row h3 {
+        font-size: 18px;
+    }
+
+    #livestockSelector {
+        max-width: 125px;
+        font-size: 11px;
+    }
+}
+
 /* =========================================
    BAR GRAPH
 ========================================= */
@@ -503,3 +547,6 @@ grid-template-columns:1fr;
     .hero-info h3{ font-size:32px; }
 }
 
+
+
+.map-popup-record-list{display:flex;flex-direction:column;gap:6px;margin-top:6px;max-height:220px;overflow:auto}.map-popup-record-item{padding:8px 9px;border:1px solid #e5ebe1;border-radius:8px;background:#fbfcfa}.map-popup-record-item strong{display:block;color:#43563a;font-size:15px}.map-popup-record-item span{display:block;margin-top:2px;color:#7b8577;font-size:8px}.map-popup-empty{padding:9px;border:1px dashed #d8e0d4;border-radius:8px;color:#80897d;font-size:8px;background:#fbfcfa}

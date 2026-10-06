@@ -28,6 +28,29 @@ if (!isset($_SESSION['user_id'])) {
 
 $role = $_SESSION['role'] ?? 'staff';
 
+function cropLocationKey($value): string {
+    $value = strtoupper(trim((string)$value));
+    $compact = preg_replace('/\s+/', '', $value);
+    if ($compact === 'NURSERY') return 'NURSERY';
+    if ($compact === 'MNO') return 'MNO';
+    if (preg_match('/^(?:PLOT_)?([ABC])(?:[0-9]+)?$/', $compact, $match)) return 'PLOT ' . $match[1];
+    return preg_replace('/\s+/', ' ', $value);
+}
+
+// transplanted_area is the existing current-location field for crop records.
+$locationLabels = ['NURSERY' => 'Nursery', 'PLOT A' => 'Plot A', 'PLOT B' => 'Plot B', 'PLOT C' => 'Plot C', 'MNO' => 'MNO'];
+$locationResult = $conn->query("SELECT DISTINCT TRIM(transplanted_area) AS location FROM crops WHERE COALESCE(archived, 0) = 0 AND TRIM(COALESCE(transplanted_area, '')) <> '' ORDER BY location ASC");
+if ($locationResult) {
+    while ($locationRow = $locationResult->fetch_assoc()) {
+        $rawLocation = strtoupper(trim((string)$locationRow['location']));
+        $normalLocation = cropLocationKey($rawLocation);
+        if (preg_match('/^([ABC])(?:[0-9]+)?$/', str_replace(' ', '', $normalLocation), $match)) {
+            $normalLocation = 'PLOT ' . $match[1];
+        }
+        $locationLabels[$normalLocation] = ucwords(strtolower($normalLocation));
+    }
+}
+
 
 /*
 |--------------------------------------------------------------------------
@@ -174,27 +197,12 @@ $cropsResult = $conn->query("
                     <!-- LOCATION BUTTONS -->
 
                     <div class="crop-location-buttons" id="cropLocationButtons">
-
-                        <button type="button" class="crop-location-btn active" data-filter="all">
-                            All
-                        </button>
-
-                        <button type="button" class="crop-location-btn" data-filter="nursery">
-                            Nursery
-                        </button>
-
-                        <button type="button" class="crop-location-btn" data-filter="plot a">
-                            Plot A
-                        </button>
-
-                        <button type="button" class="crop-location-btn" data-filter="plot b">
-                            Plot B
-                        </button>
-
-                        <button type="button" class="crop-location-btn" data-filter="plot c">
-                            Plot C
-                        </button>
-
+                        <button type="button" class="crop-location-btn active" data-filter="all">All</button>
+                        <?php foreach ($locationLabels as $locationValue => $locationLabel): ?>
+                            <button type="button" class="crop-location-btn" data-filter="<?= htmlspecialchars($locationValue, ENT_QUOTES) ?>">
+                                <?= htmlspecialchars($locationLabel) ?>
+                            </button>
+                        <?php endforeach; ?>
                     </div>
 
 
@@ -396,6 +404,7 @@ $cropsResult = $conn->query("
                                 data-transplanted="<?= htmlspecialchars($row['date_transplanted'] ?? '', ENT_QUOTES) ?>"
                                 data-harvest="<?= htmlspecialchars($row['expected_harvest'] ?? '', ENT_QUOTES) ?>"
                                 data-recipient="<?= htmlspecialchars($row['recipient'] ?? '', ENT_QUOTES) ?>"
+                                data-location="<?= htmlspecialchars(cropLocationKey($row['transplanted_area'] ?? ''), ENT_QUOTES) ?>"
                             >
 
                                 <td class="row-number"><?= $cropRowNumber++ ?></td>
@@ -416,7 +425,7 @@ $cropsResult = $conn->query("
                                 <td>
 
                                     <?= htmlspecialchars(
-                                        $row['plot_name'] ?? ''
+                                        $row['plot_name'] ?: ($row['transplanted_area'] ?? '')
                                     ) ?>
 
                                 </td>
@@ -595,6 +604,17 @@ $cropsResult = $conn->query("
 
                                         <div class="action-buttons">
 
+
+                                            <?php if (strtoupper(trim($row['transplanted_area'] ?? '')) === 'NURSERY'): ?>
+                                                <button
+                                                    type="button"
+                                                    class="action-icon transfer-icon"
+                                                    title="Transfer to Plot"
+                                                    onclick="openEditModal('transfer_crop.php?id=<?= intval($row['crop_id']) ?>', 'Transfer to Plot')"
+                                                >
+                                                    <span class="material-symbols-rounded">move_up</span>
+                                                </button>
+                                            <?php endif; ?>
 
                                             <!-- EDIT -->
 
@@ -1007,9 +1027,12 @@ function filterCropRecords() {
         const matchesSearch = !search || text.includes(search);
         const matchesStaff = !staff || recipient.includes(staff);
 
+        const rowLocation = (row.dataset.location || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const selectedLocation = location.toLowerCase().replace(/\s+/g, ' ').trim();
         const matchesLocation =
             location === 'all' ||
-            text.includes(location);
+            rowLocation === selectedLocation ||
+            (selectedLocation.startsWith('plot ') && rowLocation.replace(/^plot\s*/, '') === selectedLocation.replace(/^plot\s*/, ''));
 
         const rowDates = [
             row.dataset.sowing || '',
@@ -1027,6 +1050,15 @@ function filterCropRecords() {
             matchesDate
                 ? ''
                 : 'none';
+    });
+
+    // Visible numbering is UI-only and always follows the current display order.
+    let visibleNumber = 1;
+    document.querySelectorAll('.crop-row').forEach(function(row) {
+        if (row.style.display !== 'none') {
+            const numberCell = row.querySelector('.row-number');
+            if (numberCell) numberCell.textContent = visibleNumber++;
+        }
     });
 }
 

@@ -246,18 +246,19 @@ if (empty($_SESSION['inventory_csrf'])) {
                 <table class="inventory-table has-actions" id="inventoryTable">
                     <thead>
                         <tr>
-                            <th>DATE RECEIVED</th><th>SEEDS</th><th>VARIETY</th><th>BRAND</th>
+                            <th class="row-number-col">#</th><th>DATE RECEIVED</th><th>SEEDS</th><th>VARIETY</th><th>BRAND</th>
                             <th>PIECES</th><th>NO. OF SEEDS</th><th>PRICE</th><th>STATUS</th>
                             <th>ARCHIVED DATE</th><th>ACTIONS</th>
                         </tr>
                     </thead>
                     <tbody id="inventoryTableBody">
                     <?php if (!$items): ?>
-                        <tr><td colspan="10" class="inventory-empty">No archived seed inventory items yet.</td></tr>
-                    <?php else: foreach ($items as $item):
+                        <tr><td colspan="11" class="inventory-empty">No archived seed inventory items yet.</td></tr>
+                    <?php else: $inventoryRowNumber = 1; foreach ($items as $item):
                         $statusClass = $item['status'] === 'Low Stock' ? 'low-stock' : ($item['status'] === 'No Stock' ? 'no-stock' : 'in-stock');
                     ?>
                         <tr data-searchable="<?= e(implode(' ', $item)) ?>">
+                            <td class="row-number"><?= $inventoryRowNumber++ ?></td>
                             <td><?= e(date('m/d/Y', strtotime($item['date_received']))) ?></td>
                             <td class="item-name"><?= e($item['item_name']) ?></td>
                             <td><?= e($item['variety'] ?: '—') ?></td>
@@ -285,7 +286,7 @@ if (empty($_SESSION['inventory_csrf'])) {
                             </td>
                         </tr>
                     <?php endforeach; ?>
-                        <tr id="noMatchRow" style="display:none;"><td colspan="10" class="inventory-empty">No archived seed items match the search.</td></tr>
+                        <tr id="noMatchRow" style="display:none;"><td colspan="11" class="inventory-empty">No archived seed items match the search.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>

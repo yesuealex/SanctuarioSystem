@@ -34,6 +34,30 @@ if (!function_exists('trb_escape')) {
 }
 
 
+if (!function_exists('trb_app_root_url')) {
+    function trb_app_root_url(): string
+    {
+        $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
+        $projectName = basename(__DIR__);
+        $projectRoot = basename($scriptDir) === $projectName
+            ? $scriptDir
+            : dirname($scriptDir);
+        return rtrim($projectRoot, '/');
+    }
+}
+
+if (!function_exists('trb_asset_url')) {
+    function trb_asset_url($path): string
+    {
+        $path = trim((string)$path);
+        if ($path === '') return '';
+        if (preg_match('#^(?:https?:)?//#i', $path) || str_starts_with($path, 'data:')) {
+            return $path;
+        }
+        return trb_app_root_url() . '/' . ltrim(str_replace('\\', '/', $path), '/');
+    }
+}
+
 if (!function_exists('trb_format_role')) {
 
     function trb_format_role($role)
@@ -222,6 +246,41 @@ if (!function_exists('trb_activity_class')) {
 }
 
 
+if (!function_exists('trb_action_meta')) {
+
+    function trb_action_meta($action)
+    {
+        $action = strtolower(trim((string)$action));
+
+        if (strpos($action, 'delete') !== false || strpos($action, 'permanent') !== false) {
+            return ['activity_type' => 'danger', 'icon' => 'delete'];
+        }
+
+        if (strpos($action, 'archive') !== false) {
+            return ['activity_type' => 'warning', 'icon' => 'inventory'];
+        }
+
+        if (strpos($action, 'login') !== false) {
+            return ['activity_type' => 'success', 'icon' => 'login'];
+        }
+
+        if (strpos($action, 'logout') !== false) {
+            return ['activity_type' => 'info', 'icon' => 'logout'];
+        }
+
+        if (strpos($action, 'add') !== false || strpos($action, 'transfer') !== false || strpos($action, 'restore') !== false) {
+            return ['activity_type' => 'success', 'icon' => 'check_circle'];
+        }
+
+        if (strpos($action, 'edit') !== false || strpos($action, 'update') !== false) {
+            return ['activity_type' => 'info', 'icon' => 'edit'];
+        }
+
+        return ['activity_type' => 'info', 'icon' => 'info'];
+    }
+}
+
+
 /* =========================================================
    GET CURRENT LOGGED-IN USER
    ========================================================= */
@@ -380,19 +439,15 @@ $trb_activityQuery = "
 
     SELECT
 
-        sa.activity_id,
+        al.log_id AS activity_id,
 
-        sa.user_id,
+        al.user_id,
 
-        sa.action,
+        al.action,
 
-        sa.description,
+        al.details AS description,
 
-        sa.activity_type,
-
-        sa.icon,
-
-        sa.created_at,
+        al.created_at,
 
         u.name,
 
@@ -400,13 +455,13 @@ $trb_activityQuery = "
 
         u.role
 
-    FROM staff_activities sa
+    FROM activity_logs al
 
-    INNER JOIN users u
+    LEFT JOIN users u
 
-        ON sa.user_id = u.user_id
+        ON al.user_id = u.user_id
 
-    ORDER BY sa.created_at DESC
+    ORDER BY al.created_at DESC
 
     LIMIT 8
 
@@ -430,9 +485,10 @@ try {
                 $trb_activityResult
             )
         ) {
-
-            $trb_activities[] =
-                $trb_row;
+            $trb_meta = trb_action_meta($trb_row['action'] ?? '');
+            $trb_row['activity_type'] = $trb_meta['activity_type'];
+            $trb_row['icon'] = $trb_meta['icon'];
+            $trb_activities[] = $trb_row;
         }
     }
 
@@ -455,18 +511,27 @@ try {
 $trb_notificationCount = 0;
 
 
+$trb_seenCookie = trim((string)($_COOKIE['sanctuario_notifications_seen_at'] ?? ''));
+$trb_seenDate = null;
+foreach (['Y-m-d\TH:i:s', 'Y-m-d H:i:s', DateTime::ATOM] as $trb_seenFormat) {
+    $trb_candidate = DateTime::createFromFormat($trb_seenFormat, $trb_seenCookie);
+    if ($trb_candidate instanceof DateTime) {
+        $trb_seenDate = $trb_candidate;
+        break;
+    }
+}
+
+if ($trb_seenDate instanceof DateTime) {
+    $trb_seenSql = mysqli_real_escape_string($conn, $trb_seenDate->format('Y-m-d H:i:s'));
+    $trb_countWhere = "created_at > '{$trb_seenSql}'";
+} else {
+    $trb_countWhere = "created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)";
+}
+
 $trb_countQuery = "
-
     SELECT COUNT(*) AS total
-
-    FROM staff_activities
-
-    WHERE created_at >=
-        DATE_SUB(
-            NOW(),
-            INTERVAL 24 HOUR
-        )
-
+    FROM activity_logs
+    WHERE {$trb_countWhere}
 ";
 
 
@@ -510,7 +575,14 @@ $trb_badgeText =
         ? '99+'
         : (string)$trb_notificationCount;
 
+$trb_appRoot = trb_app_root_url();
+$trb_notificationFeedUrl = $trb_appRoot . '/notification_feed.php';
+
 ?>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0" rel="stylesheet">
 
 <style>
 
@@ -657,6 +729,15 @@ $trb_badgeText =
 .notification-dropdown.show {
 
     display: block;
+}
+
+.notification-dropdown.expanded {
+    width: min(560px, calc(100vw - 30px));
+    max-height: min(720px, calc(100vh - 100px));
+}
+
+.notification-dropdown.expanded .notification-list {
+    max-height: min(590px, calc(100vh - 210px));
 }
 
 
@@ -937,6 +1018,18 @@ $trb_badgeText =
 
 .notification-footer a:hover {
 
+    text-decoration: underline;
+}
+
+.view-all-notifications {
+    border: 0;
+    background: transparent;
+    color: #386328;
+    font: 600 12px 'Poppins', sans-serif;
+    cursor: pointer;
+}
+
+.view-all-notifications:hover {
     text-decoration: underline;
 }
 
@@ -1357,7 +1450,7 @@ $trb_badgeText =
             <div class="dropdown-header">
 
                 <strong>
-                    Recent Staff Activities
+                    Recent Activities
                 </strong>
 
 
@@ -1564,7 +1657,7 @@ $trb_badgeText =
 
 
                         <p>
-                            Staff activities will appear here.
+                            Recent system activities will appear here.
                         </p>
 
                     </div>
@@ -1585,11 +1678,13 @@ $trb_badgeText =
                 class="notification-footer"
             >
 
-                <a href="notifications.php">
-
+                <button
+                    type="button"
+                    id="viewAllNotifications"
+                    class="view-all-notifications"
+                >
                     View all notifications
-
-                </a>
+                </button>
 
             </div>
 
@@ -1643,7 +1738,7 @@ $trb_badgeText =
                 <?php if ($trb_profilePicture !== ''): ?>
 
                     <img
-                        src="<?= trb_escape($trb_profilePicture) ?>"
+                        src="<?= trb_escape(trb_asset_url($trb_profilePicture)) ?>"
                         alt="Profile"
                         class="topbar-profile-image"
                     >
@@ -1704,7 +1799,7 @@ $trb_badgeText =
                     <?php if ($trb_profilePicture !== ''): ?>
 
                         <img
-                            src="<?= trb_escape($trb_profilePicture) ?>"
+                            src="<?= trb_escape(trb_asset_url($trb_profilePicture)) ?>"
                             alt="Profile"
                             class="topbar-profile-image"
                         >
@@ -1855,9 +1950,13 @@ $trb_badgeText =
                 event.stopPropagation();
 
 
-                notificationDropdown.classList.toggle(
-                    "show"
-                );
+                const willOpen = !notificationDropdown.classList.contains("show");
+                notificationDropdown.classList.toggle("show");
+                if (willOpen) {
+                    refreshNotifications(notificationsExpanded ? 50 : 8).then(data => {
+                        if (data?.latest_created_at) markNotificationsSeen(data.latest_created_at);
+                    });
+                }
 
 
                 if (profileDropdown) {
@@ -1987,6 +2086,97 @@ $trb_badgeText =
         }
     );
 
+
+    const notificationList = document.querySelector(".notification-list");
+    const notificationCountLabels = document.querySelectorAll("#notificationDropdown .dropdown-header span");
+    const notificationBadge = document.querySelector(".notification-badge");
+    const viewAllNotifications = document.getElementById("viewAllNotifications");
+    const notificationFeedUrl = <?= json_encode($trb_notificationFeedUrl) ?>;
+    const notificationSeenKey = "sanctuario_notifications_seen_at";
+    let notificationsExpanded = false;
+
+    function notificationEscape(value) {
+        return String(value ?? "").replace(/[&<>"']/g, character => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[character]));
+    }
+
+    function updateNotificationBadge(count) {
+        const safeCount = Math.max(0, Number(count) || 0);
+        notificationCountLabels.forEach(label => {
+            label.textContent = `${safeCount} new`;
+        });
+        if (!notificationBtn) return;
+        let badge = notificationBtn.querySelector(".notification-badge");
+        if (safeCount === 0) {
+            badge?.remove();
+            return;
+        }
+        if (!badge) {
+            badge = document.createElement("span");
+            badge.className = "notification-badge";
+            notificationBtn.appendChild(badge);
+        }
+        badge.textContent = safeCount > 99 ? "99+" : String(safeCount);
+    }
+
+    function renderNotificationList(activities) {
+        if (!notificationList) return;
+        if (!Array.isArray(activities) || activities.length === 0) {
+            notificationList.innerHTML = '<div class="no-notifications"><span class="material-symbols-rounded">notifications_none</span><strong>No recent activity</strong><p>New system activities will appear here.</p></div>';
+            return;
+        }
+        notificationList.innerHTML = activities.map(activity => `
+            <div class="notification-item">
+                <span class="notification-icon ${notificationEscape(activity.activity_type || 'info')}">
+                    <span class="material-symbols-rounded">${notificationEscape(activity.icon || 'info')}</span>
+                </span>
+                <div class="notification-content">
+                    <strong>${notificationEscape(activity.action || 'System Activity')}</strong>
+                    <p>${notificationEscape(activity.description || '')}</p>
+                    <small><span class="activity-user">${notificationEscape(activity.staff_name || 'Staff')}</span> · ${notificationEscape(activity.role_label || 'Staff')} · ${notificationEscape(activity.relative_time || '')}</small>
+                </div>
+            </div>`).join('');
+    }
+
+    async function refreshNotifications(limit = 8) {
+        if (!notificationFeedUrl) return null;
+        const seenAt = localStorage.getItem(notificationSeenKey) || "";
+        const url = `${notificationFeedUrl}?limit=${limit}&since=${encodeURIComponent(seenAt)}`;
+        try {
+            const response = await fetch(url, {headers: {"Accept": "application/json"}, cache: "no-store"});
+            if (!response.ok) return null;
+            const data = await response.json();
+            if (!data || data.ok !== true) return null;
+            updateNotificationBadge(data.unread_count || 0);
+            if (notificationsExpanded || limit > 8) renderNotificationList(data.activities || []);
+            return data;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function markNotificationsSeen(latestCreatedAt) {
+        if (latestCreatedAt) {
+            const seenAt = latestCreatedAt.replace(" ", "T");
+            localStorage.setItem(notificationSeenKey, seenAt);
+            document.cookie = `${notificationSeenKey}=${encodeURIComponent(seenAt)}; path=/; max-age=31536000; SameSite=Lax`;
+        }
+        updateNotificationBadge(0);
+    }
+
+    if (viewAllNotifications && notificationDropdown) {
+        viewAllNotifications.addEventListener("click", async function () {
+            notificationsExpanded = !notificationsExpanded;
+            notificationDropdown.classList.toggle("expanded", notificationsExpanded);
+            viewAllNotifications.textContent = notificationsExpanded ? "Show fewer notifications" : "View all notifications";
+            if (notificationsExpanded) {
+                const data = await refreshNotifications(50);
+                if (data?.latest_created_at) markNotificationsSeen(data.latest_created_at);
+            }
+        });
+    }
+
+    refreshNotifications(8);
+    window.setInterval(() => refreshNotifications(notificationsExpanded ? 50 : 8), 15000);
 
     /* =====================================================
        ESCAPE KEY

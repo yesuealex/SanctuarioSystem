@@ -146,10 +146,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
 
-    if ($plot_id <= 0) {
-
+    $isNursery = $plot_id === 0 || strtoupper(trim($transplanted_area)) === 'NURSERY';
+    if ($plot_id <= 0 && !$isNursery) {
         die("Plot location is required.");
-
+    }
+    if ($isNursery) {
+        $plot_id = null;
+        $transplanted_area = 'NURSERY';
     }
 
 
@@ -176,19 +179,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
 
-    $plotCheck->bind_param(
-        "i",
-        $plot_id
-    );
+    if (!$isNursery) {
+        $plotCheck->bind_param("i", $plot_id);
+    }
 
 
-    $plotCheck->execute();
-
-
-    $plotExists =
-        $plotCheck
-            ->get_result()
-            ->num_rows > 0;
+    $plotExists = $isNursery;
+    if (!$isNursery) {
+        $plotCheck->execute();
+        $plotExists = $plotCheck->get_result()->num_rows > 0;
+    }
 
 
     $plotCheck->close();
@@ -271,18 +271,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     |--------------------------------------------------------------------------
     */
 
-    $stmt->bind_param(
-        "sssidsssi",
-        $crop_name,
-        $recipient,
-        $variety,
-        $pcs,
-        $germination_rate,
-        $transplanted_area,
-        $date_transplanted,
-        $expected_harvest,
-        $plot_id
-    );
+    if ($isNursery) {
+        $stmt = $conn->prepare("INSERT INTO crops (crop_name, recipient, variety, pcs, germination_rate, transplanted_area, date_transplanted, expected_harvest, plot_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)");
+        $stmt->bind_param("sssidsss", $crop_name, $recipient, $variety, $pcs, $germination_rate, $transplanted_area, $date_transplanted, $expected_harvest);
+    } else {
+        $stmt->bind_param("sssidsssi", $crop_name, $recipient, $variety, $pcs, $germination_rate, $transplanted_area, $date_transplanted, $expected_harvest, $plot_id);
+    }
 
 
     /*
@@ -794,6 +788,9 @@ body {
 
                     <option value="">
                         Select Plot
+                    </option>
+                    <option value="0" data-location="NURSERY">
+                        Nursery
                     </option>
 
 

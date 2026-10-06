@@ -715,7 +715,7 @@ button {
 
     color: #222;
 
-    font-size: 12px;
+    font-size: 15px;
 
     font-weight: 500;
 
@@ -771,13 +771,13 @@ button {
 
 .inventory-table th:nth-child(5),
 .inventory-table td:nth-child(5) {
-    width: 11%;
+    width: 9%;
 }
 
 
 .inventory-table th:nth-child(6),
 .inventory-table td:nth-child(6) {
-    width: 13%;
+    width: 10%;
 }
 
 
@@ -806,7 +806,7 @@ button {
 
 .stock-status {
 
-    min-width: 77px;
+    min-width: 80px;
 
     padding: 4px 9px;
 
@@ -818,7 +818,7 @@ button {
 
     justify-content: center;
 
-    font-size: 10px;
+    font-size: 12px;
 
     font-weight: 600;
 
@@ -1881,3 +1881,26 @@ button {
     background: #fff0e9;
     color: #a55e3f;
 }
+
+/* ================================================================
+   READABILITY OVERRIDES
+   Larger text only; existing colors, spacing, and layout are unchanged.
+================================================================ */
+.inventory-table th { font-size: 13px; }
+.inventory-table td { font-size: 14px; }
+.inventory-table .row-number-col,
+.inventory-table .row-number {
+    width: 45px !important;
+    min-width: 45px !important;
+    text-align: center;
+    font-weight: 700;
+}
+.inventory-table .row-number { color: #6b7d66; background: #fafcf8; }
+.inventory-toolbar button,
+.inventory-toolbar input,
+.inventory-toolbar select,
+.archive-items-button { font-size: 14px; }
+.summary-message,
+.inventory-page-alert { font-size: 16px; }
+.summary-info span { font-size: 17px; }
+.inventory-header h1 { font-size: 31px; }

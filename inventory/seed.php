@@ -346,11 +346,11 @@ try {
 
             <div class="inventory-table-wrapper">
                 <table class="inventory-table" id="inventoryTable">
-                    <thead><tr><th>DATE RECEIVED</th><th>SEEDS</th><th>VARIETY</th><th>BRAND</th><th>PIECES</th><th>NO. OF SEEDS</th><th>PRICE</th><th>STATUS</th><?php if ($isAdmin): ?><th>ACTIONS</th><?php endif; ?></tr></thead>
+                    <thead><tr><th class="row-number-col">#</th><th>DATE RECEIVED</th><th>SEEDS</th><th>VARIETY</th><th>BRAND</th><th>PIECES</th><th>NO. OF SEEDS</th><th>PRICE</th><th>STATUS</th><?php if ($isAdmin): ?><th>ACTIONS</th><?php endif; ?></tr></thead>
                     <tbody id="inventoryTableBody">
                     <?php if (!$items): ?>
-                        <tr><td colspan="<?= $isAdmin ? 9 : 8 ?>" class="inventory-empty">No seed inventory items yet.</td></tr>
-                    <?php else: foreach ($items as $item):
+                        <tr><td colspan="<?= $isAdmin ? 10 : 9 ?>" class="inventory-empty">No seed inventory items yet.</td></tr>
+                    <?php else: $inventoryRowNumber = 1; foreach ($items as $item):
                         $statusClass = $item['status'] === 'Low Stock' ? 'low-stock' : ($item['status'] === 'No Stock' ? 'no-stock' : 'in-stock');
                         $editPayload = json_encode([
                             'inventory_id' => (int)$item['inventory_id'],
@@ -368,6 +368,7 @@ try {
                             data-status="<?= e($item['status']) ?>"
                             data-variety="<?= e(trim((string)$item['variety'])) ?>"
                             data-brand="<?= e(trim((string)$item['brand'])) ?>">
+                            <td class="row-number"><?= $inventoryRowNumber++ ?></td>
                             <td><?= e(date('m/d/Y', strtotime($item['date_received']))) ?></td>
                             <td class="item-name"><?= e($item['item_name']) ?></td>
                             <td><?= e($item['variety'] ?: '—') ?></td>
@@ -379,7 +380,7 @@ try {
                             <?php if ($isAdmin): ?><td><div class="table-actions"><button type="button" class="edit-button" data-item="<?= e($editPayload) ?>" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button><button type="button" class="delete-button" data-id="<?= (int)$item['inventory_id'] ?>" data-name="<?= e($item['item_name']) ?>" title="Delete"><i class="fa-solid fa-trash"></i></button></div></td><?php endif; ?>
                         </tr>
                     <?php endforeach; ?>
-                        <tr id="noMatchRow" style="display:none;"><td colspan="<?= $isAdmin ? 9 : 8 ?>" class="inventory-empty">No seed items match the current filters.</td></tr>
+                        <tr id="noMatchRow" style="display:none;"><td colspan="<?= $isAdmin ? 10 : 9 ?>" class="inventory-empty">No seed items match the current filters.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>

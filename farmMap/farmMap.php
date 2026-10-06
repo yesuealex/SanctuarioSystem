@@ -86,17 +86,9 @@ $normaliseCropLocation = static function ($area, $plotId = null) use ($plotCodeB
     $compact = preg_replace('/\s+/', '', $area);
     $lower = strtolower($compact);
 
-    if ($lower === 'nursery') {
-        return 'NURSERY';
-    }
-
-    if ($lower === 'mno') {
-        return 'MNO';
-    }
-
-    if (preg_match('/^([abc])(?:[0-9]+)?$/i', $compact, $m)) {
-        return strtoupper($m[1]);
-    }
+    if ($lower === 'nursery') return 'NURSERY';
+    if ($lower === 'mno') return 'MNO';
+    if (preg_match('/^(?:plot_)?([abc])(?:[0-9]+)?$/i', $compact, $m)) return strtoupper($m[1]);
 
     if ($plotId !== null) {
         foreach ($plotCodeByLetter as $letter => $code) {
@@ -163,42 +155,15 @@ if ($liveRes) {
 }
 
 /*
- * Older livestock records may not have house_id populated yet.
- * Connect those records to the matching existing house by type so the
- * farm map still reflects the livestock module's actual records.
+ * IMPORTANT: livestock houses display only records explicitly assigned to
+ * that house through livestocks.house_id. Do not infer house membership
+ * from livestock type; otherwise the same chicken/pig/goat/rabbit can appear
+ * in more than one house.
  */
-$houseTypeForCode = static function ($code) {
-    $code = strtolower((string)$code);
-    if (strpos($code, 'rabbit') !== false) return 'rabbit';
-    if (strpos($code, 'poultry') !== false || strpos($code, 'chicken') !== false) return 'chicken';
-    if (strpos($code, 'swine') !== false || strpos($code, 'pig') !== false) return 'pig';
-    if (strpos($code, 'goat') !== false) return 'goat';
-    return '';
-};
-
-$unassignedByType = [];
-foreach ($unassignedLivestocks as $animal) {
-    $type = strtolower(trim((string)($animal['type'] ?? '')));
-    if (strpos($type, 'rabbit') !== false) $key = 'rabbit';
-    elseif (strpos($type, 'chicken') !== false || strpos($type, 'poultry') !== false || strpos($type, 'hen') !== false) $key = 'chicken';
-    elseif (strpos($type, 'pig') !== false || strpos($type, 'swine') !== false) $key = 'pig';
-    elseif (strpos($type, 'goat') !== false) $key = 'goat';
-    else $key = '';
-    if ($key !== '') $unassignedByType[$key][] = $animal;
-}
-
 $dbLivestockHouses = [];
-$assignedFallbackTypes = [];
 
 foreach ($houseRowsByCode as $code => $h) {
     $animals = $livestocksByHouseId[(int)$h['house_id']] ?? [];
-    $houseType = $houseTypeForCode($code);
-
-    // Use unassigned records only for the first matching house of a type.
-    if (!$animals && $houseType !== '' && empty($assignedFallbackTypes[$houseType])) {
-        $animals = $unassignedByType[$houseType] ?? [];
-        $assignedFallbackTypes[$houseType] = true;
-    }
 
     $dbLivestockHouses[$code] = [
         'house'   => $h,
@@ -261,6 +226,12 @@ foreach ($houseRowsByCode as $code => $h) {
     <link
         rel="stylesheet"
         href="<?= $basePath ?>farmMap/farmMap.css?v=20260928-zoomfix"
+    >
+
+    <!-- CROP LIFECYCLE GANTT (ADD-ON) -->
+    <link
+        rel="stylesheet"
+        href="<?= $basePath ?>farmMap/farmMap_lifecycle.css?v=20261006-fix1"
     >
 
 
@@ -544,29 +515,6 @@ foreach ($houseRowsByCode as $code => $h) {
 .livestock-house-toolbar .position-active {
     background: #315d2e;
 }
-.livestock-plus-marker {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    width: 42px; height: 42px;
-    border: 2px dashed #6b8e23;
-    border-radius: 50%;
-    background: rgba(255,255,255,.92);
-    color: #6b8e23;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    z-index: 19;
-}
-.livestock-plus-marker:hover {
-    transform: translate(-50%, -50%) scale(1.08);
-}
-.livestock-plus-marker span {
-    position: absolute; top: calc(100% + 5px); left: 50%;
-    transform: translateX(-50%); white-space: nowrap;
-    padding: 3px 6px; border-radius: 5px;
-    background: #315d2e; color: #fff; font-size: 8px;
-    opacity: 0; pointer-events: none;
-}
-.livestock-plus-marker:hover span { opacity: 1; }
 .livestock-house-marker.position-editing { cursor: grab; }
 .livestock-house-marker.position-editing:active { cursor: grabbing; }
 .livestock-house-marker.selected { outline: 3px solid rgba(95,143,69,.3); }
@@ -2486,6 +2434,33 @@ foreach ($houseRowsByCode as $code => $h) {
     margin: auto !important;
 }
 
+
+/* =========================================================
+   READABLE FARM MAP TYPOGRAPHY
+   Slightly enlarged for older users without changing layout.
+========================================================= */
+.farm-map-title-area h1 { font-size: 30px; }
+.farm-map-title-area p { font-size: 15px; }
+.summary-label { font-size: 15px; }
+.summary-number { font-size: 36px; }
+.map-edit-btn, .map-edit-controls button { font-size: 14px; }
+.map-edit-status { font-size: 13px; }
+.main-marker span { font-size: 13px; padding: 5px 9px; }
+.map-hint { font-size: 14px; }
+.plot-info h2 { font-size: 26px; }
+.plot-info p { font-size: 15px; }
+.plot-stat span { font-size: 13px; }
+.plot-stat strong { font-size: 25px; }
+.plant-marker { font-size: 12px; }
+.plant-marker::after { font-size: 12px; padding: 4px 8px; }
+.crop-profile-title h2, .livestock-profile-title h2 { font-size: 25px; }
+.crop-profile-title p, .livestock-profile-title p { font-size: 14px; }
+.crop-profile-field span, .livestock-profile-field span { font-size: 12px; }
+.crop-profile-field strong, .livestock-profile-field strong { font-size: 14px; }
+.crop-profile-actions button, .livestock-profile-actions button { font-size: 14px; }
+.nursery-popup h2 { font-size: 26px; }
+.nursery-popup p { font-size: 15px; }
+
 </style>
 
 </head>
@@ -2826,6 +2801,23 @@ foreach ($houseRowsByCode as $code => $h) {
 
 
                     <!-- =================================================
+                         MNO
+                    ================================================== -->
+                    <button
+                        type="button"
+                        class="main-marker plot-marker editable-marker"
+                        id="plot-MNO"
+                        data-marker="plot"
+                        data-id="MNO"
+                        data-name="MNO"
+                        style="left:88%; top:36%;"
+                    >
+                        <img src="<?= $basePath ?>markers/mno.png" alt="MNO">
+                        <span>MNO</span>
+                    </button>
+
+
+                    <!-- =================================================
                          NURSERY
                     ================================================== -->
 
@@ -3060,6 +3052,9 @@ foreach ($houseRowsByCode as $code => $h) {
                                     <strong id="plotSummaryReady">0</strong>
                                 </div>
                             </div>
+
+                            <!-- DATABASE-DRIVEN MULTI-CROP GANTT: all crop records in this plot -->
+                            <div id="plotCropLifecycleGantt" class="plot-crop-lifecycle-gantt" aria-live="polite"></div>
 
                               <!-- =================================================
                                  BED EDIT CONTROLS
@@ -3374,9 +3369,6 @@ foreach ($houseRowsByCode as $code => $h) {
                     <i class="fa-solid fa-pen"></i> Edit House
                 </button>
                 <div class="livestock-house-edit-actions" id="livestockHouseEditActions">
-                    <button type="button" id="addLivestockBtn">
-                        <i class="fa-solid fa-plus"></i> Add Livestock
-                    </button>
                     <button type="button" id="editLivestockPositionBtn">
                         <i class="fa-solid fa-up-down-left-right"></i> Edit Position
                     </button>
@@ -5186,7 +5178,7 @@ plotData.NURSERY = {
 };
 
 plotData.MNO = {
-    image: "",
+    image: "<?= $basePath ?>farmMap/mno.jpg",
     title: "MNO",
     description: "MNO Crop Area",
     beds: 20,
@@ -5883,30 +5875,42 @@ function renderBedMarkers(plot) {
     container.innerHTML = "";
 
     const fixedCount = FIXED_PLOT_MARKER_COUNTS[plot] || 0;
-    const beds = getBedsForPlot(plot);
     const rows = Array.isArray(dbCropsByPlot[plot]) ? dbCropsByPlot[plot] : [];
     const slots = Array.isArray(deletedBedSlots[plot])
         ? deletedBedSlots[plot].filter(slot => Number(slot.number) >= 1 && Number(slot.number) <= fixedCount)
         : [];
-
     const deletedNumbers = new Set(slots.map(slot => Number(slot.number)));
 
-    // Normal viewing shows one crop marker per active crop RECORD.
-    // This prevents empty bed slots from being mistaken for planted crops.
-    const visibleCount = Math.min(rows.length, beds.length);
+    // The database is authoritative: every active crop row gets one marker.
+    // If a location has more records than its configured bed slots, extend the
+    // visual positions instead of silently dropping crop records.
+    let beds = getBedsForPlot(plot);
+    if (beds.length < rows.length) {
+        const generated = createDefaultBedPositions(rows.length);
+        const stored = getStoredBeds();
+        const saved = Array.isArray(stored[plot]) ? stored[plot] : [];
+        const savedByNumber = new Map(saved.map(bed => [Number(bed.number), bed]));
+        beds = generated.map(bed => {
+            const savedBed = savedByNumber.get(Number(bed.number));
+            return savedBed ? { number: Number(bed.number), x: Number(savedBed.x) || bed.x, y: Number(savedBed.y) || bed.y } : bed;
+        });
+    }
+
+    const visibleCount = rows.length;
+    // Do not apply deleted-bed UI state to active database records. This keeps
+    // the marker count exactly equal to the current crop-record count.
     beds.slice(0, visibleCount).forEach(bed => {
-        if (deletedNumbers.has(Number(bed.number))) return;
         container.appendChild(createBedMarker(bed));
     });
 
-    // Keep the existing +/empty-bed editing behavior when the user enters edit mode.
+    // Keep the existing +/empty-bed editing behavior for unused slots.
     if (bedEditMode) {
         beds.slice(visibleCount).forEach(bed => {
             if (deletedNumbers.has(Number(bed.number))) return;
             container.appendChild(createDeletedBedSlotMarker(bed));
         });
         slots.forEach(slot => {
-            container.appendChild(createDeletedBedSlotMarker(slot));
+            if (Number(slot.number) > visibleCount) container.appendChild(createDeletedBedSlotMarker(slot));
         });
     }
 
@@ -6101,6 +6105,12 @@ function openPlot(plot) {
     updatePlotRecordSummary(plot);
 
     renderBedMarkers(plot);
+
+    // The plot popup owns the lifecycle Gantt. It uses the same crop records
+    // already loaded from the crops table for this plot.
+    if (typeof window.renderPlotLifecycleGantt === "function") {
+        window.renderPlotLifecycleGantt(plot);
+    }
 
 
     const plotOverlay = document.getElementById("plotOverlay");
@@ -6680,6 +6690,9 @@ function dbCropToProfile(row) {
 
     targetTransplantDate:
         row.target_transplant_date || "",
+
+    dateTransplanted:
+        row.date_transplanted || "",
 
     targetArea:
         row.target_area || "",
@@ -8964,20 +8977,6 @@ function saveDeletedLivestock(data) {
 
 livestockDeletedIds = getDeletedLivestock();
 
-function createLivestockPlusMarker(index, x, y) {
-    const marker = document.createElement("button");
-    marker.type = "button";
-    marker.className = "livestock-plus-marker";
-    marker.style.left = `${Number(x) || 50}%`;
-    marker.style.top = `${Number(y) || 50}%`;
-    marker.innerHTML = `<i class="fa-solid fa-plus"></i><span>Add Livestock</span>`;
-    marker.addEventListener("click", e => {
-        e.preventDefault(); e.stopPropagation();
-        openNewLivestockForm(index, Number(x) || 50, Number(y) || 50);
-    });
-    return marker;
-}
-
 function createLivestockMarker(animal, unitIndex = 0, unitTotal = 1) {
 
     const marker =
@@ -9036,22 +9035,20 @@ function createLivestockMarker(animal, unitIndex = 0, unitTotal = 1) {
      * Preserve existing automatically generated
      * positions unless the user has manually saved one.
      */
-    let x;
-    let y;
+    // One database livestock record = one map marker.
+    // The `number` field is informational and must NOT duplicate markers.
+    // Always prefer a manually saved position so dragging survives redraws/reloads.
+    const hasSavedPosition =
+        saved.x !== undefined && saved.x !== null &&
+        saved.y !== undefined && saved.y !== null;
 
-    if (unitTotal > 1) {
-        // A database record can represent multiple animals through `number`.
-        // Give every animal its own visible marker instead of one marker with a count.
-        const columns = Math.min(5, unitTotal);
-        const col = unitIndex % columns;
-        const row = Math.floor(unitIndex / columns);
-        const spreadX = columns > 1 ? 70 / (columns - 1) : 0;
-        x = 15 + col * spreadX;
-        y = 20 + row * 20;
-    } else {
-        x = saved.x != null ? Number(saved.x) : Number(animal.x) || 0;
-        y = saved.y != null ? Number(saved.y) : Number(animal.y) || 0;
-    }
+    const x = hasSavedPosition
+        ? Number(saved.x)
+        : Number(animal.x) || 0;
+
+    const y = hasSavedPosition
+        ? Number(saved.y)
+        : Number(animal.y) || 0;
 
 
     marker.style.left =
@@ -9107,27 +9104,17 @@ function renderLivestockMarkers(houseId) {
     const house = getLivestockHouseData(houseId);
     if (!house) return;
 
-    let totalAnimals = 0;
-
+    // One marker = one actual livestock.php record.
+    // Never expand the `number` field into multiple markers.
     house.animals.forEach((animal, index) => {
-        const key = String(animal.id);
-        const quantity = Math.max(1, Number(animal.number) || 1);
-        totalAnimals += quantity;
-
-        if (livestockDeletedIds[houseId] && livestockDeletedIds[houseId][key]) {
-            const x = Number(animal.x) || (20 + (index % 5) * 15);
-            const y = Number(animal.y) || (20 + Math.floor(index / 5) * 15);
-            container.appendChild(createLivestockPlusMarker(index, x, y));
-            return;
-        }
-
-        for (let unitIndex = 0; unitIndex < quantity; unitIndex++) {
-            container.appendChild(createLivestockMarker(animal, unitIndex, quantity));
-        }
+        container.appendChild(createLivestockMarker(animal, index, house.animals.length));
     });
 
     const count = document.getElementById("livestockCount");
-    if (count) count.textContent = `${totalAnimals} ${totalAnimals === 1 ? "animal" : "animals"}`;
+    if (count) {
+        const totalRecords = house.animals.length;
+        count.textContent = `${totalRecords} ${totalRecords === 1 ? "record" : "records"}`;
+    }
 }
 
 function selectLivestockMarker(marker) {
@@ -10331,25 +10318,6 @@ if (deleteLivestockBtn) deleteLivestockBtn.addEventListener("click", deleteSelec
 
 const editSelectedLivestockBtn = document.getElementById("editSelectedLivestockBtn");
 if (editSelectedLivestockBtn) editSelectedLivestockBtn.addEventListener("click", editSelectedLivestock);
-
-const addLivestockBtn = document.getElementById("addLivestockBtn");
-if (addLivestockBtn) addLivestockBtn.addEventListener("click", function() {
-    if (!livestockHouseEditMode) return;
-
-    /* Prefer an existing empty (+) livestock slot so Add Livestock never
-       unnecessarily overlaps an existing marker. */
-    const plus = document.querySelector("#livestockMarkersContainer .livestock-plus-marker");
-    if (plus) {
-        plus.click();
-        return;
-    }
-
-    const house = getLivestockHouseData(currentLivestockHouse);
-    const count = house ? house.animals.length : 0;
-    const x = 20 + (count % 5) * 15;
-    const y = 20 + Math.floor(count / 5) * 15;
-    openNewLivestockForm(count, x, y);
-});
 
 const doneLivestockHouseBtn = document.getElementById("doneLivestockHouseBtn");
 if (doneLivestockHouseBtn) doneLivestockHouseBtn.addEventListener("click", function() {
@@ -12259,6 +12227,8 @@ updateBedEditUI();
 
 </script>
 
+<!-- DATABASE-DRIVEN CROP LIFECYCLE GANTT (ADD-ON) -->
+<script src="<?= $basePath ?>farmMap/farmMap_lifecycle.js?v=20261006-fix1"></script>
 
 <div id="farmMapToast" class="farm-map-toast" role="status" aria-live="polite"></div>
 </body>

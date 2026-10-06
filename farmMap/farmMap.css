@@ -3218,3 +3218,30 @@ a.edit-btn:hover {
         min-height: 380px;
     }
 }
+
+
+/* =========================================================
+   READABLE FARM MAP TYPOGRAPHY
+   Slightly enlarged for older users without changing layout.
+========================================================= */
+.farm-map-title-area h1 { font-size: 30px; }
+.farm-map-title-area p { font-size: 15px; }
+.summary-label { font-size: 15px; }
+.summary-number { font-size: 36px; }
+.map-edit-btn, .map-edit-controls button { font-size: 14px; }
+.map-edit-status { font-size: 13px; }
+.main-marker span { font-size: 13px; padding: 5px 9px; }
+.map-hint { font-size: 14px; }
+.plot-info h2 { font-size: 26px; }
+.plot-info p { font-size: 15px; }
+.plot-stat span { font-size: 13px; }
+.plot-stat strong { font-size: 25px; }
+.plant-marker { font-size: 12px; }
+.plant-marker::after { font-size: 12px; padding: 4px 8px; }
+.crop-profile-title h2, .livestock-profile-title h2 { font-size: 25px; }
+.crop-profile-title p, .livestock-profile-title p { font-size: 14px; }
+.crop-profile-field span, .livestock-profile-field span { font-size: 12px; }
+.crop-profile-field strong, .livestock-profile-field strong { font-size: 14px; }
+.crop-profile-actions button, .livestock-profile-actions button { font-size: 14px; }
+.nursery-popup h2 { font-size: 26px; }
+.nursery-popup p { font-size: 15px; }
