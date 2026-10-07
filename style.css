@@ -550,3 +550,483 @@ grid-template-columns:1fr;
 
 
 .map-popup-record-list{display:flex;flex-direction:column;gap:6px;margin-top:6px;max-height:220px;overflow:auto}.map-popup-record-item{padding:8px 9px;border:1px solid #e5ebe1;border-radius:8px;background:#fbfcfa}.map-popup-record-item strong{display:block;color:#43563a;font-size:15px}.map-popup-record-item span{display:block;margin-top:2px;color:#7b8577;font-size:8px}.map-popup-empty{padding:9px;border:1px dashed #d8e0d4;border-radius:8px;color:#80897d;font-size:8px;background:#fbfcfa}
+
+/* Shared responsive safety net: contain desktop dimensions without changing the UI. */
+html, body { max-width: 100%; }
+.dashboard, .archive-dashboard, .farm-map-page, .page, .content, .main-content { min-width: 0; max-width: 100%; }
+.dashboard { margin-left: var(--sidebar-width); width: calc(100% - var(--sidebar-width)); }
+table { max-width: 100%; }
+.table-wrap, .table-wrapper, .crop-table-wrapper, .livestock-table-container, .maintenance-table-wrapper, .monitoring-scroll { max-width: 100%; overflow-x: auto; }
+img, svg, canvas, video { max-width: 100%; }
+input, select, textarea, button { max-width: 100%; }
+@media (max-width: 900px) {
+    .dashboard { margin-left: 0; width: 100%; padding: 20px; }
+    .hero-container { max-width: 100%; }
+    .hero-cards { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+}
+@media (max-width: 600px) {
+    .dashboard { padding: 68px 12px 16px; }
+    .hero-container { padding: 22px 16px; border-radius: 16px; }
+    .hero-cards { grid-template-columns: 1fr; }
+    .hero-card { min-width: 0; }
+    .bottom-grid, .top-grid { grid-template-columns: 1fr; }
+    .modal-overlay { padding: 12px; }
+    .edit-modal, .delete-modal, .modal-content { width: 100%; max-width: 100%; max-height: calc(100dvh - 24px); overflow-y: auto; }
+}
+
+/* Compact phone summary cards: same cards, less vertical stretch. */
+@media (max-width: 600px) {
+    .hero-cards { gap: 10px; }
+    .hero-card { min-height: 0; padding: 10px 14px; gap: 11px; border-radius: 15px; }
+    .hero-icon { width: 44px; height: 44px; }
+    .hero-icon span { font-size: 24px; }
+    .hero-info span { font-size: 12px; }
+    .hero-info h3 { font-size: 28px; line-height: 1.05; }
+}
+
+
+/* =========================================================
+   FINAL PHONE LAYOUT
+   Existing UI only — no redesign.
+   This block intentionally overrides older responsive rules
+   above so the desktop layout remains untouched.
+========================================================= */
+@media (max-width: 600px) {
+    html,
+    body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .dashboard {
+        margin-left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        padding: 78px 12px 16px !important;
+    }
+
+    /* Keep the existing top bar, just give it phone spacing. */
+    .dashboard-topbar {
+        width: 100%;
+        min-width: 0;
+        padding-left: 56px !important;
+    }
+
+    /* Existing welcome panel — compact, not redesigned. */
+    .hero-container {
+        width: 100%;
+        max-width: 100%;
+        padding: 24px 15px 10px !important;
+        margin-bottom: 16px;
+        border-radius: 18px;
+        overflow: hidden;
+    }
+
+    .hero-text {
+        width: 100%;
+        min-width: 0;
+        margin-bottom: 14px;
+        gap: 10px;
+    }
+
+    .hero-text > div:first-child {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .hero-text h2 {
+        width: 100%;
+        display: block;
+        font-size: clamp(27px, 7.2vw, 34px);
+        line-height: 1.18;
+        overflow-wrap: anywhere;
+    }
+
+    .hero-text h2 span {
+        display: inline-block;
+        font-size: 32px;
+        margin-right: 5px;
+        vertical-align: middle;
+    }
+
+    .hero-text p {
+        margin-top: 10px;
+        font-size: 13px;
+        line-height: 1.55;
+    }
+
+    .hero-date {
+        width: fit-content;
+        max-width: 100%;
+        align-self: flex-end;
+        padding: 8px 11px;
+        font-size: 10px;
+        white-space: nowrap;
+    }
+
+    /* IMPORTANT: the phone version keeps the 3 existing cards in one row,
+       like the supplied reference screenshot. */
+    .hero-cards {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 9px !important;
+        width: 100%;
+    }
+
+    .hero-card {
+        width: 100%;
+        min-width: 0;
+        min-height: 102px;
+        padding: 9px 5px !important;
+        border-radius: 15px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 3px !important;
+        text-align: center;
+    }
+
+    .hero-card:hover {
+        transform: none;
+    }
+
+    .hero-icon {
+        width: 39px !important;
+        height: 39px !important;
+    }
+
+    .hero-icon span {
+        font-size: 22px !important;
+    }
+
+    .hero-info {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .hero-info span {
+        font-size: 9px !important;
+        line-height: 1.25;
+        white-space: nowrap;
+    }
+
+    .hero-info h3 {
+        font-size: 25px !important;
+        line-height: 1.05;
+        margin-top: 2px;
+    }
+
+    /* Farm Map and charts become one vertical column. */
+    .top-grid,
+    .bottom-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) !important;
+        width: 100%;
+        min-width: 0;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .map-box {
+        width: 100%;
+        min-width: 0;
+        padding: 10px !important;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .map-box > h3 {
+        font-size: 18px;
+        margin-bottom: 6px;
+    }
+
+    .svg-wrapper {
+        width: 100% !important;
+        height: 158px !important;
+        min-height: 158px !important;
+        max-height: 158px !important;
+        border-radius: 11px;
+        overflow: hidden;
+        touch-action: none !important;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    /* Existing dashboard charts, stacked below the map. */
+    .dashboard-charts {
+        display: grid;
+        grid-template-rows: 210px 210px !important;
+        gap: 12px;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .chart-box {
+        width: 100%;
+        min-width: 0;
+        min-height: 0;
+        padding: 10px !important;
+        border-radius: 11px;
+        overflow: hidden;
+    }
+
+    .chart-box h3 {
+        font-size: 16px !important;
+        line-height: 1.2;
+    }
+
+    .chart-title-row {
+        height: 30px;
+        gap: 6px;
+        margin-bottom: 3px;
+    }
+
+    #livestockSelector {
+        max-width: 112px;
+        padding: 5px 7px;
+        font-size: 9px;
+    }
+
+    .bar-chart {
+        height: calc(100% - 34px);
+        min-height: 0;
+    }
+
+    .pie-content {
+        grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr) !important;
+        min-width: 0;
+    }
+
+    .pie-chart {
+        height: 100%;
+        min-height: 0;
+    }
+
+    #plotSelector {
+        padding: 5px 8px;
+        font-size: 10px;
+    }
+
+    /* Prevent page-wide horizontal scrolling from tables/content. */
+    .table-wrap,
+    .table-wrapper,
+    .crop-table-wrapper,
+    .livestock-table-container,
+    .maintenance-table-wrapper,
+    .monitoring-scroll {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Existing popups stay within the phone viewport. */
+    .map-popup {
+        max-width: calc(100vw - 24px) !important;
+        width: min(360px, calc(100vw - 24px)) !important;
+        max-height: calc(100dvh - 24px) !important;
+        overflow-y: auto;
+    }
+}
+
+@media (max-width: 380px) {
+    .dashboard {
+        padding-left: 9px !important;
+        padding-right: 9px !important;
+    }
+
+    .hero-container {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+
+    .hero-cards {
+        gap: 6px !important;
+    }
+
+    .hero-card {
+        min-height: 96px;
+        padding-left: 3px !important;
+        padding-right: 3px !important;
+    }
+
+    .hero-info span {
+        font-size: 8px !important;
+    }
+
+    .hero-info h3 {
+        font-size: 23px !important;
+    }
+}
+
+/* =========================================================
+   FINAL PHONE TOPBAR + FARM MAP INTERACTION
+   Existing UI only
+========================================================= */
+
+.map-interaction-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 7px;
+    transform: translateX(-50%);
+    z-index: 20;
+    padding: 6px 13px;
+    border-radius: 20px;
+    background: rgba(45, 64, 47, .86);
+    color: #fff;
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 3px 10px rgba(0,0,0,.16);
+}
+
+@media (max-width: 600px) {
+    /* The topbar begins at the very top of the dashboard.
+       The hamburger and right-side buttons therefore align on one row. */
+    .dashboard {
+        padding-top: 0 !important;
+    }
+
+    .dashboard-topbar {
+        height: 78px !important;
+        min-height: 78px !important;
+        padding: 0 12px 0 62px !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    .dashboard-topbar .notification-btn,
+    .dashboard-topbar .profile-btn {
+        width: 48px !important;
+        height: 48px !important;
+        flex: 0 0 48px;
+    }
+
+    .dashboard-topbar .notification-btn .material-symbols-rounded {
+        font-size: 26px;
+    }
+
+    .hero-container {
+        margin-top: 0 !important;
+    }
+
+    .map-interaction-hint {
+        bottom: 7px;
+        font-size: 9px;
+        padding: 6px 12px;
+    }
+}
+
+/* =========================================================
+   FINAL PHONE TOPBAR + FARM MAP INTERACTION
+========================================================= */
+.map-interaction-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 7px;
+    transform: translateX(-50%);
+    z-index: 20;
+    padding: 6px 13px;
+    border-radius: 20px;
+    background: rgba(45, 64, 47, .86);
+    color: #fff;
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 3px 10px rgba(0,0,0,.16);
+}
+
+@media (max-width: 600px) {
+    .dashboard {
+        padding-top: 0 !important;
+    }
+
+    .dashboard-topbar {
+        height: 78px !important;
+        min-height: 78px !important;
+        padding: 0 12px 0 62px !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    .dashboard-topbar .notification-btn,
+    .dashboard-topbar .profile-btn {
+        width: 48px !important;
+        height: 48px !important;
+        flex: 0 0 48px;
+    }
+
+    .dashboard-topbar .notification-btn .material-symbols-rounded {
+        font-size: 26px;
+    }
+
+    .hero-container {
+        margin-top: 0 !important;
+    }
+
+    .map-interaction-hint {
+        bottom: 7px;
+        font-size: 9px;
+        padding: 6px 12px;
+    }
+}
+
+/* =========================================================
+   FINAL PHONE TOPBAR + FARM MAP INTERACTION
+========================================================= */
+.map-interaction-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 7px;
+    transform: translateX(-50%);
+    z-index: 20;
+    padding: 6px 13px;
+    border-radius: 20px;
+    background: rgba(45, 64, 47, .86);
+    color: #fff;
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 3px 10px rgba(0,0,0,.16);
+}
+
+@media (max-width: 600px) {
+    .dashboard {
+        padding-top: 0 !important;
+    }
+
+    .dashboard-topbar {
+        height: 78px !important;
+        min-height: 78px !important;
+        padding: 0 12px 0 62px !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    .dashboard-topbar .notification-btn,
+    .dashboard-topbar .profile-btn {
+        width: 48px !important;
+        height: 48px !important;
+        flex: 0 0 48px;
+    }
+
+    .dashboard-topbar .notification-btn .material-symbols-rounded {
+        font-size: 26px;
+    }
+
+    .hero-container {
+        margin-top: 0 !important;
+    }
+
+    .map-interaction-hint {
+        bottom: 7px;
+        font-size: 9px;
+        padding: 6px 12px;
+    }
+}

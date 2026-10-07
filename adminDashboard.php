@@ -101,7 +101,7 @@ if ($lowStockRes) {
     cursor: grab;
     user-select: none;
     -webkit-user-select: none;
-    touch-action: pan-y;
+    touch-action: none;
 }
 
 .svg-wrapper:active {
@@ -435,6 +435,10 @@ if ($lowStockRes) {
 
 </svg>
 
+<div class="map-interaction-hint" aria-hidden="true">
+    <span>Drag and Zoom the Map to interact</span>
+</div>
+
 <div id="mapPopup" class="map-popup hidden"></div>
 
 </div>
@@ -532,140 +536,211 @@ document.addEventListener("DOMContentLoaded", () => {
        MAP SETTINGS
        =========================== */
 
-    let scale = 1.5;
-    let translateX = 0;
+    /* Phone starts already zoomed; desktop keeps the normal scale. */
+    const isPhone = () => window.innerWidth <= 600;
+    let scale = isPhone() ? 1.5 : 1;
+    const MIN_SCALE = 1;
+    const MAX_SCALE = 3.25;
 
+    let translateX = 0;
+    let translateY = 0;
     let dragging = false;
     let startX = 0;
+    let startY = 0;
 
-    function getMapWidth() {
-        /*
-         * SVG viewBox is 1706 x 600.
-         * getBoundingClientRect() gives the rendered width
-         * before/after transform, so divide by scale.
-         */
-        const renderedWidth = svg.getBoundingClientRect().width;
+    const activePointers = new Map();
+    let pinchStartDistance = 0;
+    let pinchStartScale = scale;
+    let pinchStartCenter = null;
+    let pinchStartTranslate = null;
 
-        return renderedWidth / scale;
+    function getBaseSize() {
+        const width = Math.max(1, container.clientWidth);
+        return { width, height: width * (600 / 1706) };
     }
 
     function clampMapPosition() {
-
-        const containerWidth = container.clientWidth;
-
-        /*
-         * The SVG's unscaled width is based on its actual
-         * rendered size. Multiply it by the current zoom.
-         */
-        const baseWidth = getMapWidth();
+        const { width: baseWidth, height: baseHeight } = getBaseSize();
         const scaledWidth = baseWidth * scale;
+        const scaledHeight = baseHeight * scale;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
 
         const minX = Math.min(0, containerWidth - scaledWidth);
+        const minY = Math.min(0, containerHeight - scaledHeight);
 
-        if (scaledWidth <= containerWidth) {
-            translateX = (containerWidth - scaledWidth) / 2;
-        } else {
-            translateX = Math.max(minX, Math.min(0, translateX));
-        }
+        translateX = scaledWidth <= containerWidth
+            ? (containerWidth - scaledWidth) / 2
+            : Math.max(minX, Math.min(0, translateX));
+
+        translateY = scaledHeight <= containerHeight
+            ? (containerHeight - scaledHeight) / 2
+            : Math.max(minY, Math.min(0, translateY));
     }
 
     function updateContainerHeight() {
-        /*
-         * CSS transforms do not increase the element's layout height.
-         * Because the map is zoomed to 1.5x, the wrapper must be made
-         * tall enough for the transformed 1706 x 600 map.
-         */
-        const baseHeight =
-            (container.clientWidth / 1706) * 600;
-
-        const requiredHeight = baseHeight * scale;
-
-        container.style.height =
-            `${Math.ceil(requiredHeight)}px`;
+        /* Phone gets the compact viewport from the reference image. */
+        container.style.height = isPhone() ? '158px' : '';
     }
 
     function updateTransform() {
-        svg.style.transformOrigin = "top left";
+        svg.style.transformOrigin = 'top left';
         svg.style.transform =
-            `translate3d(${translateX}px, 0, 0) scale(${scale})`;
+            `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`;
     }
 
-    function refreshMapLayout() {
+    function refreshMapLayout(resetScale = false) {
+        if (resetScale) {
+            scale = isPhone() ? 1.5 : 1;
+            translateX = 0;
+            translateY = 0;
+        }
         updateContainerHeight();
         clampMapPosition();
         updateTransform();
     }
 
-    /*
-     * Apply the initial zoom.
-     * The map will NOT automatically zoom again on refresh.
-     */
-    requestAnimationFrame(() => {
-        refreshMapLayout();
-    });
+    function zoomMap(nextScale, focalX, focalY) {
+        const oldScale = scale;
+        const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, nextScale));
+        if (newScale === oldScale) return;
 
+        const mapX = (focalX - translateX) / oldScale;
+        const mapY = (focalY - translateY) / oldScale;
+
+        scale = newScale;
+        translateX = focalX - (mapX * scale);
+        translateY = focalY - (mapY * scale);
+        clampMapPosition();
+        updateTransform();
+    }
+
+    function pointerDistance(a, b) {
+        return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+    }
+
+    function pointerCenter(a, b) {
+        return {
+            x: (a.clientX + b.clientX) / 2,
+            y: (a.clientY + b.clientY) / 2
+        };
+    }
+
+    function getLocalPoint(clientX, clientY) {
+        const rect = container.getBoundingClientRect();
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    requestAnimationFrame(() => refreshMapLayout(true));
 
     /* ===========================
-       DRAG MAP LEFT / RIGHT ONLY
+       DRAG + PINCH ZOOM
        =========================== */
 
-    container.addEventListener("mousedown", (e) => {
+    container.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.marker')) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
 
-        /*
-         * Do not start dragging when clicking a marker.
-         */
-        if (e.target.closest(".marker")) return;
+        activePointers.set(e.pointerId, e);
+
+        if (activePointers.size === 2) {
+            const points = [...activePointers.values()];
+            pinchStartDistance = pointerDistance(points[0], points[1]);
+            pinchStartScale = scale;
+            pinchStartCenter = pointerCenter(points[0], points[1]);
+            pinchStartTranslate = { x: translateX, y: translateY };
+            dragging = false;
+            e.preventDefault();
+            return;
+        }
 
         dragging = true;
         startX = e.clientX;
-
-        container.style.cursor = "grabbing";
-
+        startY = e.clientY;
+        if (container.setPointerCapture) {
+            try { container.setPointerCapture(e.pointerId); } catch (_) {}
+        }
+        container.style.cursor = 'grabbing';
         e.preventDefault();
     });
 
+    container.addEventListener('pointermove', (e) => {
+        if (activePointers.has(e.pointerId)) activePointers.set(e.pointerId, e);
 
-    document.addEventListener("mousemove", (e) => {
+        if (activePointers.size >= 2) {
+            const points = [...activePointers.values()].slice(0, 2);
+            const distance = pointerDistance(points[0], points[1]);
+            const center = pointerCenter(points[0], points[1]);
+
+            if (pinchStartDistance > 0 && pinchStartCenter && pinchStartTranslate) {
+                const rect = container.getBoundingClientRect();
+                const nextScale = Math.max(
+                    MIN_SCALE,
+                    Math.min(MAX_SCALE, pinchStartScale * (distance / pinchStartDistance))
+                );
+                const focalX = pinchStartCenter.x - rect.left;
+                const focalY = pinchStartCenter.y - rect.top;
+                const mapX = (focalX - pinchStartTranslate.x) / pinchStartScale;
+                const mapY = (focalY - pinchStartTranslate.y) / pinchStartScale;
+
+                scale = nextScale;
+                translateX = center.x - rect.left - (mapX * scale);
+                translateY = center.y - rect.top - (mapY * scale);
+                clampMapPosition();
+                updateTransform();
+            }
+            e.preventDefault();
+            return;
+        }
 
         if (!dragging) return;
-
-        const dx = e.clientX - startX;
-
+        translateX += e.clientX - startX;
+        translateY += e.clientY - startY;
         startX = e.clientX;
-
-        translateX += dx;
-
+        startY = e.clientY;
         clampMapPosition();
         updateTransform();
-    });
-
-
-    document.addEventListener("mouseup", () => {
-
-        if (!dragging) return;
-
-        dragging = false;
-        container.style.cursor = "grab";
-    });
-
-
-    /*
-     * Prevent the browser from dragging the image itself.
-     */
-    svg.addEventListener("dragstart", (e) => {
         e.preventDefault();
+    }, { passive: false });
+
+    function endPointer(e) {
+        activePointers.delete(e.pointerId);
+        if (activePointers.size < 2) {
+            pinchStartDistance = 0;
+            pinchStartCenter = null;
+            pinchStartTranslate = null;
+        }
+        if (activePointers.size === 0) {
+            dragging = false;
+            container.style.cursor = 'grab';
+        }
+    }
+
+    container.addEventListener('pointerup', endPointer);
+    container.addEventListener('pointercancel', endPointer);
+
+    /* Desktop mouse-wheel zoom; phones use pinch zoom. */
+    container.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const point = getLocalPoint(e.clientX, e.clientY);
+        zoomMap(scale * (e.deltaY < 0 ? 1.12 : 0.89), point.x, point.y);
+    }, { passive: false });
+
+    /* Double-tap zoom on phones. */
+    let lastTap = 0;
+    container.addEventListener('pointerup', (e) => {
+        if (e.pointerType !== 'touch') return;
+        const now = Date.now();
+        if (now - lastTap < 280) {
+            const point = getLocalPoint(e.clientX, e.clientY);
+            zoomMap(scale < 2 ? 2 : 1.5, point.x, point.y);
+            e.preventDefault();
+        }
+        lastTap = now;
     });
 
-
-    /* ===========================
-       KEEP MAP CORRECT ON RESIZE
-       =========================== */
-
-    window.addEventListener("resize", () => {
-
-        refreshMapLayout();
-    });
-
+    svg.addEventListener('dragstart', (e) => e.preventDefault());
+    window.addEventListener('resize', () => refreshMapLayout(true));
 
     /* ===========================
        MARKER POPUPS

@@ -601,7 +601,7 @@ $trb_notificationFeedUrl = $trb_appRoot . '/notification_feed.php';
 
     gap: 18px;
 
-    padding: 0 24px;
+    padding: 10 24px;
 
     position: relative;
 
@@ -673,7 +673,7 @@ $trb_notificationFeedUrl = $trb_appRoot . '/notification_feed.php';
     min-width: 20px;
     height: 20px;
 
-    padding: 0 5px;
+    padding: 10 5px;
 
     border-radius: 20px;
 
@@ -1044,7 +1044,7 @@ $trb_notificationFeedUrl = $trb_appRoot . '/notification_feed.php';
 
     height: 58px;
 
-    padding: 6px 12px 6px 18px;
+    padding: 10px 12px 6px 18px;
 
     border: 1px solid #e1e4dc;
 
@@ -1336,11 +1336,18 @@ $trb_notificationFeedUrl = $trb_appRoot . '/notification_feed.php';
 
 @media(max-width:700px) {
 
+    /* The mobile menu button already occupies the top-left corner. Keep the
+       topbar on that same top line instead of adding a second 68px offset. */
+    .dashboard,
+    .farm-map-page {
+        padding-top: 10 !important;
+    }
+
     .dashboard-topbar {
 
-        height: 65px;
+        height: 56px;
 
-        padding: 0 12px;
+        padding: 10 12px 0 64px;
 
         gap: 8px;
     }

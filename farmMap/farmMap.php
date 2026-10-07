@@ -225,13 +225,13 @@ foreach ($houseRowsByCode as $code => $h) {
     <!-- FARM MAP CSS -->
     <link
         rel="stylesheet"
-        href="<?= $basePath ?>farmMap/farmMap.css?v=20260928-zoomfix"
+        href="<?= $basePath ?>farmMap/farmMap.css?v=20261007-crop-icons-png"
     >
 
     <!-- CROP LIFECYCLE GANTT (ADD-ON) -->
     <link
         rel="stylesheet"
-        href="<?= $basePath ?>farmMap/farmMap_lifecycle.css?v=20261006-fix1"
+        href="<?= $basePath ?>farmMap/farmMap_lifecycle.css?v=20261007-readable-labels"
     >
 
 
@@ -935,7 +935,7 @@ foreach ($houseRowsByCode as $code => $h) {
 
     padding: 20px;
 
-    z-index: 9999;
+    z-index: 110000 !important;
 
     animation: cropOverlayFade .2s ease;
 }
@@ -999,7 +999,7 @@ foreach ($houseRowsByCode as $code => $h) {
 .crop-profile-overlay {
     position: fixed;
     inset: 0;
-    z-index: 9999;
+    z-index: 110000 !important;
 
     display: flex;
     align-items: center;
@@ -2302,8 +2302,10 @@ foreach ($houseRowsByCode as $code => $h) {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;
-    width: max-content !important;
-    height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
     transform-origin: top left !important;
     will-change: transform !important;
     cursor: grab !important;
@@ -2312,10 +2314,14 @@ foreach ($houseRowsByCode as $code => $h) {
 .farm-map-image {
     position: static !important;
     display: block !important;
-    width: auto !important;
-    height: 100% !important;
+    width: 100% !important;
+    height: auto !important;
     max-width: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    aspect-ratio: auto !important;
     object-fit: contain !important;
+    object-position: left top !important;
 }
 
 /* One setting controls all main map marker sizes. */
@@ -2391,8 +2397,9 @@ foreach ($houseRowsByCode as $code => $h) {
     }
 }
 
-/* Popup is moved to <body> when opened so map-container overflow can never clip it. */
+/* Popup is hidden until a plot marker is actually opened. */
 .plot-overlay {
+    display: none !important;
     position: fixed !important;
     inset: 0 !important;
     width: 100vw !important;
@@ -2402,36 +2409,43 @@ foreach ($houseRowsByCode as $code => $h) {
     overflow: auto !important;
     padding: 18px !important;
     box-sizing: border-box !important;
+    align-items: center !important;
+    justify-content: center !important;
     z-index: 99999 !important;
 }
+
+.plot-overlay.show {
+    display: flex !important;
+}
+
 .plot-overlay .plot-popup {
     width: min(850px, 96vw) !important;
     max-width: 850px !important;
     max-height: calc(100vh - 36px) !important;
     margin: auto !important;
-}
-
-/* =========================================================
-   PLOT POPUP FIX
-   Keep the plot popup outside the expanded map so the popup
-   is not clipped by the map container.
-========================================================= */
-
-.plot-overlay {
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    z-index: 9998 !important;
-    overflow: auto !important;
-    box-sizing: border-box !important;
-}
-
-.plot-overlay .plot-popup {
     flex: 0 1 auto !important;
+}
+
+/* Keep the popup readable after it is moved to <body>. */
+.plot-overlay .plot-popup {
     max-width: min(850px, 95vw) !important;
     max-height: 92vh !important;
     margin: auto !important;
+}
+
+@media (max-width: 600px) {
+    .plot-overlay {
+        padding: 10px !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .plot-overlay .plot-popup {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: calc(100vh - 20px) !important;
+        overflow-y: auto !important;
+    }
 }
 
 
@@ -2486,6 +2500,92 @@ foreach ($houseRowsByCode as $code => $h) {
     <!-- TOP RIGHT BAR -->
 
     <?php include '../topRightBar.php'; ?>
+
+    <!-- Farm Map page-only mobile alignment. Keep the shared topRightBar unchanged. -->
+    <style>
+    @media (max-width: 700px) {
+        .farm-map-page > .dashboard-topbar {
+            height: 68px !important;
+            min-height: 68px !important;
+            width: 100% !important;
+            padding: 0 8px 0 58px !important;
+            margin: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: flex-end !important;
+            gap: 8px !important;
+        }
+
+        .farm-map-page > .dashboard-topbar .notification-btn,
+        .farm-map-page > .dashboard-topbar .profile-btn {
+            width: 48px !important;
+            height: 48px !important;
+            min-width: 48px !important;
+            margin: 0 !important;
+        }
+
+        .farm-map-page > .dashboard-topbar .profile-btn {
+            padding: 4px !important;
+        }
+
+        .farm-map-page > .dashboard-topbar .profile-info,
+        .farm-map-page > .dashboard-topbar .profile-arrow {
+            display: none !important;
+        }
+    }
+
+    /* Phone map interaction hint. */
+    @media (max-width: 600px) {
+        .farm-map-page {
+            padding-top: 0 !important;
+        }
+
+        .farm-map-page .map-container#mapContainer {
+            height: clamp(360px, 52vh, 430px) !important;
+            min-height: 360px !important;
+            max-height: 430px !important;
+            aspect-ratio: auto !important;
+            overflow: hidden !important;
+            touch-action: none !important;
+            overscroll-behavior: contain !important;
+        }
+
+        .farm-map-page .main-map-layer {
+            margin: 0 !important;
+            padding: 0 !important;
+            left: 0 !important;
+            top: 0 !important;
+        }
+
+        .farm-map-page .farm-map-image {
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            max-width: none !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            aspect-ratio: auto !important;
+            object-fit: contain !important;
+            object-position: left top !important;
+        }
+
+        .farm-map-page .map-hint {
+            display: block !important;
+            left: 50% !important;
+            bottom: 14px !important;
+            max-width: calc(100% - 24px) !important;
+            padding: 8px 13px !important;
+            font-size: 11px !important;
+            line-height: 1.35 !important;
+            text-align: center !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+    }
+    </style>
 
 
     <!-- =====================================================
@@ -2706,6 +2806,10 @@ foreach ($houseRowsByCode as $code => $h) {
                         title="Zoom out"
                         aria-label="Zoom out"
                     >−</button>
+                </div>
+
+                <div class="map-hint" aria-hidden="true">
+                    Drag and Zoom the Map to interact
                 </div>
 
                 <div
@@ -4438,6 +4542,184 @@ foreach ($houseRowsByCode as $code => $h) {
 
         </div>
 
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconBeans"
+                value="beans"
+            >
+
+            <label for="cropIconBeans">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/beans.png"
+                    alt="Beans"
+                >
+
+                <span>Beans</span>
+
+            </label>
+
+        </div>
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconCoriander"
+                value="coriander"
+            >
+
+            <label for="cropIconCoriander">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/coriander.png"
+                    alt="Coriander"
+                >
+
+                <span>Coriander</span>
+
+            </label>
+
+        </div>
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconCucumber"
+                value="cucumber"
+            >
+
+            <label for="cropIconCucumber">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/cucumber.png"
+                    alt="Cucumber"
+                >
+
+                <span>Cucumber</span>
+
+            </label>
+
+        </div>
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconKale"
+                value="kale"
+            >
+
+            <label for="cropIconKale">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/kale.png"
+                    alt="Kale"
+                >
+
+                <span>Kale</span>
+
+            </label>
+
+        </div>
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconOkra"
+                value="okra"
+            >
+
+            <label for="cropIconOkra">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/okra.png"
+                    alt="Okra"
+                >
+
+                <span>Okra</span>
+
+            </label>
+
+        </div>
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconOnion"
+                value="onion"
+            >
+
+            <label for="cropIconOnion">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/onion.png"
+                    alt="Onion"
+                >
+
+                <span>Onion</span>
+
+            </label>
+
+        </div>
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconRadish"
+                value="radish"
+            >
+
+            <label for="cropIconRadish">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/radish.png"
+                    alt="Radish"
+                >
+
+                <span>Radish</span>
+
+            </label>
+
+        </div>
+
+        <div class="marker-icon-option">
+
+            <input
+                type="radio"
+                name="cropMarkerIcon"
+                id="cropIconSpinach"
+                value="spinach"
+            >
+
+            <label for="cropIconSpinach">
+
+                <img
+                    src="<?= $basePath ?>farmMap/icons/crops/spinach.png"
+                    alt="Spinach"
+                >
+
+                <span>Spinach</span>
+
+            </label>
+
+        </div>
+
+    
+
     </div>
 
 </div>
@@ -4784,19 +5066,128 @@ let mapStartY = 0;
 let mapStartTranslateX = 0;
 let mapStartTranslateY = 0;
 
+/* Touch/pinch state. These pointers belong to the map itself so phone
+   gestures never move the page while the map is being inspected. */
+const activeMapPointers = new Map();
+let pinchStartDistance = 0;
+let pinchStartZoom = 1;
+let pinchStartCenterX = 0;
+let pinchStartCenterY = 0;
+let pinchStartTranslateX = 0;
+let pinchStartTranslateY = 0;
+
+/* Base map dimensions are calculated from the image's real aspect ratio. */
+let mapBaseWidth = 0;
+let mapBaseHeight = 0;
+
 const MAP_MIN_ZOOM = 1;
-const MAP_MAX_ZOOM = 3;
+const MAP_MAX_ZOOM = 6;
 const MAP_ZOOM_STEP = 0.25;
 
+function getPhoneFitZoom() {
+    if (
+        !mapContainer ||
+        !window.matchMedia ||
+        !window.matchMedia("(max-width: 600px)").matches
+    ) {
+        return 1;
+    }
+
+    const base = getMapBaseSize();
+    if (!base.height) {
+        return 1;
+    }
+
+    /* Cover the taller phone viewport with a proportional transform. */
+    return Math.max(
+        MAP_MIN_ZOOM,
+        Math.min(MAP_MAX_ZOOM, mapContainer.clientHeight / base.height)
+    );
+}
+
 function getMapBaseSize() {
-    if (!mainMapLayer || !mapContainer) {
+    if (!mainMapLayer || !mapContainer || !farmMap) {
         return { width: 0, height: 0 };
     }
 
-    const width = mainMapLayer.offsetWidth || farmMap.offsetWidth || 0;
-    const height = mainMapLayer.offsetHeight || farmMap.offsetHeight || 0;
+    /*
+     * IMPORTANT:
+     * Always use the dimensions that were actually assigned to the
+     * map layer. Do NOT recalculate the width from the phone container
+     * width here. Doing that was causing the clamp/centering math to
+     * disagree with the real map size and produced the blank gap and
+     * distorted-looking viewport.
+     */
+    if (mapBaseWidth > 0 && mapBaseHeight > 0) {
+        return {
+            width: mapBaseWidth,
+            height: mapBaseHeight
+        };
+    }
 
-    return { width, height };
+    const naturalWidth = Number(farmMap.naturalWidth) || 0;
+    const naturalHeight = Number(farmMap.naturalHeight) || 0;
+
+    if (naturalWidth > 0 && naturalHeight > 0) {
+        const width = mapContainer.clientWidth;
+        const height = width * (naturalHeight / naturalWidth);
+
+        mapBaseWidth = width;
+        mapBaseHeight = height;
+
+        return { width, height };
+    }
+
+    return {
+        width: mainMapLayer.offsetWidth || 0,
+        height: mainMapLayer.offsetHeight || 0
+    };
+}
+
+function sizeMapLayerToNaturalRatio() {
+    if (!mainMapLayer || !farmMap || !mapContainer) return;
+
+    const naturalWidth = Number(farmMap.naturalWidth) || 0;
+    const naturalHeight = Number(farmMap.naturalHeight) || 0;
+    if (!naturalWidth || !naturalHeight) return;
+
+    const isPhone =
+        window.matchMedia &&
+        window.matchMedia("(max-width: 600px)").matches;
+
+    let baseWidth;
+    let baseHeight;
+
+    /*
+     * IMPORTANT:
+     * The map artwork is ALWAYS sized from its natural image ratio.
+     * The phone container is taller, but the IMAGE IS NOT made taller.
+     * The extra vertical coverage is achieved by the normal map zoom,
+     * exactly like the dashboard map.
+     */
+    baseWidth = Math.max(1, mapContainer.clientWidth);
+    baseHeight =
+        baseWidth *
+        (naturalHeight / naturalWidth);
+
+    mapBaseWidth = baseWidth;
+    mapBaseHeight = baseHeight;
+
+    /*
+     * The layer owns the complete farm artwork + markers.
+     * Its dimensions always follow the original image ratio.
+     */
+    mainMapLayer.style.width = `${baseWidth}px`;
+    mainMapLayer.style.height = `${baseHeight}px`;
+    mainMapLayer.style.aspectRatio = `${naturalWidth} / ${naturalHeight}`;
+
+    farmMap.style.width = '100%';
+    farmMap.style.height = 'auto';
+    farmMap.style.maxWidth = 'none';
+    farmMap.style.minWidth = '0';
+    farmMap.style.aspectRatio = 'auto';
+    farmMap.style.objectFit = 'contain';
+    farmMap.style.objectPosition = 'left top';
 }
 
 function clampMap() {
@@ -4891,7 +5282,7 @@ function resetFarmMapZoom() {
         return;
     }
 
-    mapZoom = 1;
+    mapZoom = getPhoneFitZoom();
     translateX = 0;
     translateY = 0;
 
@@ -4900,10 +5291,47 @@ function resetFarmMapZoom() {
 }
 
 function initializeMap() {
-    mapZoom = 1;
-    translateX = 0;
-    translateY = 0;
+    const isPhone =
+        window.matchMedia &&
+        window.matchMedia("(max-width: 600px)").matches;
+
+    /* Size the map from the source image ratio before applying zoom. */
+    sizeMapLayerToNaturalRatio();
+
+    /*
+     * PHONE:
+     * Keep the image at its natural aspect ratio and use NORMAL MAP ZOOM
+     * to make the taller phone viewport useful. We do NOT change the
+     * image's width/height ratio.
+     */
+    if (isPhone) {
+        mapZoom = getPhoneFitZoom();
+    } else {
+        mapZoom = 1;
+    }
+
     draggingMap = false;
+    activeMapPointers.clear();
+
+    /* Start the phone view centered on the farm instead of pinned to the
+       upper-left corner. The map and every percentage-positioned marker
+       remain inside the same transformed layer. */
+    const base = getMapBaseSize();
+    if (isPhone && mapContainer && base.width && base.height) {
+        /*
+         * At the initial phone zoom, center the farm artwork in the
+         * viewport. Because baseHeight == viewportHeight, this produces
+         * no artificial blank strip above or below the map.
+         */
+        translateX =
+            (mapContainer.clientWidth - (base.width * mapZoom)) / 2;
+
+        translateY =
+            (mapContainer.clientHeight - (base.height * mapZoom)) / 2;
+    } else {
+        translateX = 0;
+        translateY = 0;
+    }
 
     clampMap();
     updateMainMap();
@@ -4919,12 +5347,82 @@ function syncMainMapMarkers() {
     return;
 }
 
+function mapPointerDistance(a, b) {
+    return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+}
+
+function mapPointerCenter(a, b) {
+    return {
+        x: ((a.clientX + b.clientX) / 2),
+        y: ((a.clientY + b.clientY) / 2)
+    };
+}
+
+function beginMapPinch() {
+    const points = Array.from(activeMapPointers.values());
+    if (points.length < 2 || !mapContainer) return;
+
+    const rect = mapContainer.getBoundingClientRect();
+    const center = mapPointerCenter(points[0], points[1]);
+
+    pinchStartDistance = Math.max(1, mapPointerDistance(points[0], points[1]));
+    pinchStartZoom = mapZoom;
+    pinchStartCenterX = center.x - rect.left;
+    pinchStartCenterY = center.y - rect.top;
+    pinchStartTranslateX = translateX;
+    pinchStartTranslateY = translateY;
+
+    draggingMap = false;
+    mapContainer.classList.remove("is-dragging");
+    mainMapLayer?.classList.remove("is-dragging");
+}
+
+function moveMapPinch() {
+    const points = Array.from(activeMapPointers.values());
+    if (points.length < 2 || !mapContainer) return;
+
+    const rect = mapContainer.getBoundingClientRect();
+    const distance = Math.max(1, mapPointerDistance(points[0], points[1]));
+    const center = mapPointerCenter(points[0], points[1]);
+    const centerX = center.x - rect.left;
+    const centerY = center.y - rect.top;
+
+    const nextZoom = Math.max(
+        MAP_MIN_ZOOM,
+        Math.min(
+            MAP_MAX_ZOOM,
+            pinchStartZoom * (distance / pinchStartDistance)
+        )
+    );
+
+    /* Keep the original pinch midpoint anchored while zooming, then allow
+       the midpoint itself to pan with the two fingers. */
+    const mapPointX =
+        (pinchStartCenterX - pinchStartTranslateX) / pinchStartZoom;
+    const mapPointY =
+        (pinchStartCenterY - pinchStartTranslateY) / pinchStartZoom;
+
+    mapZoom = nextZoom;
+    translateX = centerX - (mapPointX * mapZoom);
+    translateY = centerY - (mapPointY * mapZoom);
+
+    clampMap();
+    updateMainMap();
+}
+
+function mapCanPan() {
+    if (!mapContainer || !mainMapLayer) return false;
+    const base = getMapBaseSize();
+    return (base.width * mapZoom) > mapContainer.clientWidth + 1 ||
+           (base.height * mapZoom) > mapContainer.clientHeight + 1;
+}
+
 function beginMapDrag(event) {
     if (
         !mapContainer ||
         !mainMapLayer ||
         mapEditMode ||
-        mapZoom <= 1 ||
+        !mapCanPan() ||
         isOverlayTarget(event.target) ||
         event.target.closest(".farm-map-zoom-controls") ||
         event.target.closest(".main-marker")
@@ -4932,7 +5430,13 @@ function beginMapDrag(event) {
         return;
     }
 
+    if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+    }
     draggingMap = true;
+    if (event.pointerId !== undefined && mapContainer.setPointerCapture) {
+        mapContainer.setPointerCapture(event.pointerId);
+    }
 
     mapStartX = event.clientX;
     mapStartY = event.clientY;
@@ -5011,7 +5515,7 @@ if (farmMapZoomReset) {
     });
 }
 
-/* Mouse wheel zoom — prevent the browser from zooming/scrolling. */
+/* Mouse wheel + touch/pinch zoom. */
 if (mapContainer) {
     mapContainer.addEventListener(
         "wheel",
@@ -5019,17 +5523,10 @@ if (mapContainer) {
             event.preventDefault();
             event.stopPropagation();
 
-            const rect =
-                mapContainer.getBoundingClientRect();
-
-            const focusX =
-                event.clientX - rect.left;
-
-            const focusY =
-                event.clientY - rect.top;
-
-            const direction =
-                event.deltaY < 0 ? 1 : -1;
+            const rect = mapContainer.getBoundingClientRect();
+            const focusX = event.clientX - rect.left;
+            const focusY = event.clientY - rect.top;
+            const direction = event.deltaY < 0 ? 1 : -1;
 
             setFarmMapZoom(
                 mapZoom + (direction * MAP_ZOOM_STEP),
@@ -5040,35 +5537,80 @@ if (mapContainer) {
         { passive: false }
     );
 
-    mapContainer.addEventListener(
-        "mousedown",
-        beginMapDrag
-    );
+    mapContainer.addEventListener("pointerdown", function(event) {
+        if (event.pointerType === "touch" || event.pointerType === "pen") {
+            if (isOverlayTarget(event.target) ||
+                event.target.closest(".farm-map-zoom-controls") ||
+                event.target.closest(".main-marker") ||
+                mapEditMode) {
+                return;
+            }
 
-    mapContainer.addEventListener(
-        "mousemove",
-        moveMap
-    );
+            activeMapPointers.set(event.pointerId, event);
 
-    mapContainer.addEventListener(
-        "mouseleave",
-        endMapDrag
-    );
+            if (activeMapPointers.size === 2) {
+                beginMapPinch();
+            } else if (activeMapPointers.size === 1) {
+                beginMapDrag(event);
+            }
 
-    mapContainer.addEventListener(
-        "mouseup",
-        endMapDrag
-    );
+            event.preventDefault();
+            return;
+        }
+
+        beginMapDrag(event);
+    }, { passive: false });
+
+    mapContainer.addEventListener("pointermove", function(event) {
+        if (activeMapPointers.has(event.pointerId)) {
+            activeMapPointers.set(event.pointerId, event);
+        }
+
+        if (activeMapPointers.size >= 2) {
+            moveMapPinch();
+            event.preventDefault();
+            return;
+        }
+
+        moveMap(event);
+    }, { passive: false });
+
+    function finishMapPointer(event) {
+        if (activeMapPointers.has(event.pointerId)) {
+            activeMapPointers.delete(event.pointerId);
+        }
+
+        if (activeMapPointers.size === 1) {
+            const remaining = Array.from(activeMapPointers.values())[0];
+            beginMapDrag(remaining);
+        } else if (activeMapPointers.size === 0) {
+            endMapDrag();
+        }
+    }
+
+    mapContainer.addEventListener("pointerup", finishMapPointer);
+    mapContainer.addEventListener("pointercancel", finishMapPointer);
+    mapContainer.addEventListener("pointerleave", function(event) {
+        if (event.pointerType === "mouse") endMapDrag();
+    });
 }
 
-document.addEventListener(
-    "mouseup",
-    endMapDrag
-);
+document.addEventListener("pointerup", endMapDrag);
+document.addEventListener("pointercancel", endMapDrag);
 
 window.addEventListener(
     "resize",
     function() {
+        const oldWidth = mapBaseWidth || 1;
+        const oldHeight = mapBaseHeight || 1;
+
+        sizeMapLayerToNaturalRatio();
+
+        if (oldWidth && oldHeight && mapBaseWidth && mapBaseHeight) {
+            translateX *= mapBaseWidth / oldWidth;
+            translateY *= mapBaseHeight / oldHeight;
+        }
+
         clampMap();
         updateMainMap();
     }
@@ -5219,7 +5761,31 @@ const FARM_MARKER_ICONS = {
             `${basePath}farmMap/icons/crops/corn.png`,
 
         eggplant:
-            `${basePath}farmMap/icons/crops/eggplant.png`
+            `${basePath}farmMap/icons/crops/eggplant.png`,
+
+        beans:
+            `${basePath}farmMap/icons/crops/beans.png`,
+
+        coriander:
+            `${basePath}farmMap/icons/crops/coriander.png`,
+
+        cucumber:
+            `${basePath}farmMap/icons/crops/cucumber.png`,
+
+        kale:
+            `${basePath}farmMap/icons/crops/kale.png`,
+
+        okra:
+            `${basePath}farmMap/icons/crops/okra.png`,
+
+        onion:
+            `${basePath}farmMap/icons/crops/onion.png`,
+
+        radish:
+            `${basePath}farmMap/icons/crops/radish.png`,
+
+        spinach:
+            `${basePath}farmMap/icons/crops/spinach.png`
 
     },
 
@@ -12228,7 +12794,7 @@ updateBedEditUI();
 </script>
 
 <!-- DATABASE-DRIVEN CROP LIFECYCLE GANTT (ADD-ON) -->
-<script src="<?= $basePath ?>farmMap/farmMap_lifecycle.js?v=20261006-fix1"></script>
+<script src="<?= $basePath ?>farmMap/farmMap_lifecycle.js?v=20261007-bedlabels"></script>
 
 <div id="farmMapToast" class="farm-map-toast" role="status" aria-live="polite"></div>
 </body>

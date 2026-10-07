@@ -702,3 +702,53 @@
 .sidebar-top .logout-menu-item span {
     flex-shrink: 0;
 }
+
+/* Phone navigation: keep the desktop sidebar unchanged, but move it off-canvas on small screens. */
+.mobile-menu-toggle, .sidebar-backdrop { display: none; }
+@media (max-width: 900px) {
+    :root { --sidebar-width: 0px; }
+    .sidebar { width: min(280px, 86vw); transform: translateX(-105%); transition: transform .25s ease; box-shadow: 8px 0 30px rgba(0,0,0,.18); z-index: 1200; }
+    .sidebar.mobile-open { transform: translateX(0); }
+    .sidebar-logo { width: 220px; }
+    .menu-text { display: inline; }
+    .menu > li:not(.menu-dropdown), .sidebar-records-header, .menu > .logout-menu-item { justify-content: flex-start; gap: var(--sidebar-gap); padding: 0 15px; }
+    .sidebar-records-left { justify-content: flex-start; }
+    .sidebar-records-submenu > li { justify-content: flex-start; gap: var(--sidebar-gap); margin-left: 15px; margin-right: 8px; padding: 0 12px; }
+    .sidebar-records-submenu > li > span:not(.material-symbols-rounded) { display: inline; }
+    .sidebar-records-arrow { display: inline-block; }
+    .mobile-menu-toggle { position: fixed; top: 12px; left: 12px; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #dce5d8; border-radius: 12px; background: #fff; color: #2e5129; box-shadow: 0 4px 14px rgba(0,0,0,.10); cursor: pointer; z-index: 1100; }
+    .mobile-menu-toggle .material-symbols-rounded { font-size: 25px; }
+    .sidebar-backdrop { position: fixed; inset: 0; display: block; background: rgba(20,35,22,.42); opacity: 0; pointer-events: none; transition: opacity .25s ease; z-index: 1150; }
+    .sidebar-backdrop.visible { opacity: 1; pointer-events: auto; }
+    body.sidebar-menu-open { overflow: hidden; }
+}
+
+/* Align the mobile hamburger with the dashboard topbar controls. */
+@media (max-width: 700px) {
+    .mobile-menu-toggle {
+        top: 17px !important;
+        left: 16px !important;
+        width: 44px !important;
+        height: 44px !important;
+    }
+}
+
+/* Align the mobile hamburger with the dashboard topbar controls. */
+@media (max-width: 700px) {
+    .mobile-menu-toggle {
+        top: 17px !important;
+        left: 16px !important;
+        width: 44px !important;
+        height: 44px !important;
+    }
+}
+
+/* Align the mobile hamburger with the dashboard topbar controls. */
+@media (max-width: 700px) {
+    .mobile-menu-toggle {
+        top: 17px !important;
+        left: 16px !important;
+        width: 44px !important;
+        height: 44px !important;
+    }
+}

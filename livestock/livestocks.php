@@ -1412,7 +1412,7 @@ $livestockResult = $conn->query("
                         <!-- CHICKEN WATER -->
                         <div class="monitoring-panel" data-monitoring-panel="water">
                             <div class="monitoring-panel-title">
-                                <div><h3>Drinking Water / DW</h3><span>Record the drinking-water monitoring sheet.</span></div>
+                                <div><h3>Drinking Water / DW</h3><span>Water Code: PW = Pure Water MW = MOLASSES & WATER FW = FFJ & WATER SW = SALT & WATER OW = OREGANO & WATER GW = Garlic & Water OH = OTHER HERBS     </span></div>
                             </div>
                             <div class="monitoring-tools"><div class="monitoring-search-wrap"><span class="material-symbols-rounded">search</span><input class="monitoring-search" type="search" placeholder="Search records..." oninput="filterMonitoringPanel(this)"></div><select class="monitoring-month" onchange="filterMonitoringPanel(this)"><option value="">All Months</option></select><span class="monitoring-count" data-monitor-count>0 records</span></div>
                             <?php

@@ -38,6 +38,23 @@
         return [upper, raw];
     }
 
+    function plotLetter(plot) {
+        const upper = String(plot ?? "").trim().toUpperCase();
+        const match = upper.match(/(?:^|PLOT[_\s-]?)([ABC])(?:$|[_\s-]?\d*)/);
+        return match ? match[1] : "";
+    }
+
+    function bedLabel(row, plot, index) {
+        const raw = String(row?.bed_id ?? "").trim();
+        const letter = plotLetter(plot);
+        const compact = raw.replace(/^BED[_\s-]*/i, "").replace(/[\s_-]+/g, "").toUpperCase();
+        const qualified = compact.match(/^([ABC])(?:BED)?(\d+)$/);
+        if (qualified) return `${qualified[1]}${qualified[2]}`;
+        if (/^\d+$/.test(compact) && letter) return `${letter}${compact}`;
+        if (compact) return compact;
+        return letter ? `${letter}${index + 1}` : `Bed ${index + 1}`;
+    }
+
     function stage(row, today) {
         const status = String(row.status || "").toLowerCase();
         const sow = parseDate(row.date_sowing);
@@ -100,11 +117,63 @@
         const todayLine=(today>=axisStart&&today<=axisEnd)?`<span class="plot-gantt-today" style="left:${todayPos}%"></span>`:'';
         const body=rows.map((r,i)=>{
             const d=rowData(r,today,axisStart,axisEnd), st=stage(r,today), name=r.crop_name||r.crop||r.name||r.variety||`Crop ${i+1}`;
-            const bed=r.bed_id!==null&&r.bed_id!==undefined&&r.bed_id!==''?`Bed ${esc(r.bed_id)}`:'';
+            const bed=bedLabel(r,plot,i);
             const bars=d.bars.map(b=>`<span class="plot-gantt-bar ${b[0]}" style="left:${b[1]}%;width:${b[2]}%"></span>`).join('');
             const marks=[['sowing',d.sow,'Sowing'],['transplant',d.target,'Target transplant'],['actual',d.actual,'Actual transplant'],['harvest',d.harvest,'Expected harvest']].map(x=>x[1]?`<span class="plot-gantt-mark ${x[0]}" style="left:${position(x[1])}%" title="${esc(x[2]+': '+fmt(x[1]))}"></span>`:'').join('');
-            return `<div class="plot-gantt-row"><div class="plot-gantt-name"><strong>${esc(name)}</strong><small>${bed || 'Crop record'}</small></div><div class="plot-gantt-track">${todayLine}${bars}${marks}</div><span class="plot-gantt-status ${st[1]}">${esc(st[0])}</span></div>`;
+            return `<div class="plot-gantt-row"><div class="plot-gantt-name"><strong>${esc(name)}</strong><small>${esc(bed)}</small></div><div class="plot-gantt-track">${todayLine}${bars}${marks}</div><span class="plot-gantt-status ${st[1]}">${esc(st[0])}</span></div>`;
         }).join('');
-        host.innerHTML=`<div class="plot-crop-lifecycle-head"><div><strong>Crop Lifecycle Gantt</strong><span>All ${rows.length} active crop record${rows.length===1?'':'s'} in this plot</span></div><span class="plot-gantt-today-label">Today</span></div><div class="plot-gantt-axis"><span class="plot-gantt-axis-label first">${esc(fmt(ticks[0]))}</span>${ticks.slice(1,-1).map(t=>`<span class="plot-gantt-axis-label" style="left:${position(t)}%">${esc(fmt(t))}</span>`).join('')}<span class="plot-gantt-axis-label last">${esc(fmt(ticks[4]))}</span></div><div class="plot-gantt-list">${body}</div><div class="plot-gantt-legend"><span><i class="sowing"></i>Sowing</span><span><i class="growing"></i>Growing</span><span><i class="transplant"></i>Transplant</span><span><i class="harvest"></i>Harvest</span></div></div>`;
+        host.innerHTML = `
+            <div class="plot-crop-lifecycle-head">
+                <div>
+                    <strong>Crop Lifecycle Gantt</strong>
+                    <span>
+                        All ${rows.length} active crop record${rows.length === 1 ? "" : "s"} in this plot
+                    </span>
+                </div>
+                <span class="plot-gantt-today-label">Today</span>
+            </div>
+
+            <div class="plot-gantt-axis">
+                <span class="plot-gantt-axis-label first">
+                    ${esc(fmt(ticks[0]))}
+                </span>
+
+                ${ticks.slice(1, -1).map(t => `
+                    <span
+                        class="plot-gantt-axis-label"
+                        style="left:${position(t)}%"
+                    >
+                        ${esc(fmt(t))}
+                    </span>
+                `).join("")}
+
+                <span class="plot-gantt-axis-label last">
+                    ${esc(fmt(ticks[4]))}
+                </span>
+            </div>
+
+            <div class="plot-gantt-list">
+                ${body}
+            </div>
+
+            <div class="plot-gantt-legend">
+                <span>
+                    <i class="sowing"></i>
+                    Date of Sowing
+                </span>
+                <span>
+                    <i class="growing"></i>
+                    Growing
+                </span>
+                <span>
+                    <i class="transplant"></i>
+                    Date of Transplant
+                </span>
+                <span>
+                    <i class="harvest"></i>
+                    Date of Harvest
+                </span>
+            </div>
+        `;
     };
 })();

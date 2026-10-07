@@ -129,7 +129,9 @@ $accountSettingsActive = (
      SIDEBAR
 ============================================================ -->
 
-<nav class="sidebar">
+<button type="button" class="mobile-menu-toggle" aria-label="Open navigation menu" aria-controls="sanctuarioSidebar" aria-expanded="false"><span class="material-symbols-rounded">menu</span></button>
+<div class="sidebar-backdrop" aria-hidden="true"></div>
+<nav class="sidebar" id="sanctuarioSidebar">
 
 
     <!-- ========================================================
@@ -470,6 +472,27 @@ function toggleInventoryDropdown(event) {
     if (!dropdown) return;
     dropdown.classList.toggle('open');
 }
+
+(function () {
+    const sidebar = document.getElementById('sanctuarioSidebar');
+    const toggle = document.querySelector('.mobile-menu-toggle');
+    const backdrop = document.querySelector('.sidebar-backdrop');
+    if (!sidebar || !toggle || !backdrop) return;
+    function setOpen(open) {
+        sidebar.classList.toggle('mobile-open', open);
+        backdrop.classList.toggle('visible', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle.setAttribute('aria-label', open ? 'Close navigation menu' : 'Open navigation menu');
+        toggle.querySelector('.material-symbols-rounded').textContent = open ? 'close' : 'menu';
+        document.body.classList.toggle('sidebar-menu-open', open);
+    }
+    toggle.addEventListener('click', function () { setOpen(!sidebar.classList.contains('mobile-open')); });
+    backdrop.addEventListener('click', function () { setOpen(false); });
+    sidebar.addEventListener('click', function (event) {
+        if (event.target.closest('.menu > li:not(.menu-dropdown)') || event.target.closest('.sidebar-records-submenu > li')) setOpen(false);
+    });
+    window.addEventListener('resize', function () { if (window.innerWidth > 900) setOpen(false); });
+})();
 
 
 </script>

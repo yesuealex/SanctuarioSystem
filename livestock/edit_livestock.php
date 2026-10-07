@@ -20,16 +20,19 @@ $stmt->close();
 if (!$data) exit("Livestock not found");
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    $name = trim($_POST['name'] ?? '');
     $type = trim($_POST['type'] ?? '');
     $age = trim($_POST['age'] ?? '');
     $number = intval($_POST['number'] ?? 0);
     $sex = trim($_POST['sex'] ?? '');
     $feeding_schedule = trim($_POST['feeding_schedule'] ?? '');
 
-    $stmt = $conn->prepare("UPDATE livestocks SET type=?, age=?, number=?, sex=?, feeding_schedule=? WHERE livestock_id=?");
+    if ($name === '') die("Livestock name is required.");
+
+    $stmt = $conn->prepare("UPDATE livestocks SET name=?, type=?, age=?, number=?, sex=?, feeding_schedule=? WHERE livestock_id=?");
     if (!$stmt) die("Prepare failed: " . $conn->error);
 
-    $stmt->bind_param("ssissi", $type, $age, $number, $sex, $feeding_schedule, $id);
+    $stmt->bind_param("sssissi", $name, $type, $age, $number, $sex, $feeding_schedule, $id);
 
     if (!$stmt->execute()) die("Update failed: " . $stmt->error);
     $stmt->close();
@@ -75,6 +78,7 @@ body { min-height:100vh; }
 <div class="form-card">
 <h2>Edit Livestock</h2>
 <form method="POST">
+<div class="form-group"><label>Name</label><input name="name" value="<?= htmlspecialchars($data['name'] ?? '') ?>" required></div>
 <div class="form-group"><label>Type / Breed</label><input name="type" value="<?= htmlspecialchars($data['type']) ?>" required></div>
 <div class="form-group"><label>Age</label><input name="age" value="<?= htmlspecialchars($data['age']) ?>" required></div>
 <div class="form-group"><label>Number of Animals</label><input name="number" type="number" min="0" value="<?= htmlspecialchars($data['number']) ?>" required></div>

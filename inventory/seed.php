@@ -16,6 +16,27 @@ $message = '';
 $error = '';
 $isAdmin = ($_SESSION['role'] ?? '') === 'admin';
 
+/* Keep dedicated archive storage available even on older installations. */
+if ($isAdmin) {
+    $conn->query("CREATE TABLE IF NOT EXISTS `archived_seeds` (
+        archive_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        original_inventory_id INT UNSIGNED NOT NULL,
+        date_received DATE NOT NULL,
+        category VARCHAR(50) NOT NULL,
+        item_name VARCHAR(150) NOT NULL,
+        variety VARCHAR(150) DEFAULT NULL,
+        brand VARCHAR(150) DEFAULT NULL,
+        pieces VARCHAR(100) DEFAULT NULL,
+        quantity VARCHAR(100) DEFAULT NULL,
+        price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        status VARCHAR(30) NOT NULL DEFAULT 'In Stock',
+        archived_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (archive_id),
+        KEY idx_archived_seeds_original (original_inventory_id),
+        KEY idx_archived_seeds_archived_at (archived_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+}
+
 /* Allow staff/admin users to submit a stock request from this page. */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'request_item') {
     try {
@@ -63,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
     $returnMonth = (int)($_POST['month'] ?? 0);
     $redirectUrl = $postAction === 'archive_item'
         ? 'seedsArchived.php'
-        : 'seeds.php' . (($returnMonth >= 1 && $returnMonth <= 12) ? '?month=' . $returnMonth : '');
+        : 'seed.php' . (($returnMonth >= 1 && $returnMonth <= 12) ? '?month=' . $returnMonth : '');
 
     try {
         if (!$isAdmin) {
@@ -311,9 +332,9 @@ try {
                 <div class="inventory-category">
                     <button type="button" class="category-button" id="categoryButton"><span><?= e($selectedMonth > 0 ? $months[$selectedMonth] : 'All Months') ?></span><i class="fa-solid fa-caret-down"></i></button>
                     <div class="category-dropdown" id="categoryDropdown">
-                        <button type="button" onclick="location.href='seeds.php'">All Months</button>
+                        <button type="button" onclick="location.href='seed.php'">All Months</button>
                         <?php foreach ($months as $monthNumber => $monthName): ?>
-                            <button type="button" onclick="location.href='seeds.php?month=<?= $monthNumber ?>'"><?= e($monthName) ?></button>
+                            <button type="button" onclick="location.href='seed.php?month=<?= $monthNumber ?>'"><?= e($monthName) ?></button>
                         <?php endforeach; ?>
                     </div>
                 </div>

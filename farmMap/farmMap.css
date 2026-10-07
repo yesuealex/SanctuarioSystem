@@ -1617,7 +1617,7 @@ a.edit-btn:hover {
 
     padding: 20px;
 
-    z-index: 9999;
+    z-index: 110000 !important;
 
     animation: cropOverlayFade .2s ease;
 }
@@ -1681,7 +1681,7 @@ a.edit-btn:hover {
 .crop-profile-overlay {
     position: fixed;
     inset: 0;
-    z-index: 9999;
+    z-index: 110000 !important;
 
     display: flex;
     align-items: center;
@@ -2902,10 +2902,10 @@ a.edit-btn:hover {
 
 @media (max-width: 600px) {
     .farm-map-page {
-        --sidebar-width: 72px;
+        --sidebar-width: 0px;
         margin-left: var(--sidebar-width);
         width: calc(100% - var(--sidebar-width));
-        padding: 12px;
+        padding: 68px 12px 16px;
     }
 
     .summary-card {
@@ -2928,6 +2928,16 @@ a.edit-btn:hover {
     }
 }
 
+/* Phone map viewport: the existing image and percentage-positioned markers remain one transformed layer. */
+@media (max-width: 600px) {
+    .map-container#mapContainer { height: 420px !important; min-height: 420px !important; max-height: 420px !important; aspect-ratio: auto !important; touch-action: none !important; }
+    .map-card { padding: 7px; }
+    .summary-cards { grid-template-columns: 1fr !important; gap: 10px; }
+    .summary-card { min-width: 0; padding: 10px 12px; }
+    .map-edit-toolbar-wrapper, .map-edit-toolbar, .map-edit-controls { min-width: 0; }
+    .map-edit-btn, .map-edit-controls button { white-space: normal; }
+}
+
 /* =========================================================
    FINAL MAP SCALE LOCK (2026-09-26)
    Image and all main markers share one exact 1706:600 box.
@@ -2948,18 +2958,18 @@ a.edit-btn:hover {
     right: auto !important;
     bottom: auto !important;
     width: 100% !important;
-    height: 100% !important;
+    height: auto !important;
+    aspect-ratio: 19921 / 6681 !important;
     transform-origin: top left !important;
     will-change: transform !important;
 }
-
 #farmMap.farm-map-image {
-    position: absolute !important;
-    inset: 0 !important;
+    position: static !important;
+    inset: auto !important;
     width: 100% !important;
-    height: 100% !important;
+    height: auto !important;
     max-width: none !important;
-    object-fit: fill !important;
+    object-fit: contain !important;
 }
 
 #mainMapLayer > .main-marker {
@@ -3011,8 +3021,9 @@ a.edit-btn:hover {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;
-    width: max-content !important;
-    height: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 19921 / 6681 !important;
     transform-origin: top left !important;
     will-change: transform !important;
     cursor: grab !important;
@@ -3025,10 +3036,9 @@ a.edit-btn:hover {
 .farm-map-image {
     display: block !important;
     position: static !important;
-    width: auto !important;
-    height: 100% !important;
+    width: 100% !important;
+    height: auto !important;
     max-width: none !important;
-    object-fit: contain !important;
     pointer-events: none !important;
     user-select: none !important;
     -webkit-user-drag: none !important;
@@ -3036,7 +3046,7 @@ a.edit-btn:hover {
 
 .main-map-layer > .main-marker {
     width: var(--main-map-marker-size) !important;
-    height: var(--main-map-marker-size) !important;
+    height: auto !important;
     aspect-ratio: 1 / 1 !important;
     box-sizing: border-box !important;
 }
@@ -3236,6 +3246,18 @@ a.edit-btn:hover {
 .plot-info p { font-size: 15px; }
 .plot-stat span { font-size: 13px; }
 .plot-stat strong { font-size: 25px; }
+/* Final phone overrides must remain after the desktop scale-lock rules. */
+@media (max-width: 600px) {
+    .farm-map-page { --sidebar-width: 0px; margin-left: 0; width: 100%; padding: 68px 12px 16px; }
+    .map-container#mapContainer { height: 420px !important; min-height: 420px !important; max-height: 420px !important; aspect-ratio: auto !important; touch-action: none !important; }
+    .map-card { padding: 7px; }
+    .summary-cards { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 7px; }
+    .summary-card { width: 100%; min-width: 0; min-height: 0; aspect-ratio: 1 / 1; margin: 0; padding: 8px 5px; border-radius: 9px; flex-direction: column; justify-content: center; text-align: center; overflow: hidden; }
+    .summary-icon { width: 38px; height: 38px; min-width: 38px; margin: 0 0 5px; font-size: 20px; }
+    .summary-label { font-size: 10px; line-height: 1.15; white-space: normal; }
+    .summary-number { font-size: 25px; line-height: 1; }
+    .farm-summary { padding: 10px 12px; }
+}
 .plant-marker { font-size: 12px; }
 .plant-marker::after { font-size: 12px; padding: 4px 8px; }
 .crop-profile-title h2, .livestock-profile-title h2 { font-size: 25px; }

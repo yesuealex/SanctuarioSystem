@@ -13,6 +13,26 @@ function e($value) {
 }
 
 $isAdmin = ($_SESSION['role'] ?? '') === 'admin';
+
+if ($isAdmin) {
+    $conn->query("CREATE TABLE IF NOT EXISTS `archived_sowingMaterial` (
+        archive_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        original_inventory_id INT UNSIGNED NOT NULL,
+        date_received DATE NOT NULL,
+        category VARCHAR(50) NOT NULL,
+        item_name VARCHAR(150) NOT NULL,
+        variety VARCHAR(150) DEFAULT NULL,
+        brand VARCHAR(150) DEFAULT NULL,
+        pieces VARCHAR(100) DEFAULT NULL,
+        quantity VARCHAR(100) DEFAULT NULL,
+        price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        status VARCHAR(30) NOT NULL DEFAULT 'In Stock',
+        archived_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (archive_id),
+        KEY idx_archived_sowingMaterial_original (original_inventory_id),
+        KEY idx_archived_sowingMaterial_archived_at (archived_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+}
 $message = '';
 $error = '';
 
@@ -101,7 +121,7 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw new Exception('Could not prepare the sowingMaterial restore.');
                     }
                     $stmt->bind_param(
-                        'issssssds',
+                        'isssssssds',
                         $originalId, $archived['date_received'], $archived['category'],
                         $archived['item_name'], $archived['variety'], $archived['brand'],
                         $archived['pieces'], $archived['quantity'], $archived['price'],
@@ -224,9 +244,9 @@ if (empty($_SESSION['inventory_csrf'])) {
                         <i class="fa-solid fa-caret-down"></i>
                     </button>
                     <div class="category-dropdown" id="categoryDropdown">
-                        <button type="button" onclick="location.href='sowingMaterialsArchived.php'">All Months</button>
+                        <button type="button" onclick="location.href='sowingMaterialArchived.php'">All Months</button>
                         <?php foreach ($months as $monthNumber => $monthName): ?>
-                            <button type="button" onclick="location.href='sowingMaterialsArchived.php?month=<?= $monthNumber ?>'"><?= e($monthName) ?></button>
+                            <button type="button" onclick="location.href='sowingMaterialArchived.php?month=<?= $monthNumber ?>'"><?= e($monthName) ?></button>
                         <?php endforeach; ?>
                     </div>
                 </div>
@@ -242,8 +262,8 @@ if (empty($_SESSION['inventory_csrf'])) {
                 </a>
             </div>
 
-            <div class="inventory-table-wrapper">
-                <table class="inventory-table has-actions" id="inventoryTable">
+            <div class="inventory-table-wrapper archived-table-wrapper">
+                <table class="inventory-table has-actions archived-inventory-table" id="inventoryTable">
                     <thead>
                         <tr>
                             <th class="row-number-col">#</th><th>DATE RECEIVED</th><th>SOWING MATERIAL</th><th>VARIETY</th><th>BRAND</th>
@@ -267,7 +287,7 @@ if (empty($_SESSION['inventory_csrf'])) {
                             <td><?= e($item['quantity'] ?: '—') ?></td>
                             <td><?= number_format((float)$item['price'], 2) ?></td>
                             <td><span class="stock-status <?= e($statusClass) ?>"><?= e($item['status']) ?></span></td>
-                            <td><?= e(date('m/d/Y H:i', strtotime($item['archived_at']))) ?></td>
+                            <td><?= e(date('m/d/Y', strtotime($item['archived_at']))) ?></td>
                             <td>
                                 <div class="table-actions">
                                     <form method="post" onsubmit="return confirm('Restore &quot;<?= e($item['item_name']) ?>&quot; to active sowingMaterial inventory?');">

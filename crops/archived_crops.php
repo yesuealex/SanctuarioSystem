@@ -227,6 +227,33 @@ tr:hover {
 
 }
 
+
+/* Archived record tables: separated columns and a visible horizontal drag bar. */
+.archive-table-container {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: auto;
+    scrollbar-color: #789b70 #edf3ea;
+}
+.archive-table-container::-webkit-scrollbar { height: 12px; }
+.archive-table-container::-webkit-scrollbar-track { background: #edf3ea; border-radius: 8px; }
+.archive-table-container::-webkit-scrollbar-thumb { background: #789b70; border-radius: 8px; border: 2px solid #edf3ea; }
+.archive-partitioned-table {
+    table-layout: fixed;
+    min-width: 1180px;
+}
+.archive-partitioned-table th,
+.archive-partitioned-table td {
+    border-right: 1px solid #dfe7dc;
+}
+.archive-partitioned-table th:last-child,
+.archive-partitioned-table td:last-child { border-right: 0; }
+@media (max-width: 700px) {
+    .archive-partitioned-table { min-width: 1180px; }
+}
+
 </style>
 
 </head>
@@ -279,9 +306,9 @@ tr:hover {
 </div>
 
 
-<div class="table-container">
+<div class="table-container archive-table-container">
 
-<table id="archiveTable">
+<table id="archiveTable" class="archive-partitioned-table">
 
 <thead>
 

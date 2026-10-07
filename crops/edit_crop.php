@@ -159,6 +159,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     );
 
 
+    $target_area = trim(
+        $_POST['target_area'] ?? ''
+    );
+
+
     $transplanted_area = trim(
         $_POST['transplanted_area'] ?? ''
     );
@@ -185,6 +190,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($crop_name === '') {
 
         die("Crop name is required.");
+
+    }
+
+
+    if ($target_area === '') {
+
+        die("Target area is required.");
 
     }
 
@@ -252,6 +264,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             variety = ?,
             pcs = ?,
             germination_rate = ?,
+            target_area = ?,
             transplanted_area = ?,
             date_transplanted = ?,
             expected_harvest = ?
@@ -295,13 +308,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     */
 
     $stmt->bind_param(
-        "sissidsssi",
+        "sissidssssi",
         $crop_name,
         $plot_id,
         $recipient,
         $variety,
         $pcs,
         $germination_rate,
+        $target_area,
         $transplanted_area,
         $date_transplanted,
         $expected_harvest,
@@ -744,6 +758,24 @@ body {
             <!-- =====================================================
                  TRANSPLANTED AREA
                  ===================================================== -->
+
+            <div class="form-group">
+
+                <label>
+                    Target Area
+                </label>
+
+                <input
+                    type="text"
+                    name="target_area"
+                    value="<?= htmlspecialchars(
+                        $data['target_area'] ?? ''
+                    ) ?>"
+                    required
+                >
+
+            </div>
+
 
             <div class="form-group">
 

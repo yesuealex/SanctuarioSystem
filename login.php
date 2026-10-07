@@ -495,15 +495,7 @@ if ($error === 'wrong_password' && $remaining > 0) {
                             </div>
                         <?php endif; ?>
 
-                        <div class="notice">
-                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#12361a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/>
-                                <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>
-                                <circle cx="12" cy="15.3" r="1" fill="#12361a"/>
-                            </svg>
-                            <span>After 3 wrong attempts, your account will be temporarily locked. Please contact an administrator to unlock it.</span>
-                        </div>
-
+            
                         <form action="login_process.php" method="POST" autocomplete="on">
                             <div class="field">
                                 <label class="sr-only" for="username">Username or Email</label>
