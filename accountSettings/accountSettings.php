@@ -176,13 +176,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $account = $stmt->get_result()->fetch_assoc();
             $stmt->close();
 
-            /* The existing login_process.php uses the project's current plain-text format. */
-            if (!$account || !hash_equals((string)$account['password'], $currentPassword)) {
+            $storedPassword = (string)($account['password'] ?? '');
+            $currentValid = $storedPassword !== '' && (password_get_info($storedPassword)['algo'] !== 0 ? password_verify($currentPassword, $storedPassword) : hash_equals($storedPassword, $currentPassword));
+            if (!$account || !$currentValid) {
                 throw new RuntimeException('The current password is incorrect.');
             }
 
             $stmt = $conn->prepare('UPDATE users SET password = ? WHERE user_id = ? LIMIT 1');
-            $stmt->bind_param('si', $newPassword, $userId);
+            $newPasswordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+            $stmt->bind_param('si', $newPasswordHash, $userId);
             $stmt->execute();
             $stmt->close();
 

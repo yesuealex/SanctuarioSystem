@@ -45,14 +45,11 @@ $plotsResult = $conn->query("
 ");
 
 
-if (!$plotsResult) {
-
-    die(
-        "Failed to load plots: " .
-        $conn->error
-    );
-
-}
+if (!$plotsResult) die('Failed to load plots.');
+$plotRows = [];
+while ($plotRow = $plotsResult->fetch_assoc()) $plotRows[] = $plotRow;
+$activeCropRows = [];
+if ($activeRes = $conn->query("SELECT plot_id, bed_id, transplanted_area FROM crops WHERE COALESCE(archived,0)=0")) while ($r = $activeRes->fetch_assoc()) $activeCropRows[] = $r;
 
 
 /*
@@ -154,8 +151,30 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $plot_id = null;
         $transplanted_area = 'NURSERY';
     }
-
-
+    $bed_id = null;
+    if (!$isNursery && $plot_id > 0 && preg_match('/^([A-Za-z]+)\s*([0-9]+)$/', strtoupper($transplanted_area), $bedMatch)) {
+        $bedPrefix = $bedMatch[1]; $bedNumber = (int)$bedMatch[2];
+        $plotStmt = $conn->prepare('SELECT plot_code FROM plots WHERE plot_id = ? LIMIT 1');
+        $plotStmt->bind_param('i', $plot_id); $plotStmt->execute(); $plotRow = $plotStmt->get_result()->fetch_assoc(); $plotStmt->close();
+        $plotPrefix = strtoupper(substr(preg_replace('/^plot_/', '', (string)($plotRow['plot_code'] ?? '')), 0, 1));
+        $bedLimit = ['A'=>17, 'B'=>15, 'C'=>19][$plotPrefix] ?? 20;
+        if ($bedPrefix !== $plotPrefix || $bedNumber < 1 || $bedNumber > $bedLimit) die('Please choose a bed that belongs to the selected plot.');
+        $bedCheck = $conn->prepare('SELECT bed_id, bed_code FROM plot_beds WHERE plot_id = ? AND bed_number = ? LIMIT 1');
+        $bedCheck->bind_param('ii', $plot_id, $bedNumber); $bedCheck->execute(); $bed = $bedCheck->get_result()->fetch_assoc(); $bedCheck->close();
+        if (!$bed) {
+            $bedCode = $plotPrefix . $bedNumber;
+            $createBed = $conn->prepare('INSERT INTO plot_beds (plot_id, bed_number, bed_code) VALUES (?, ?, ?)');
+            $createBed->bind_param('iis', $plot_id, $bedNumber, $bedCode); $createBed->execute(); $createBed->close();
+            $bedCheck = $conn->prepare('SELECT bed_id, bed_code FROM plot_beds WHERE plot_id = ? AND bed_number = ? LIMIT 1');
+            $bedCheck->bind_param('ii', $plot_id, $bedNumber); $bedCheck->execute(); $bed = $bedCheck->get_result()->fetch_assoc(); $bedCheck->close();
+        }
+        if (!$bed) die('The selected bed could not be saved.');
+        $bed_id = (int)$bed['bed_id']; $transplanted_area = $bed['bed_code'];
+        $occupied = $conn->prepare('SELECT crop_id FROM crops WHERE COALESCE(archived,0)=0 AND ((bed_id = ? AND bed_id IS NOT NULL) OR (plot_id = ? AND UPPER(TRIM(transplanted_area)) = ?)) LIMIT 1');
+        $occupied->bind_param('iis', $bed_id, $plot_id, $transplanted_area); $occupied->execute();
+        if ($occupied->get_result()->num_rows > 0) { $occupied->close(); die('That bed is already occupied by an active crop.'); }
+        $occupied->close();
+    }
     /*
     |--------------------------------------------------------------------------
     | CHECK THAT PLOT EXISTS
@@ -220,10 +239,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             transplanted_area,
             date_transplanted,
             expected_harvest,
-            plot_id
+            plot_id,
+            bed_id
         )
         VALUES
         (
+            ?,
             ?,
             ?,
             ?,
@@ -272,10 +293,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     */
 
     if ($isNursery) {
-        $stmt = $conn->prepare("INSERT INTO crops (crop_name, recipient, variety, pcs, germination_rate, transplanted_area, date_transplanted, expected_harvest, plot_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)");
+        $stmt = $conn->prepare("INSERT INTO crops (crop_name, recipient, variety, pcs, germination_rate, transplanted_area, date_transplanted, expected_harvest, plot_id, bed_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)");
         $stmt->bind_param("sssidsss", $crop_name, $recipient, $variety, $pcs, $germination_rate, $transplanted_area, $date_transplanted, $expected_harvest);
     } else {
-        $stmt->bind_param("sssidsssi", $crop_name, $recipient, $variety, $pcs, $germination_rate, $transplanted_area, $date_transplanted, $expected_harvest, $plot_id);
+        $stmt->bind_param("sssidsssii", $crop_name, $recipient, $variety, $pcs, $germination_rate, $transplanted_area, $date_transplanted, $expected_harvest, $plot_id, $bed_id);
     }
 
 
@@ -714,25 +735,24 @@ body {
             </div>
 
 
-            <!-- =====================================================
-                 AREA
-                 ===================================================== -->
-
+            <!-- Plot is selected first so the next field can show only valid beds. -->
             <div class="form-group">
-
-                <label>
-                    Area
-                </label>
-
-                <input
-                    type="text"
-                    name="transplanted_area"
-                    placeholder="Area"
-                >
-
+                <label for="crop-plot">Plot Location</label>
+                <select id="crop-plot" name="plot_id" required>
+                    <option value="">Select Plot First</option>
+                    <option value="0" data-plot-code="nursery">Nursery</option>
+                    <?php foreach ($plotRows as $plot): ?>
+                        <option value="<?= (int)$plot['plot_id'] ?>" data-plot-code="<?= htmlspecialchars($plot['plot_code'], ENT_QUOTES) ?>"><?= htmlspecialchars($plot['plot_name'] ?: $plot['plot_code']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
-
-
+            <div class="form-group">
+                <label for="crop-bed">Area / Available Bed</label>
+                <select id="crop-bed" name="transplanted_area" required disabled>
+                    <option value="">Select a plot first</option>
+                </select>
+                <small>Only unoccupied beds for the selected plot are shown.</small>
+            </div>
             <!-- =====================================================
                  DATE TRANSPLANTED
                  ===================================================== -->
@@ -770,58 +790,6 @@ body {
 
 
             <!-- =====================================================
-                 PLOT LOCATION
-                 ===================================================== -->
-
-            <div class="form-group">
-
-                <label>
-                    Plot Location
-                </label>
-
-
-                <select
-                    name="plot_id"
-                    required
-                >
-
-
-                    <option value="">
-                        Select Plot
-                    </option>
-                    <option value="0" data-location="NURSERY">
-                        Nursery
-                    </option>
-
-
-                    <?php while (
-                        $plot =
-                        $plotsResult->fetch_assoc()
-                    ): ?>
-
-
-                        <option
-                            value="<?= intval(
-                                $plot['plot_id']
-                            ) ?>"
-                        >
-
-                            <?= htmlspecialchars(
-                                $plot['plot_name']
-                            ) ?>
-
-                        </option>
-
-
-                    <?php endwhile; ?>
-
-
-                </select>
-
-            </div>
-
-
-            <!-- =====================================================
                  SAVE
                  ===================================================== -->
 
@@ -843,6 +811,24 @@ body {
 </div>
 
 
+<script>
+(() => {
+ const plot=document.getElementById('crop-plot'), bed=document.getElementById('crop-bed');
+ const active=<?= json_encode($activeCropRows, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
+ const limits={plot_a:17,plot_b:15,plot_c:19};
+ const norm=v=>String(v||'').trim().toUpperCase().replace(/\s+/g,'');
+ function refresh(){
+  const opt=plot.options[plot.selectedIndex], code=String(opt?.dataset.plotCode||'').toLowerCase(); bed.innerHTML='';
+  if(!code||code==='nursery'){bed.disabled=code!=='nursery';bed.required=false;bed.append(new Option(code==='nursery'?'Nursery beds are managed from the nursery board':'Select a plot first',''));return;}
+  const prefix=code.replace(/^plot_/,'').charAt(0).toUpperCase(), limit=limits[code]||20;
+  const occupied=new Set(active.filter(r=>String(r.plot_id)===String(plot.value)).map(r=>norm(r.transplanted_area)).filter(Boolean));
+  const available=[]; for(let n=1;n<=limit;n++){const c=prefix+n;if(!occupied.has(c))available.push(c);}
+  bed.append(new Option(available.length?'Select an available bed':'No unoccupied beds available',''));
+  available.forEach(c=>bed.append(new Option(c,c))); bed.disabled=!available.length; bed.required=!!available.length;
+ }
+ plot.addEventListener('change',refresh); refresh();
+})();
+</script>
 </body>
 
 </html>

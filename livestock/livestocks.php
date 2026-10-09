@@ -305,60 +305,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive_livestock_id'
 
 // =========================================================
 
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST'
-    &&
-    isset($_POST['archive_livestock_id'])
-) {
-
-    // Only admin can archive livestock
-    if ($role !== 'admin') {
-
-        http_response_code(403);
-
-        echo 'Unauthorized';
-
-        exit();
-
-    }
-
-
-    $archiveId =
-        intval($_POST['archive_livestock_id']);
-
-
-    if ($archiveId > 0) {
-        $conn->begin_transaction();
-        try {
-            archiveRecordInTransaction($conn, 'livestocks', 'livestock_id', $archiveId, (int)$_SESSION['user_id']);
-            $monitoringTables = [
-                'chicken_weight_records','chicken_egg_records','chicken_mortality_records',
-                'chicken_feed_ingredients','chicken_drinking_water','chicken_feeding_schedule',
-                'goat_monitoring_records','goat_forage_records'
-            ];
-            foreach ($monitoringTables as $monitoringTable) {
-                if (archiveTableExists($conn, $monitoringTable)) {
-                    archiveTableRowsForLivestock($conn, $monitoringTable, $archiveId, (int)$_SESSION['user_id']);
-                }
-            }
-            $conn->commit();
-        } catch (Throwable $e) {
-            $conn->rollback();
-            http_response_code(500);
-            exit('Could not archive livestock: ' . htmlspecialchars($e->getMessage()));
-        }
-    }
-
-
-    // Return to active livestock records
-    header("Location: livestocks.php");
-
-    exit();
-
-}
-
-
-// =========================================================
 // GET SELECTED TYPE
 // =========================================================
 

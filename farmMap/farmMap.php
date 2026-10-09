@@ -2475,6 +2475,11 @@ foreach ($houseRowsByCode as $code => $h) {
 .nursery-popup h2 { font-size: 26px; }
 .nursery-popup p { font-size: 15px; }
 
+
+/* Popup content scrolls independently without moving the farm map. */
+.plot-popup, .nursery-popup, .crop-profile-popup, .livestock-profile-popup { overscroll-behavior: contain; }
+.plot-popup .plot-info, .nursery-popup { max-height: min(42vh, 520px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+@media (max-width: 700px) { .plot-popup .plot-info, .nursery-popup { max-height: 48vh; } }
 </style>
 
 </head>
@@ -6194,6 +6199,8 @@ function getBedsForPlot(plot) {
     const stored = getStoredBeds();
     const saved = Array.isArray(stored[plot]) ? stored[plot] : [];
     const byNumber = new Map();
+    const dbBeds = Array.isArray(window.dbBeds) ? window.dbBeds : [];
+    const dbBedByNumber = new Map(dbBeds.filter(b => String(b.plot_id) === String(plotData[plot]?.plot_id || "")).map(b => [Number(b.bed_number), b]));
 
     saved.forEach(bed => {
         if (!bed || bed.number == null) return;
@@ -6201,6 +6208,7 @@ function getBedsForPlot(plot) {
         if (number >= 1 && number <= fixedCount) {
             byNumber.set(number, {
                 number,
+                code: bed.code || `${plot}${number}`,
                 x: Number(bed.x) || 0,
                 y: Number(bed.y) || 0
             });
@@ -6209,9 +6217,11 @@ function getBedsForPlot(plot) {
 
     const defaults = createDefaultBedPositions(fixedCount);
 
-    return defaults.map(defaultBed =>
-        byNumber.get(defaultBed.number) || defaultBed
-    );
+    return defaults.map(defaultBed => {
+        const bed = byNumber.get(defaultBed.number) || defaultBed;
+        const dbBed = dbBedByNumber.get(defaultBed.number);
+        return { ...bed, code: dbBed?.bed_code || bed.code || `${plot}${defaultBed.number}` };
+    });
 }
 
 
@@ -6321,7 +6331,7 @@ function createBedMarker(bed) {
             >
 
             <span class="crop-bed-number">
-                ${escapeHTML(bed.number)}
+                ${escapeHTML(bed.code || `${currentPlot || ""}${bed.number}`)}
             </span>
         `;
 
@@ -6462,21 +6472,31 @@ function renderBedMarkers(plot) {
         });
     }
 
-    const visibleCount = rows.length;
-    // Do not apply deleted-bed UI state to active database records. This keeps
-    // the marker count exactly equal to the current crop-record count.
-    beds.slice(0, visibleCount).forEach(bed => {
-        container.appendChild(createBedMarker(bed));
-    });
+    /* Prefer explicit user-facing bed codes such as C10. Older records
+       without a bed code retain the historical row-order fallback. */
+    const explicitNumbers = new Set(rows.map(row => {
+        const code = String(row.bed_code || row.transplanted_area || "")
+            .toUpperCase().replace(/\s+/g, "");
+        const match = code.match(/^[A-Z]+([0-9]+)$/);
+        return match ? Number(match[1]) : null;
+    }).filter(number => Number.isInteger(number) && number > 0));
+    const occupiedBeds = explicitNumbers.size
+        ? beds.filter(bed => explicitNumbers.has(Number(bed.number)))
+        : beds.slice(0, rows.length);
+    occupiedBeds.forEach(bed => container.appendChild(createBedMarker(bed)));
 
     // Keep the existing +/empty-bed editing behavior for unused slots.
     if (bedEditMode) {
-        beds.slice(visibleCount).forEach(bed => {
+        beds.forEach(bed => {
+            if (explicitNumbers.has(Number(bed.number)) ||
+                (!explicitNumbers.size && Number(bed.number) <= rows.length)) return;
             if (deletedNumbers.has(Number(bed.number))) return;
             container.appendChild(createDeletedBedSlotMarker(bed));
         });
         slots.forEach(slot => {
-            if (Number(slot.number) > visibleCount) container.appendChild(createDeletedBedSlotMarker(slot));
+            if (!explicitNumbers.has(Number(slot.number))) {
+                container.appendChild(createDeletedBedSlotMarker(slot));
+            }
         });
     }
 
@@ -7296,7 +7316,11 @@ function dbCropToProfile(row) {
 function getCropProfile(bedNumber) {
 
     const plotCrops = dbCropsByPlot[currentPlot] || [];
-    const row = plotCrops[bedNumber - 1];
+    const requestedCode = `${String(currentPlot || '').toUpperCase()}${Number(bedNumber)}`.replace('PLOT_', '');
+    const row = plotCrops.find(item => {
+        const code = String(item.bed_code || item.transplanted_area || '').toUpperCase().replace(/\s+/g, '');
+        return code === requestedCode || code.endsWith(requestedCode);
+    }) || plotCrops.find(item => !item.bed_code && !/^[A-Za-z]+\s*[0-9]+$/.test(String(item.transplanted_area || ''))) || plotCrops[bedNumber - 1];
 
     const stored = getStoredCropProfiles();
     const key = `${currentPlot}-${bedNumber}`;

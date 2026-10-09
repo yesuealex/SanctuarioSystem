@@ -68,14 +68,11 @@ if (!$user) {
     exit();
 }
 
-/*
- * Your current database stores passwords as plain text.
- * Keep this comparison for compatibility with the existing database.
- *
- * If you later convert all passwords to password_hash(), replace this
- * comparison with password_verify() and migrate the existing accounts.
- */
-$passwordCorrect = hash_equals((string)$user['password'], (string)$password);
+/* Accept legacy plaintext rows during migration, and verify modern hashes securely. */
+$passwordStored = (string)$user['password'];
+$passwordCorrect = password_get_info($passwordStored)['algo'] !== 0
+    ? password_verify((string)$password, $passwordStored)
+    : hash_equals($passwordStored, (string)$password);
 
 if (!$passwordCorrect) {
     $attempts = (int)$user['failed_login_attempts'] + 1;
@@ -119,10 +116,12 @@ if (!$passwordCorrect) {
     exit();
 }
 
-/*
- * Successful login:
- * reset the failed-attempt counter.
- */
+/* Upgrade a legacy plaintext password after a successful login. */
+if (password_get_info($passwordStored)['algo'] === 0) {
+    $upgrade = $conn->prepare('UPDATE users SET password = ? WHERE user_id = ? LIMIT 1');
+    if ($upgrade) { $newHash = password_hash((string)$password, PASSWORD_DEFAULT); $upgrade->bind_param('si', $newHash, $user['user_id']); $upgrade->execute(); $upgrade->close(); }
+}
+/* Successful login: reset the failed-attempt counter. */
 $resetStmt = $conn->prepare(
     "UPDATE users
      SET failed_login_attempts = 0

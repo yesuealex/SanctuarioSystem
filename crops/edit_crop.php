@@ -267,7 +267,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             target_area = ?,
             transplanted_area = ?,
             date_transplanted = ?,
-            expected_harvest = ?
+            expected_harvest = ?,
+            bed_id = ?
         WHERE crop_id = ?
     ");
 
@@ -308,7 +309,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     */
 
     $stmt->bind_param(
-        "sissidssssi",
+        "sissidssssii",
         $crop_name,
         $plot_id,
         $recipient,
@@ -319,6 +320,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $transplanted_area,
         $date_transplanted,
         $expected_harvest,
+        $bed_id,
         $id
     );
 

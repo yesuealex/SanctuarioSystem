@@ -20,12 +20,17 @@ if($isLivestock){
   echo json_encode(['type'=>'livestock','plot_house_name'=>$house['house_name']??$house['plot_house_name']??ucwords(str_replace('_',' ',$plot)),'number_of_livestock'=>$total,'livestock_records'=>$animals]);exit;
 }
 $wanted=$plot==='nursery'?'nursery':($plot==='mno'?'mno':$plot);
-$rows=[];$res=$conn->query('SELECT * FROM crops WHERE COALESCE(archived,0)=0 ORDER BY crop_id ASC');
-if($res) while($c=$res->fetch_assoc()) if(normArea($c['transplanted_area']??'')===$wanted || ($wanted==='plot_a'&&normArea($c['transplanted_area']??'')==='a') || ($wanted==='plot_b'&&normArea($c['transplanted_area']??'')==='b') || ($wanted==='plot_c'&&normArea($c['transplanted_area']??'')==='c')) $rows[]=$c;
-$ready=$soon=$growing=0;$today=new DateTime('today');$limit=(clone $today)->modify('+14 days');
-foreach($rows as $c){$st=strtolower((string)($c['status']??''));if($st==='ready')$ready++;elseif($st==='harvested'){}else{$growing++; if(!empty($c['expected_harvest'])){try{$d=new DateTime($c['expected_harvest']);if($d>=$today&&$d<=$limit)$soon++;}catch(Throwable $e){}}}}
-$bedTotal=0;$plots=$conn->query('SELECT * FROM plots WHERE COALESCE(archived,0)=0');if($plots)while($p=$plots->fetch_assoc()){if(strtolower((string)($p['plot_code']??''))===$wanted)$bedTotal=(int)($p['beds']??$p['total_beds']??$p['number_of_beds']??0);}
-$occupied=[];foreach($rows as $c)if(isset($c['bed_id'])&&$c['bed_id']!=='')$occupied[(string)$c['bed_id']]=1;
-$available=max(0,$bedTotal-(count($occupied)>0?count($occupied):count($rows)));
-$name=$wanted==='nursery'?'Nursery':($wanted==='mno'?'MNO':'Plot '.strtoupper(substr($wanted,-1)));
+$rows=[];
+$stmt=$conn->prepare("SELECT plot_id, plot_code, plot_name FROM plots WHERE LOWER(plot_code)=LOWER(?) OR LOWER(plot_name)=LOWER(?) LIMIT 1");
+$stmt->bind_param('ss',$wanted,$wanted); $stmt->execute(); $plotRow=$stmt->get_result()->fetch_assoc(); $stmt->close();
+$plotId=$plotRow ? (int)$plotRow['plot_id'] : 0;
+$stmt=$conn->prepare("SELECT c.*, b.bed_code FROM crops c LEFT JOIN plot_beds b ON b.bed_id=c.bed_id WHERE COALESCE(c.archived,0)=0 AND (LOWER(TRIM(c.transplanted_area))=? OR (? > 0 AND c.plot_id=?)) ORDER BY c.crop_id ASC");
+$stmt->bind_param('sii',$wanted,$plotId,$plotId); $stmt->execute(); $rows=safeRows($stmt->get_result()); $stmt->close();
+$ready=$soon=$growing=0; $today=new DateTime('today'); $limit=(clone $today)->modify('+14 days');
+foreach($rows as $c){$st=strtolower((string)($c['status']??'')); if($st==='ready')$ready++; elseif($st!=='harvested'){ $growing++; if(!empty($c['expected_harvest'])){try{$d=new DateTime($c['expected_harvest']);if($d>=$today&&$d<=$limit)$soon++;}catch(Throwable $e){}}}}
+$bedTotal=0; $occupied=[];
+if($plotId>0){$bs=$conn->prepare('SELECT COUNT(*) AS n FROM plot_beds WHERE plot_id=?');$bs->bind_param('i',$plotId);$bs->execute();$bedTotal=(int)($bs->get_result()->fetch_assoc()['n']??0);$bs->close();}
+foreach($rows as $c) if(($c['bed_id']??'')!=='') $occupied[(string)$c['bed_id']]=1;
+$available=max(0,$bedTotal-count($occupied));
+$name=$plotRow['plot_name']??($wanted==='nursery'?'Nursery':($wanted==='mno'?'MNO':'Plot '.strtoupper(substr($wanted,-1))));
 echo json_encode(['type'=>'crop','plot_name'=>$name,'plants_planted'=>count($rows),'bed_available'=>$available,'soon_to_harvest'=>$soon,'ready_to_harvest'=>$ready,'growing'=>$growing,'crop_records'=>$rows]);

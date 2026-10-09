@@ -56,6 +56,10 @@ if ($livestockRes) {
     }
 }
 
+/* Crop success timeline: only records explicitly marked harvested count as success. */
+$cropSuccessTimeline = [];
+$successRes = $conn->query("SELECT DATE_FORMAT(COALESCE(date_transplanted, date_sowing), '%Y-%m') AS cycle_month, COALESCE(NULLIF(plot_name,''), NULLIF(transplanted_area,''), 'Unassigned') AS plot_label, COUNT(*) AS successful FROM crops WHERE COALESCE(archived,0)=0 AND LOWER(COALESCE(status,''))='harvested' AND COALESCE(date_transplanted,date_sowing) IS NOT NULL GROUP BY cycle_month, plot_label ORDER BY cycle_month ASC");
+if ($successRes) while ($row = $successRes->fetch_assoc()) $cropSuccessTimeline[] = $row;
 /* LOW STOCK ITEMS (ACTIVE INVENTORY) */
 $lowStockItems = 0;
 $lowStockRes = $conn->query("
@@ -135,6 +139,8 @@ if ($lowStockRes) {
     max-width: 360px;
     max-height: min(520px, calc(100vh - 24px));
     overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
     padding: 0;
     border: 1px solid rgba(82, 123, 66, .16);
     border-radius: 16px;
@@ -373,7 +379,7 @@ if ($lowStockRes) {
     <!-- Plot C -->
     <image class="marker"
         href="markers/plot_c.png"
-        x="1061 "
+        x="1061"
         y="295"
         width="35"
         height="35"
@@ -821,9 +827,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <h4>${safe(data.plot_house_name || plot)}</h4>
                         </div>
                         <div class="map-popup-body">
-                            <div class="map-popup-section-title">
-                                <i class="fa-solid fa-house-chimney"></i> Livestock house records
-                            </div>
+                            
                             <div class="map-popup-card">
                                 <div class="map-popup-card-title">
                                     <span>Livestock house</span>
@@ -838,9 +842,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                     <strong>${formatNumber(data.number_of_livestock)}</strong>
                                 </div>
                             </div>
-                            <div class="map-popup-section-title" style="margin-top:12px;">
-                                <i class="fa-solid fa-list"></i> Livestock records from livestock.php
-                            </div>
+
                             <div class="map-popup-record-list">
                                 ${(Array.isArray(data.livestock_records) && data.livestock_records.length)
                                     ? data.livestock_records.map((animal, index) => `
@@ -860,9 +862,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <h4>${safe(data.plot_name || plot)}</h4>
                         </div>
                         <div class="map-popup-body">
-                            <div class="map-popup-section-title">
-                                <i class="fa-solid fa-seedling"></i> Crop records
-                            </div>
+                            
                             <div class="map-popup-card">
                                 <div class="map-popup-card-title">
                                     <span>Plot crop summary</span>
@@ -888,9 +888,6 @@ document.addEventListener("DOMContentLoaded", () => {
                                     <span>READY TO HARVEST:</span>
                                     <strong>${formatNumber(data.ready_to_harvest)}</strong>
                                 </div>
-                            </div>
-                            <div class="map-popup-section-title" style="margin-top:12px;">
-                                <i class="fa-solid fa-list"></i> Crop records from crops.php
                             </div>
                             <div class="map-popup-record-list">
                                 ${(Array.isArray(data.crop_records) && data.crop_records.length)
@@ -946,6 +943,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
 
+    /* Keep wheel/touch gestures inside the popup from reaching the map drag layer. */
+    ['wheel', 'touchstart', 'touchmove', 'pointerdown'].forEach((eventName) => {
+        popup.addEventListener(eventName, (event) => event.stopPropagation(), { passive: eventName !== 'wheel' });
+    });
     /* ===========================
        CLOSE POPUP
        =========================== */
@@ -997,7 +998,7 @@ const livestockChart = new Chart(livestockMonitoringCanvas, {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { display: false },
+            legend: { display: true, position: 'bottom' },
             tooltip: {
                 callbacks: {
                     label: function(context) {
@@ -1061,19 +1062,8 @@ const soonCountEl = document.getElementById('plotSoonCount');
 const readyCountEl = document.getElementById('plotReadyCount');
 
 const cropStatusChartInstance = new Chart(cropStatusChart, {
-    type: 'pie',
-    data: {
-        labels: ['Growing', 'Soon', 'Ready'],
-        datasets: [{
-            data: [0, 0, 0],
-            backgroundColor: [
-                '#f1d778',
-                '#ed9f69',
-                '#95bd87'
-            ],
-            borderWidth: 0
-        }]
-    },
+    type: 'line',
+    data: { labels: [], datasets: [] },
     options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -1099,7 +1089,17 @@ async function loadPlotStatusChart(plotCode) {
         const soon = Number(data.soon_to_harvest || 0);
         const ready = Number(data.ready_to_harvest || 0);
 
-        cropStatusChartInstance.data.datasets[0].data = [growing, soon, ready];
+        const timeline = <?= json_encode($cropSuccessTimeline, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const months = [...new Set(timeline.map(row => row.cycle_month))];
+        const selectedLabel = plotCode === 'all' ? null : (plotSelector?.selectedOptions?.[0]?.textContent?.trim() || plotCode);
+        const labels = months.length ? months : ['No harvested records'];
+        const plotLabels = [...new Set(timeline.map(row => row.plot_label))].filter(Boolean);
+        const colors = ['#4f8a50','#ed9f69','#9077bf','#3d7ea6','#d36b6b'];
+        cropStatusChartInstance.data.labels = labels;
+        cropStatusChartInstance.data.datasets = (selectedLabel ? [selectedLabel] : plotLabels).map((plot, index) => ({
+            label: `${plot} — successful harvests`, borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length], tension: .25, fill: false,
+            data: labels.map(month => { const row = timeline.find(item => item.cycle_month === month && item.plot_label.toLowerCase() === plot.toLowerCase()); return Number(row?.successful || 0); })
+        }));
         cropStatusChartInstance.update();
 
         if (growingCountEl) growingCountEl.textContent = growing.toLocaleString();
