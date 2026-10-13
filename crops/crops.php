@@ -27,13 +27,52 @@ if (!isset($_SESSION['user_id'])) {
 */
 
 $role = $_SESSION['role'] ?? 'staff';
+$selectedLocation = trim((string)($_GET['location'] ?? 'all'));
+$selectedLocationKey = strtoupper(preg_replace('/\s+/', ' ', $selectedLocation));
+$isPlotView = preg_match('/^PLOT\s+[A-Z0-9_-]+$/', $selectedLocationKey) === 1;
+$plotNameMatch = $selectedLocationKey;
+$plotCodeMatch = strtolower(str_replace(' ', '_', $selectedLocationKey));
+$plotRecords = null;
+$plotRecordError = false;
+if ($isPlotView) {
+    // Plot-specific records are read from the new production tables. Each harvest
+    // event remains a separate row so historical entries are never overwritten.
+    $plotCode = strtolower(str_replace(' ', '_', $selectedLocationKey));
+    $plotStmt = $conn->prepare("SELECT pcr.record_id, pcr.crop_id, pcr.plot_id, pcr.bed_id,
+            COALESCE(NULLIF(pcr.crop_name,''), c.crop_name) AS crop_name,
+            c.variety, c.pcs AS crop_count, p.plot_name, p.plot_code, pb.bed_code,
+            pcr.record_date, pcr.fertilizer_insecticide_applied, pcr.archived AS record_archived,
+            h.harvest_id, h.harvest_date, h.total_quantity, h.total_unit,
+            h.sales_quantity, h.sales_unit, h.sales_amount,
+            h.farm_use_quantity, h.farm_use_unit, h.animal_feed_quantity,
+            h.animal_feed_unit, h.rejected_quantity, h.rejected_unit,
+            (SELECT COUNT(*) FROM plot_crop_harvests hx WHERE hx.record_id=pcr.record_id) AS harvest_count
+        FROM plot_crop_records pcr
+        INNER JOIN crops c ON c.crop_id=pcr.crop_id
+        INNER JOIN plots p ON p.plot_id=pcr.plot_id
+        LEFT JOIN plot_beds pb ON pb.bed_id=pcr.bed_id
+        LEFT JOIN plot_crop_harvests h ON h.record_id=pcr.record_id
+        WHERE COALESCE(pcr.archived,0)=0 AND COALESCE(c.archived,0)=0
+          AND (UPPER(p.plot_name)=? OR LOWER(p.plot_code)=?)
+        ORDER BY COALESCE(h.harvest_date,pcr.record_date) DESC, pcr.record_id DESC, h.harvest_id DESC");
+    if ($plotStmt) {
+        $plotNameMatch = $selectedLocationKey;
+        $plotCodeMatch = strtolower(str_replace(' ', '_', $selectedLocationKey));
+        $plotStmt->bind_param('ss', $plotNameMatch, $plotCodeMatch);
+        $plotStmt->execute();
+        $plotRecords = $plotStmt->get_result();
+    } else {
+        $plotRecordError = true;
+    }
+}
 
 function cropLocationKey($value): string {
     $value = strtoupper(trim((string)$value));
     $compact = preg_replace('/\s+/', '', $value);
     if ($compact === 'NURSERY') return 'NURSERY';
     if ($compact === 'MNO') return 'MNO';
-    if (preg_match('/^(?:PLOT_)?([ABC])(?:[0-9]+)?$/', $compact, $match)) return 'PLOT ' . $match[1];
+    if (preg_match('/^(?:PLOT[_ ]?)?([ABC])(?:[0-9]+)?$/', $compact, $match)) return 'PLOT ' . $match[1];
+    if (preg_match('/^PLOT[_ ]?([0-9]+)$/', $compact, $match)) return 'PLOT ' . $match[1];
     return preg_replace('/\s+/', ' ', $value);
 }
 
@@ -51,6 +90,23 @@ if ($locationResult) {
     }
 }
 
+// Include every active database plot as a selector, even when it currently has no crops.
+$plotsForSelector = $conn->query("SELECT plot_code, plot_name FROM plots WHERE COALESCE(archived,0)=0 ORDER BY plot_id ASC");
+if ($plotsForSelector) {
+    while ($plotOption = $plotsForSelector->fetch_assoc()) {
+        $code = strtoupper(trim((string)($plotOption['plot_code'] ?? '')));
+        $name = strtoupper(trim((string)($plotOption['plot_name'] ?? '')));
+        if ($code === 'NURSERY' || $name === 'NURSERY') {
+            $locationLabels['NURSERY'] = 'Nursery';
+        } elseif ($code === 'MNO' || $name === 'MNO') {
+            $locationLabels['MNO'] = 'MNO';
+        } else {
+            $normal = cropLocationKey($name !== '' ? $name : $code);
+            $locationLabels[$normal] = ucwords(strtolower($normal));
+        }
+    }
+}
+
 
 /*
 |--------------------------------------------------------------------------
@@ -58,17 +114,17 @@ if ($locationResult) {
 |--------------------------------------------------------------------------
 */
 
-$cropsResult = $conn->query("
-    SELECT 
-        crops.*,
-        plots.plot_name,
-        plots.plot_code
-    FROM crops
-    LEFT JOIN plots
-        ON crops.plot_id = plots.plot_id
-    WHERE crops.archived = 0
-    ORDER BY crops.crop_id DESC
-");
+if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
+    $cropsStmt = $conn->prepare("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 AND (UPPER(TRIM(crops.transplanted_area))='NURSERY' OR LOWER(TRIM(COALESCE(plots.plot_code,'')))='nursery' OR UPPER(TRIM(COALESCE(plots.plot_name,'')))='NURSERY') ORDER BY crops.crop_id DESC");
+    $cropsStmt->execute();
+    $cropsResult = $cropsStmt->get_result();
+} elseif (!$isPlotView && $selectedLocationKey === 'MNO') {
+    $cropsStmt = $conn->prepare("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 AND (UPPER(TRIM(crops.transplanted_area))='MNO' OR LOWER(TRIM(COALESCE(plots.plot_code,'')))='mno' OR UPPER(TRIM(COALESCE(plots.plot_name,'')))='MNO') ORDER BY crops.crop_id DESC");
+    $cropsStmt->execute();
+    $cropsResult = $cropsStmt->get_result();
+} else {
+    $cropsResult = $conn->query("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 ORDER BY crops.crop_id DESC");
+}
 
 ?>
 
@@ -140,6 +196,17 @@ $cropsResult = $conn->query("
     rel="stylesheet"
 >
 
+<style>
+.crop-location-btn{display:inline-flex;align-items:center;text-decoration:none;cursor:pointer}
+.plot-harvest-table-wrapper{max-width:100%;overflow-x:auto}
+.plot-harvest-table{min-width:1200px;border-collapse:collapse}
+.plot-harvest-table th{text-align:center;vertical-align:middle;white-space:normal}
+.plot-harvest-table .harvest-group-heading,.plot-harvest-table .sales-group-heading{background:#eaf1e7}
+.plot-record-subtext,.plot-record-note{font-size:11px;color:#718071;margin-top:4px}
+.plot-record-note{padding:8px 2px}
+
+</style>
+
 </head>
 
 
@@ -197,11 +264,11 @@ $cropsResult = $conn->query("
                     <!-- LOCATION BUTTONS -->
 
                     <div class="crop-location-buttons" id="cropLocationButtons">
-                        <button type="button" class="crop-location-btn active" data-filter="all">All</button>
+                        <a class="crop-location-btn <?= $selectedLocationKey === 'ALL' ? 'active' : '' ?>" href="crops.php">All</a>
                         <?php foreach ($locationLabels as $locationValue => $locationLabel): ?>
-                            <button type="button" class="crop-location-btn" data-filter="<?= htmlspecialchars($locationValue, ENT_QUOTES) ?>">
+                            <a class="crop-location-btn <?= $selectedLocationKey === strtoupper($locationValue) ? 'active' : '' ?>" href="crops.php?location=<?= rawurlencode($locationValue) ?>">
                                 <?= htmlspecialchars($locationLabel) ?>
-                            </button>
+                            </a>
                         <?php endforeach; ?>
                     </div>
 
@@ -302,6 +369,75 @@ $cropsResult = $conn->query("
                  TABLE
                  ================================================= -->
 
+            <?php if ($isPlotView): ?>
+                <div class="crop-table-wrapper plot-harvest-table-wrapper">
+                    <?php if ($plotRecordError): ?>
+                        <div class="no-records">Plot Records tables are not available yet. Import <code>migration_plot_nursery_tables.sql</code> first.</div>
+                    <?php else: ?>
+                    <table id="cropTable" class="plot-harvest-table">
+                        <thead>
+                            <tr>
+                                <th colspan="4" class="harvest-group-heading">TRANSPLANT</th>
+                                <th colspan="7" class="harvest-group-heading">HARVEST</th>
+                                <th rowspan="3">DATE OF<br>PULL / HARVEST</th>
+                                <th rowspan="3">ACTION</th>
+                            </tr>
+                            <tr>
+                                <th rowspan="2">PLOT NUMBER</th>
+                                <th rowspan="2">DATE</th>
+                                <th rowspan="2">CROP</th>
+                                <th rowspan="2">NUMBER OF<br>CROPS</th>
+                                <th rowspan="2">TOTAL NUMBER<br>OF HARVEST</th>
+                                <th colspan="2" class="sales-group-heading">SALES</th>
+                                <th rowspan="2">FARM USE</th>
+                                <th rowspan="2">ANIMAL FEED</th>
+                                <th rowspan="2">REJECT</th>
+                                <th rowspan="2">OTHER<br>PURPOSES</th>
+                            </tr>
+                            <tr>
+                                <th>QUANTITY</th>
+                                <th>AMOUNT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php if ($plotRecords && $plotRecords->num_rows): ?>
+                            <?php while ($pr=$plotRecords->fetch_assoc()):
+                                $dateVal = $pr['harvest_date'] ?: $pr['record_date'];
+                                $formatQty = static function($q,$u) { return ($q !== null && $q !== '') ? rtrim(rtrim(number_format((float)$q,3,'.',','),'0'),'.') . ($u ? ' '.$u : '') : ''; };
+                            ?>
+                            <tr class="crop-row" data-sowing="" data-transplanted="<?= htmlspecialchars($pr['record_date'] ?? '', ENT_QUOTES) ?>" data-harvest="<?= htmlspecialchars($pr['harvest_date'] ?? '', ENT_QUOTES) ?>" data-recipient="" data-location="<?= htmlspecialchars($selectedLocationKey, ENT_QUOTES) ?>">
+                                <td><?= htmlspecialchars($pr['bed_code'] ?? '') ?></td>
+                                <td><?= !empty($pr['record_date']) ? htmlspecialchars(date('M j, Y', strtotime($pr['record_date']))) : '' ?></td>
+                                <td><?= htmlspecialchars($pr['crop_name'] ?? '') ?><?php if (!empty($pr['variety'])): ?><div class="plot-record-subtext"><?= htmlspecialchars($pr['variety']) ?></div><?php endif; ?></td>
+                                <td><?= htmlspecialchars($pr['crop_count'] ?? '') ?></td>
+                                <td><?= !empty($pr['harvest_id']) ? (int)$pr['harvest_count'] : '' ?></td>
+                                <td><?= $formatQty($pr['sales_quantity'] ?? null, $pr['sales_unit'] ?? null) ?></td>
+                                <td><?= ($pr['sales_amount'] !== null && $pr['sales_amount'] !== '') ? '₱'.number_format((float)$pr['sales_amount'],2) : '' ?></td>
+                                <td><?= $formatQty($pr['farm_use_quantity'] ?? null, $pr['farm_use_unit'] ?? null) ?></td>
+                                <td><?= $formatQty($pr['animal_feed_quantity'] ?? null, $pr['animal_feed_unit'] ?? null) ?></td>
+                                <td><?= $formatQty($pr['rejected_quantity'] ?? null, $pr['rejected_unit'] ?? null) ?></td>
+                                <td></td>
+                                <td><?= !empty($pr['harvest_date']) ? htmlspecialchars(date('M j, Y', strtotime($pr['harvest_date']))) : '' ?></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button type="button" class="action-icon edit-icon" title="Edit Crop" onclick="openEditModal('edit_crop.php?id=<?= intval($pr['crop_id']) ?>&harvest_id=<?= intval($pr['harvest_id'] ?? 0) ?>', 'Edit Crop')">
+                                            <span class="material-symbols-rounded">edit</span>
+                                        </button>
+                                        <button type="button" class="action-icon archive-icon" title="Archive Crop" onclick="openArchiveModal('archive_crop.php?id=<?= intval($pr['crop_id']) ?>', '<?= htmlspecialchars($pr['crop_name'] ?? '', ENT_QUOTES) ?>')">
+                                            <span class="material-symbols-rounded">delete</span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <tr><td colspan="13" class="no-records">No active plot production records found for <?= htmlspecialchars(ucwords(strtolower($selectedLocationKey))) ?>. Make sure the SQL migration has been imported and crops have been assigned to this plot.</td></tr>
+                        <?php endif; ?>
+                        </tbody>
+                    </table>
+                    <?php endif; ?>
+                </div>
+            <?php else: ?>
             <div class="crop-table-wrapper">
 
 
@@ -588,9 +724,10 @@ $cropsResult = $conn->query("
 
                                 <td>
 
-                                    <?= htmlspecialchars(
-                                        $row['transplanted_area'] ?? ''
-                                    ) ?>
+                                    <?= htmlspecialchars($row['transplanted_area'] ?? '') ?>
+                                    <?php if (strtoupper(trim((string)($row['transplanted_area'] ?? ''))) === 'NURSERY' && !empty($row['nursery_bed_label'])): ?>
+                                        <div class="plot-record-subtext">Bed: <?= htmlspecialchars($row['nursery_bed_label']) ?></div>
+                                    <?php endif; ?>
 
                                 </td>
 
@@ -605,7 +742,7 @@ $cropsResult = $conn->query("
                                         <div class="action-buttons">
 
 
-                                            <?php if (strtoupper(trim($row['transplanted_area'] ?? '')) === 'NURSERY'): ?>
+                                            <?php if (strtoupper(trim($row['transplanted_area'] ?? '')) === 'NURSERY' && empty($row['transferred_out'])): ?>
                                                 <button
                                                     type="button"
                                                     class="action-icon transfer-icon"
@@ -699,6 +836,7 @@ $cropsResult = $conn->query("
 
             </div>
 
+            <?php endif; ?>
 
         </section>
 

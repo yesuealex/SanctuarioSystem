@@ -55,6 +55,9 @@ try {
         $stmt->close();
     }
 
+    // Remove FK-dependent active records before physically deleting the crop.
+    removeCropDependentRecords($conn, $id);
+
     /* This is the important part: remove the active copy. */
     $delete = $conn->prepare("DELETE FROM `crops` WHERE `crop_id` = ? LIMIT 1");
     if (!$delete) throw new Exception('Could not prepare active crop removal: ' . $conn->error);

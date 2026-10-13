@@ -88,23 +88,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['monitoring_action']))
     if ($action === 'archive') {
         $recordId = (int)($_POST['record_id'] ?? 0);
 
+        // Map the active monitoring tab to its archive-page livestock type and section.
         $archiveMap = [
-            'chicken_weight' => 'chicken_weight_records',
-            'chicken_eggs' => 'chicken_egg_records',
-            'chicken_mortality' => 'chicken_mortality_records',
-            'chicken_feed' => 'chicken_feed_ingredients',
-            'chicken_water' => 'chicken_drinking_water',
-            'chicken_feeding' => 'chicken_feeding_schedule',
-            'goat_daily' => 'goat_monitoring_records',
-            'goat_forage' => 'goat_forage_records'
+            'chicken_weight'   => ['table' => 'chicken_weight_records',       'type' => 'Chicken', 'section' => 'chicken_weight_records'],
+            'chicken_eggs'     => ['table' => 'chicken_egg_records',          'type' => 'Chicken', 'section' => 'chicken_egg_records'],
+            'chicken_mortality'=> ['table' => 'chicken_mortality_records',    'type' => 'Chicken', 'section' => 'chicken_mortality_records'],
+            'chicken_feed'     => ['table' => 'chicken_feed_ingredients',     'type' => 'Chicken', 'section' => 'chicken_feed_ingredients'],
+            'chicken_water'    => ['table' => 'chicken_drinking_water',      'type' => 'Chicken', 'section' => 'chicken_drinking_water'],
+            'chicken_feeding'  => ['table' => 'chicken_feeding_schedule',    'type' => 'Chicken', 'section' => 'chicken_feeding_schedule'],
+            'goat_daily'       => ['table' => 'goat_monitoring_records',      'type' => 'Goat',    'section' => 'goat_monitoring_records'],
+            'goat_forage'      => ['table' => 'goat_forage_records',          'type' => 'Goat',    'section' => 'goat_forage_records']
         ];
 
         if ($recordId > 0 && isset($archiveMap[$recordType])) {
-            $table = $archiveMap[$recordType];
-            archiveRecord($conn, $table, 'id', $recordId, (int)$_SESSION['user_id']);
+            $archiveConfig = $archiveMap[$recordType];
+            archiveRecord($conn, $archiveConfig['table'], 'id', $recordId, (int)$_SESSION['user_id']);
+
+            // An individual monitoring row belongs in its matching archive section;
+            // do not archive the entire livestock profile or return to the active page.
+            $archiveUrl = 'archived_livestocks.php?' . http_build_query([
+                'type' => $archiveConfig['type'],
+                'section' => $archiveConfig['section'],
+                'archived_record' => 1
+            ]);
+            header('Location: ' . $archiveUrl);
+            exit();
         }
 
-        header("Location: livestocks.php?type=" . urlencode($_POST['return_type'] ?? '') . "&livestock_id=" . $livestockId);
+        $returnType = trim((string)($_POST['return_type'] ?? ''));
+        header('Location: livestocks.php?type=' . urlencode($returnType) . '&livestock_id=' . $livestockId);
         exit();
     }
 
@@ -229,58 +241,107 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive_livestock_id'
     }
 
     $archiveId = (int)$_POST['archive_livestock_id'];
+    $returnType = trim((string)($_POST['return_type'] ?? $_POST['type'] ?? ''));
+    $returnSection = trim((string)($_POST['return_section'] ?? ''));
+    $returnLivestockId = (int)($_POST['return_livestock_id'] ?? $_POST['livestock_id'] ?? 0);
+
+    // Stay on the active livestock page after archiving. Do not redirect to
+    // archived_livestocks.php or add an archive-mode query flag.
+    $returnParams = [];
+    if ($returnType !== '') $returnParams['type'] = $returnType;
+    if ($returnLivestockId > 0) $returnParams['livestock_id'] = $returnLivestockId;
+    if ($returnSection !== '') $returnParams['section'] = $returnSection;
+    $returnUrl = 'livestocks.php' . ($returnParams ? '?' . http_build_query($returnParams) : '');
 
     if ($archiveId > 0) {
         try {
             $conn->begin_transaction();
 
             /*
-             * Physical archive: copy the current row into archived_livestocks,
-             * then DELETE it from livestocks. If it was already copied by an
-             * older archive attempt, remove the active copy instead of leaving
-             * it visible in the active list.
+             * Explicitly guarantee that the profile is inserted into
+             * archived_livestocks before removing it from livestocks.
+             * Do not rely only on a helper's soft-archive flag.
              */
-            $sourceCols = archiveColumns($conn, 'livestocks');
-            $archiveTable = ensureArchiveTable($conn, 'livestocks', false);
-
-            $check = $conn->prepare("SELECT COUNT(*) FROM `livestocks` WHERE `livestock_id` = ?");
-            $check->bind_param('i', $archiveId);
-            $check->execute();
-            $check->bind_result($exists);
-            $check->fetch();
-            $check->close();
-
-            if (!$exists) {
-                throw new Exception('Livestock record was not found in the active records.');
+            $archiveTable = 'archived_livestocks';
+            $tableCheck = $conn->query("SHOW TABLES LIKE '" . $conn->real_escape_string($archiveTable) . "'");
+            if (!$tableCheck || $tableCheck->num_rows === 0) {
+                if (!$conn->query("CREATE TABLE `{$archiveTable}` LIKE `livestocks`")) {
+                    throw new Exception('Could not create archived_livestocks: ' . $conn->error);
+                }
             }
 
-            $insertSql = "INSERT INTO `{$archiveTable}` (`" . implode('`,`', $sourceCols) . "`,`archived_at`,`archived_by`) SELECT `" . implode('`,`', $sourceCols) . "`,NOW(),? FROM `livestocks` WHERE `livestock_id`=? LIMIT 1";
+            $sourceColumns = [];
+            $sourceResult = $conn->query("SHOW COLUMNS FROM `livestocks`");
+            if (!$sourceResult) throw new Exception('Could not inspect livestocks columns: ' . $conn->error);
+            while ($column = $sourceResult->fetch_assoc()) $sourceColumns[$column['Field']] = $column;
+
+            $archiveColumns = [];
+            $archiveResult = $conn->query("SHOW COLUMNS FROM `{$archiveTable}`");
+            if (!$archiveResult) throw new Exception('Could not inspect archived_livestocks columns: ' . $conn->error);
+            while ($column = $archiveResult->fetch_assoc()) $archiveColumns[$column['Field']] = $column;
+
+            foreach (['archived_at' => "DATETIME NULL", 'archived_by' => "INT NULL"] as $column => $definition) {
+                if (!isset($archiveColumns[$column])) {
+                    if (!$conn->query("ALTER TABLE `{$archiveTable}` ADD COLUMN `{$column}` {$definition}")) {
+                        throw new Exception("Could not add {$column} to archived_livestocks: " . $conn->error);
+                    }
+                    $archiveColumns[$column] = true;
+                }
+            }
+
+            $copyColumns = [];
+            foreach ($sourceColumns as $columnName => $columnInfo) {
+                if (!in_array($columnName, ['archived_at', 'archived_by'], true)
+                    && isset($archiveColumns[$columnName])
+                    && ($columnInfo['Extra'] ?? '') !== 'VIRTUAL GENERATED'
+                    && ($columnInfo['Extra'] ?? '') !== 'STORED GENERATED') {
+                    $copyColumns[] = $columnName;
+                }
+            }
+            if (!in_array('livestock_id', $copyColumns, true)) {
+                throw new Exception('The livestock_id column is missing from the archive table.');
+            }
+
+            $quotedColumns = array_map(fn($c) => '`' . str_replace('`', '', $c) . '`', $copyColumns);
+            $updateParts = [];
+            foreach ($quotedColumns as $quotedColumn) {
+                if ($quotedColumn !== '`livestock_id`') $updateParts[] = "{$quotedColumn}=VALUES({$quotedColumn})";
+            }
+            $insertSql = "INSERT INTO `{$archiveTable}` (" . implode(',', $quotedColumns) . ",`archived_at`,`archived_by`) " .
+                "SELECT " . implode(',', $quotedColumns) . ",NOW(),? FROM `livestocks` WHERE `livestock_id`=? " .
+                "ON DUPLICATE KEY UPDATE " . implode(',', array_merge($updateParts, ['`archived_at`=NOW()', '`archived_by`=VALUES(`archived_by`)']));
+
             $ins = $conn->prepare($insertSql);
-            if (!$ins) throw new Exception('Could not prepare livestock archive: ' . $conn->error);
-            $uid = (int)$_SESSION['user_id'];
+            if (!$ins) throw new Exception('Could not prepare archive insert: ' . $conn->error);
+            $uid = (int)($_SESSION['user_id'] ?? 0);
             $ins->bind_param('ii', $uid, $archiveId);
             if (!$ins->execute()) {
-                /* If an older archive copy already exists, treat it as archived. */
-                $duplicate = stripos($ins->error, 'duplicate') !== false;
                 $err = $ins->error;
                 $ins->close();
-                if (!$duplicate) throw new Exception('Could not archive livestock: ' . $err);
-            } else {
-                $ins->close();
+                throw new Exception('Could not insert into archived_livestocks: ' . $err);
             }
+            $ins->close();
 
-            /* Always remove the active copy after a successful archive or a duplicate archive copy. */
-            $del = $conn->prepare("DELETE FROM `livestocks` WHERE `livestock_id` = ? LIMIT 1");
-            if (!$del) throw new Exception('Could not prepare active livestock removal: ' . $conn->error);
+            /* Verify the archive copy exists before deleting the active row. */
+            $verify = $conn->prepare("SELECT COUNT(*) FROM `{$archiveTable}` WHERE `livestock_id`=?");
+            if (!$verify) throw new Exception('Could not verify archived record: ' . $conn->error);
+            $verify->bind_param('i', $archiveId);
+            $verify->execute();
+            $verify->bind_result($archivedCount);
+            $verify->fetch();
+            $verify->close();
+            if ((int)$archivedCount < 1) throw new Exception('The record was not found in archived_livestocks after insertion; the active record was kept.');
+
+            $del = $conn->prepare("DELETE FROM `livestocks` WHERE `livestock_id`=? LIMIT 1");
+            if (!$del) throw new Exception('Could not prepare active record removal: ' . $conn->error);
             $del->bind_param('i', $archiveId);
-            if (!$del->execute()) {
-                $err = $del->error;
+            if (!$del->execute() || $del->affected_rows < 1) {
+                $err = $del->error ?: 'No active livestock row was removed.';
                 $del->close();
                 throw new Exception('Could not remove active livestock: ' . $err);
             }
             $del->close();
 
-            /* Archive all related monitoring records too. */
             $monitoringTables = [
                 'chicken_weight_records','chicken_egg_records','chicken_mortality_records',
                 'chicken_feed_ingredients','chicken_drinking_water','chicken_feeding_schedule',
@@ -293,14 +354,261 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive_livestock_id'
             }
 
             $conn->commit();
-            header("Location: livestocks.php?archived=1");
+            header('Location: ' . $returnUrl);
             exit();
         } catch (Throwable $e) {
             $conn->rollback();
             http_response_code(500);
-            exit('Could not archive livestock: ' . htmlspecialchars($e->getMessage()));
+            exit('Could not archive livestock: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'));
         }
     }
+}
+
+// =========================================================
+// UPDATE LIVESTOCK PROFILE (same form and layout as Add Profile)
+// =========================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_livestock_profile'])) {
+    if ($role !== 'admin') { http_response_code(403); exit('Unauthorized'); }
+
+    $type = trim((string)($_POST['profile_type'] ?? ''));
+    $allowedTypes = ['Chicken', 'Goat', 'Pig', 'Rabbit'];
+    $pageId = (int)($_POST['edit_page_id'] ?? 0);
+    $pigId = (int)($_POST['edit_pig_id'] ?? 0);
+    $mapId = (int)($_POST['edit_map_livestock_id'] ?? 0);
+    $name = trim((string)($_POST['profile_name'] ?? ''));
+    $breed = trim((string)($_POST['profile_breed'] ?? ''));
+    $dob = trim((string)($_POST['profile_date_of_birth'] ?? ''));
+    $sex = trim((string)($_POST['profile_sex'] ?? ''));
+    $weightRaw = trim((string)($_POST['profile_weight'] ?? ''));
+    $weight = $weightRaw === '' ? null : (float)$weightRaw;
+    $notes = trim((string)($_POST['profile_notes'] ?? ''));
+    $houseId = (int)($_POST['profile_house_id'] ?? 0);
+    if (!in_array($type, $allowedTypes, true) || $name === '' || !in_array($sex, ['Male','Female','Mixed'], true)) {
+        $_SESSION['livestock_profile_error'] = 'Please complete the required profile fields.';
+        header('Location: livestocks.php?type=' . urlencode($type) . '&livestock_id=' . $pageId); exit();
+    }
+    if ($type === 'Pig' && !in_array($sex, ['Male','Female'], true)) {
+        $_SESSION['livestock_profile_error'] = 'Pig sex must be Male or Female.';
+        header('Location: livestocks.php?type=Pig&livestock_id=' . $pageId); exit();
+    }
+    $houseCheck = $conn->prepare("SELECT house_id FROM livestock_houses WHERE house_id = ? AND archived = 0 LIMIT 1");
+    $houseCheck->bind_param('i', $houseId); $houseCheck->execute();
+    $validHouse = $houseId > 0 && $houseCheck->get_result()->num_rows > 0; $houseCheck->close();
+    if (!$validHouse) {
+        $_SESSION['livestock_profile_error'] = 'Please select a valid active livestock house.';
+        header('Location: livestocks.php?type=' . urlencode($type) . '&livestock_id=' . $pageId); exit();
+    }
+    $age = '';
+    if ($dob !== '') { try { $diff = (new DateTime($dob))->diff(new DateTime('today')); $age = $diff->y . ' years ' . $diff->m . ' months'; } catch (Throwable $e) {} }
+    $sexDb = strtolower($sex);
+    $number = max(1, (int)($_POST['profile_number'] ?? 1));
+    $feeding = trim((string)($_POST['profile_feeding_schedule'] ?? ''));
+    if ($feeding === '') $feeding = 'Morning and evening';
+    $forSale = (($_POST['profile_for_sale'] ?? '0') === '1') ? 1 : 0;
+
+    $conn->begin_transaction();
+    try {
+        if ($type === 'Pig') {
+            $tag = trim((string)($_POST['profile_tag_number'] ?? ''));
+            if ($tag === '') throw new Exception('Tag Number is required for pigs.');
+            $purpose = trim((string)($_POST['profile_purpose'] ?? ''));
+            $health = trim((string)($_POST['profile_health_status'] ?? 'Healthy'));
+            $forSale = strcasecmp($purpose, 'Sale') === 0 ? 1 : 0;
+            if ($mapId > 0) {
+                $stmt = $conn->prepare("UPDATE livestocks SET type='Pig', name=?, breed=NULLIF(?,''), date_of_birth=NULLIF(?,''), age=?, estimated_weight=?, for_sale=?, number=1, sex=?, feeding_schedule=?, house_id=?, notes=NULLIF(?, '') WHERE livestock_id=? AND archived=0");
+                $stmt->bind_param('ssssdissisi', $name,$breed,$dob,$age,$weight,$forSale,$sexDb,$feeding,$houseId,$notes,$mapId);
+                if (!$stmt->execute()) throw new Exception($stmt->error); $stmt->close();
+            } else {
+                $stmt = $conn->prepare("INSERT INTO livestocks (type,name,breed,date_of_birth,age,estimated_weight,for_sale,number,sex,feeding_schedule,archived,house_id,notes) VALUES ('Pig',?,?,NULLIF(?,''),?,?,?,1,?,?,0,?,NULLIF(?,''))");
+                $stmt->bind_param('ssssdissis', $name,$breed,$dob,$age,$weight,$forSale,$sexDb,$feeding,$houseId,$notes);
+                if (!$stmt->execute()) throw new Exception($stmt->error); $mapId=(int)$conn->insert_id; $stmt->close();
+            }
+            $stmt = $conn->prepare("UPDATE pig_records SET livestock_id=?, tag_number=?, name=?, sex=?, breed=NULLIF(?,''), date_of_birth=NULLIF(?,''), weight=?, weight_unit='kg', purpose=NULLIF(?,''), health_status=?, notes=NULLIF(?, '') WHERE pig_id=?");
+            $stmt->bind_param('isssssdsssi', $mapId,$tag,$name,$sex,$breed,$dob,$weight,$purpose,$health,$notes,$pigId);
+            if (!$stmt->execute()) throw new Exception($stmt->error); $stmt->close();
+            $pageId = -$pigId;
+        } else {
+            $stmt = $conn->prepare("UPDATE livestocks SET type=?, name=?, breed=NULLIF(?,''), date_of_birth=NULLIF(?,''), age=?, estimated_weight=?, for_sale=?, number=?, sex=?, feeding_schedule=?, house_id=?, notes=NULLIF(?, '') WHERE livestock_id=? AND archived=0");
+            $stmt->bind_param('sssssdiissisi', $type,$name,$breed,$dob,$age,$weight,$forSale,$number,$sexDb,$feeding,$houseId,$notes,$pageId);
+            if (!$stmt->execute()) throw new Exception($stmt->error); $stmt->close();
+        }
+        $conn->commit();
+    } catch (Throwable $e) {
+        $conn->rollback(); $_SESSION['livestock_profile_error'] = 'Could not update livestock profile: ' . $e->getMessage();
+        header('Location: livestocks.php?type=' . urlencode($type) . '&livestock_id=' . $pageId); exit();
+    }
+    header('Location: livestocks.php?type=' . urlencode($type) . '&livestock_id=' . $pageId . '&profile_updated=1'); exit();
+}
+
+// =========================================================
+// ADD LIVESTOCK PROFILE (ALL LIVESTOCK TYPES)
+// =========================================================
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_livestock_profile'])) {
+    if ($role !== 'admin') {
+        http_response_code(403);
+        exit('Unauthorized');
+    }
+
+    $type = trim((string)($_POST['profile_type'] ?? ''));
+    $allowedTypes = ['Chicken', 'Goat', 'Pig', 'Rabbit'];
+    if (!in_array($type, $allowedTypes, true)) {
+        $_SESSION['livestock_profile_error'] = 'Please choose a valid livestock type.';
+        header('Location: livestocks.php');
+        exit();
+    }
+
+    $name = trim((string)($_POST['profile_name'] ?? ''));
+    $breed = trim((string)($_POST['profile_breed'] ?? ''));
+    $dob = trim((string)($_POST['profile_date_of_birth'] ?? ''));
+    $sex = trim((string)($_POST['profile_sex'] ?? ''));
+    $weightRaw = trim((string)($_POST['profile_weight'] ?? ''));
+    $notes = trim((string)($_POST['profile_notes'] ?? ''));
+
+    if ($name === '' || !in_array($sex, ['Male', 'Female', 'Mixed'], true)) {
+        $_SESSION['livestock_profile_error'] = 'Name and sex are required.';
+        header('Location: livestocks.php?type=' . urlencode($type));
+        exit();
+    }
+
+    if ($type === 'Pig') {
+        if (!in_array($sex, ['Male', 'Female'], true)) {
+            $_SESSION['livestock_profile_error'] = 'Pig sex must be Male or Female.';
+            header('Location: livestocks.php?type=Pig');
+            exit();
+        }
+
+        $tagNumber = trim((string)($_POST['profile_tag_number'] ?? ''));
+        if ($tagNumber === '') {
+            $_SESSION['livestock_profile_error'] = 'Tag Number is required for pigs.';
+            header('Location: livestocks.php?type=Pig');
+            exit();
+        }
+
+        // Farm map reads active animals from livestocks and groups them by house_id.
+        // Save the pig in BOTH tables and link pig_records to its map-visible profile.
+        $houseIdRaw = trim((string)($_POST['profile_house_id'] ?? ''));
+        $houseId = $houseIdRaw === '' ? 0 : (int)$houseIdRaw;
+        if ($houseId <= 0) {
+            $_SESSION['livestock_profile_error'] = 'Please select the livestock house so the pig appears on the farm map.';
+            header('Location: livestocks.php?type=Pig');
+            exit();
+        }
+        $houseCheck = $conn->prepare("SELECT house_id FROM livestock_houses WHERE house_id = ? AND archived = 0 LIMIT 1");
+        $houseCheck->bind_param('i', $houseId);
+        $houseCheck->execute();
+        $houseExists = $houseCheck->get_result()->num_rows > 0;
+        $houseCheck->close();
+        if (!$houseExists) {
+            $_SESSION['livestock_profile_error'] = 'Please select a valid active livestock house.';
+            header('Location: livestocks.php?type=Pig');
+            exit();
+        }
+
+        $weight = $weightRaw === '' ? null : (float)$weightRaw;
+        $purpose = trim((string)($_POST['profile_purpose'] ?? ''));
+        $healthStatus = trim((string)($_POST['profile_health_status'] ?? 'Healthy'));
+        $pigSex = $sex;
+        $sexDb = strtolower($sex);
+        $age = '';
+        if ($dob !== '') {
+            try {
+                $birthDate = new DateTime($dob);
+                $today = new DateTime('today');
+                $diff = $birthDate->diff($today);
+                $age = $diff->y . ' years ' . $diff->m . ' months';
+            } catch (Throwable $e) { $age = ''; }
+        }
+        $feedingSchedule = trim((string)($_POST['profile_feeding_schedule'] ?? ''));
+        if ($feedingSchedule === '') $feedingSchedule = 'Morning and evening';
+        $forSale = strcasecmp($purpose, 'Sale') === 0 ? 1 : 0;
+
+        $conn->begin_transaction();
+        try {
+            $mapStmt = $conn->prepare("INSERT INTO livestocks (type, name, breed, date_of_birth, age, estimated_weight, for_sale, number, sex, feeding_schedule, archived, house_id, notes) VALUES ('Pig', ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, 1, ?, ?, 0, ?, NULLIF(?, ''))");
+            if (!$mapStmt) throw new Exception('Could not prepare the map livestock profile: ' . $conn->error);
+            $mapStmt->bind_param('ssssdissis', $name, $breed, $dob, $age, $weight, $forSale, $sexDb, $feedingSchedule, $houseId, $notes);
+            if (!$mapStmt->execute()) throw new Exception('Could not save the farm-map livestock profile: ' . $mapStmt->error);
+            $mapLivestockId = (int)$conn->insert_id;
+            $mapStmt->close();
+
+            $stmt = $conn->prepare("INSERT INTO pig_records (livestock_id, tag_number, name, sex, breed, date_of_birth, weight, weight_unit, purpose, health_status, notes) VALUES (?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, 'kg', NULLIF(?, ''), ?, NULLIF(?, ''))");
+            if (!$stmt) throw new Exception('Could not prepare the pig profile: ' . $conn->error);
+            $stmt->bind_param('isssssdsss', $mapLivestockId, $tagNumber, $name, $pigSex, $breed, $dob, $weight, $purpose, $healthStatus, $notes);
+            if (!$stmt->execute()) throw new Exception('Could not save the pig profile: ' . $stmt->error);
+            $newId = (int)$conn->insert_id;
+            $stmt->close();
+            $conn->commit();
+        } catch (Throwable $e) {
+            $conn->rollback();
+            $_SESSION['livestock_profile_error'] = $e->getMessage();
+            header('Location: livestocks.php?type=Pig');
+            exit();
+        }
+        header('Location: livestocks.php?type=Pig&livestock_id=' . (-$newId) . '&profile_added=1');
+        exit();
+    }
+
+    $number = max(1, (int)($_POST['profile_number'] ?? 1));
+    $feedingSchedule = trim((string)($_POST['profile_feeding_schedule'] ?? ''));
+    $forSale = (($_POST['profile_for_sale'] ?? '0') === '1') ? 1 : 0;
+    $houseIdRaw = trim((string)($_POST['profile_house_id'] ?? ''));
+    $houseId = $houseIdRaw === '' ? null : (int)$houseIdRaw;
+    $weight = $weightRaw === '' ? null : (float)$weightRaw;
+    $sexDb = strtolower($sex);
+
+    if ($feedingSchedule === '') {
+        $_SESSION['livestock_profile_error'] = 'Feeding schedule is required.';
+        header('Location: livestocks.php?type=' . urlencode($type));
+        exit();
+    }
+
+    if ($houseId === null || $houseId <= 0) {
+        $_SESSION['livestock_profile_error'] = 'Please select the livestock house so the record appears on the farm map.';
+        header('Location: livestocks.php?type=' . urlencode($type));
+        exit();
+    }
+    $houseCheck = $conn->prepare("SELECT house_id FROM livestock_houses WHERE house_id = ? AND archived = 0 LIMIT 1");
+    $houseCheck->bind_param('i', $houseId);
+    $houseCheck->execute();
+    $houseExists = $houseCheck->get_result()->num_rows > 0;
+    $houseCheck->close();
+    if (!$houseExists) {
+        $_SESSION['livestock_profile_error'] = 'Please select a valid active livestock house.';
+        header('Location: livestocks.php?type=' . urlencode($type));
+        exit();
+    }
+
+    $age = '';
+    if ($dob !== '') {
+        try {
+            $birthDate = new DateTime($dob);
+            $today = new DateTime('today');
+            $diff = $birthDate->diff($today);
+            $age = $diff->y . ' years ' . $diff->m . ' months';
+        } catch (Throwable $e) {
+            $age = '';
+        }
+    }
+
+    $stmt = $conn->prepare("INSERT INTO livestocks (type, name, breed, date_of_birth, age, estimated_weight, for_sale, number, sex, feeding_schedule, archived, house_id, notes) VALUES (?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?, ?, ?, 0, ?, NULLIF(?, ''))");
+    if (!$stmt) {
+        $_SESSION['livestock_profile_error'] = 'Could not prepare the livestock profile: ' . $conn->error;
+        header('Location: livestocks.php?type=' . urlencode($type));
+        exit();
+    }
+    $stmt->bind_param('sssssdiissis', $type, $name, $breed, $dob, $age, $weight, $forSale, $number, $sexDb, $feedingSchedule, $houseId, $notes);
+    if (!$stmt->execute()) {
+        $error = $stmt->error;
+        $stmt->close();
+        $_SESSION['livestock_profile_error'] = 'Could not save livestock profile: ' . $error;
+        header('Location: livestocks.php?type=' . urlencode($type));
+        exit();
+    }
+    $newId = (int)$conn->insert_id;
+    $stmt->close();
+    header('Location: livestocks.php?type=' . urlencode($type) . '&livestock_id=' . $newId . '&profile_added=1');
+    exit();
 }
 
 // =========================================================
@@ -453,7 +761,7 @@ $livestockProfile = null;
 if ($selectedLivestockId < 0) {
 
     $pigId = abs($selectedLivestockId);
-    $stmt = $conn->prepare("SELECT * FROM pig_records WHERE pig_id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT p.*, l.livestock_id AS map_livestock_id, l.house_id, l.number, l.for_sale, l.feeding_schedule FROM pig_records p LEFT JOIN livestocks l ON l.livestock_id = p.livestock_id WHERE p.pig_id = ? LIMIT 1");
     $stmt->bind_param("i", $pigId);
     $stmt->execute();
     $profileResult = $stmt->get_result();
@@ -479,6 +787,11 @@ if ($selectedLivestockId < 0) {
         $livestockProfile = [
             'livestock_id' => $selectedLivestockId,
             'pig_id' => $pig['pig_id'],
+            'map_livestock_id' => (int)($pig['map_livestock_id'] ?? 0),
+            'house_id' => (int)($pig['house_id'] ?? 0),
+            'number' => 1,
+            'feeding_schedule' => $pig['feeding_schedule'] ?? 'Morning and evening',
+            'for_sale' => (int)($pig['for_sale'] ?? (strcasecmp((string)($pig['purpose'] ?? ''), 'Sale') === 0 ? 1 : 0)),
             'tag_number' => $pig['tag_number'] ?? '',
             'name' => $pig['name'] ?? '-',
             'type' => 'Pig',
@@ -526,6 +839,14 @@ $livestockResult = $conn->query("
     WHERE archived = 0
     ORDER BY livestock_id DESC
 ");
+
+$houseOptionsResult = $conn->query("SELECT house_id, house_name, house_code FROM livestock_houses WHERE archived = 0 ORDER BY house_name ASC");
+$houseOptions = [];
+if ($houseOptionsResult) {
+    while ($houseOption = $houseOptionsResult->fetch_assoc()) $houseOptions[] = $houseOption;
+}
+$livestockProfileError = $_SESSION['livestock_profile_error'] ?? '';
+unset($_SESSION['livestock_profile_error']);
 
 ?>
 
@@ -651,6 +972,23 @@ $livestockResult = $conn->query("
 .monitoring-empty-state .material-symbols-rounded{font-size:38px;color:#7b9871}
 .monitoring-empty-state h3{margin:8px 0 5px;color:#45643f;font-size:.95rem}
 .monitoring-empty-state p{margin:0 auto;max-width:620px;font-size:.72rem;line-height:1.6}
+.profile-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.profile-header-actions .edit-profile-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.add-livestock-profile-btn{background:#2f6b2f!important;color:#fff!important}
+.livestock-profile-feedback{margin:0 0 12px;padding:10px 14px;border-radius:8px;font-size:.78rem;font-family:Poppins,sans-serif}
+.livestock-profile-feedback.error{background:#fff0f0;color:#a33;border:1px solid #f0cccc}
+.livestock-profile-feedback.success{background:#eef7eb;color:#32652b;border:1px solid #d6e8ce}
+.add-profile-modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,35,20,.48);z-index:10000;align-items:center;justify-content:center;padding:20px}
+.add-profile-modal-overlay.active{display:flex}
+.add-profile-modal{width:min(760px,100%);max-height:90vh;overflow-y:auto;background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.add-profile-form{padding:18px 20px}
+.add-profile-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.add-profile-field{min-width:0}
+.add-profile-field.full{grid-column:1/-1}
+.add-profile-field label{display:block;margin-bottom:5px;font-size:.7rem;font-weight:600;color:#45643f}
+.add-profile-field input,.add-profile-field select,.add-profile-field textarea{width:100%;box-sizing:border-box;border:1px solid #d9e1d6;border-radius:7px;padding:9px 10px;font-family:Poppins,sans-serif;font-size:.74rem;outline:none;background:#fff}
+.add-profile-field textarea{min-height:76px;resize:vertical}
+@media(max-width:650px){.profile-header{gap:10px;align-items:flex-start}.profile-header-actions{gap:6px}.profile-header-actions .edit-profile-btn{font-size:.68rem;padding:8px 10px}.add-profile-fields{grid-template-columns:1fr}.add-profile-field.full{grid-column:auto}}
 .monitoring-modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,35,20,.48);z-index:9999;align-items:center;justify-content:center;padding:20px}
 .monitoring-modal-overlay.active{display:flex}
 .monitoring-modal{width:min(720px,100%);max-height:90vh;overflow-y:auto;background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
@@ -853,6 +1191,14 @@ $livestockResult = $conn->query("
              PROFILE
         ================================================== -->
 
+        <?php if ($livestockProfileError !== ''): ?>
+            <div class="livestock-profile-feedback error"><?= htmlspecialchars($livestockProfileError, ENT_QUOTES, 'UTF-8') ?></div>
+        <?php elseif (isset($_GET['profile_added'])): ?>
+            <div class="livestock-profile-feedback success">Livestock profile added successfully.</div>
+        <?php elseif (isset($_GET['profile_updated'])): ?>
+            <div class="livestock-profile-feedback success">Livestock profile updated successfully.</div>
+        <?php endif; ?>
+
         <?php if ($livestockProfile): ?>
 
             <div class="livestock-profile-card">
@@ -867,27 +1213,36 @@ $livestockResult = $conn->query("
                     </h2>
 
 
-                    <?php if ($role === 'admin' && ($livestockProfile['type'] ?? '') !== 'Pig'): ?>
+                    <?php if ($role === 'admin'): ?>
+                        <div class="profile-header-actions">
+                            <button type="button" class="edit-profile-btn add-livestock-profile-btn" onclick="openAddLivestockModal()">
+                                <span class="material-symbols-rounded">add</span>
+                                Add Livestock
+                            </button>
 
-                        <button
-                            type="button"
-                            class="edit-profile-btn"
-                            onclick="openEditModal(
-                                'edit_livestock.php?id=<?= intval(
-                                    $livestockProfile['livestock_id']
-                                ) ?>',
-                                'Edit Livestock Profile'
-                            )"
-                        >
-
-                            <span class="material-symbols-rounded">
-                                edit
-                            </span>
-
-                            Edit Profile
-
-                        </button>
-
+                            <button type="button" class="edit-profile-btn" onclick='openEditLivestockModal(<?= json_encode([
+                                'page_id' => (int)$livestockProfile['livestock_id'],
+                                'pig_id' => (int)($livestockProfile['pig_id'] ?? 0),
+                                'map_id' => (int)($livestockProfile['map_livestock_id'] ?? $livestockProfile['livestock_id']),
+                                'type' => (string)($livestockProfile['type'] ?? $selectedType),
+                                'name' => (string)($livestockProfile['name'] ?? ''),
+                                'tag_number' => (string)($livestockProfile['tag_number'] ?? ''),
+                                'breed' => (string)($livestockProfile['breed'] ?? ''),
+                                'date_of_birth' => (string)($livestockProfile['date_of_birth'] ?? ''),
+                                'sex' => ucfirst(strtolower((string)($livestockProfile['sex'] ?? 'Male'))),
+                                'weight' => (string)($livestockProfile['estimated_weight'] ?? ''),
+                                'number' => (int)($livestockProfile['number'] ?? 1),
+                                'house_id' => (int)($livestockProfile['house_id'] ?? 0),
+                                'feeding_schedule' => (string)($livestockProfile['feeding_schedule'] ?? 'Morning and evening'),
+                                'for_sale' => (string)($livestockProfile['for_sale'] ?? '0'),
+                                'purpose' => (string)($livestockProfile['purpose'] ?? ''),
+                                'health_status' => (string)($livestockProfile['health_status'] ?? 'Healthy'),
+                                'notes' => (string)($livestockProfile['notes'] ?? '')
+                            ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)'>
+                                <span class="material-symbols-rounded">edit</span>
+                                Edit Profile
+                            </button>
+                        </div>
                     <?php endif; ?>
 
                 </div>
@@ -1164,7 +1519,13 @@ $livestockResult = $conn->query("
             <?php if (!empty($monitoringTabs)): ?>
 
                 <div class="monitoring-tabs">
-                    <?php $firstTab = array_key_first($monitoringTabs); ?>
+                    <?php
+                    $requestedMonitoringTab = trim((string)($_GET['section'] ?? ''));
+                    $firstTab = array_key_first($monitoringTabs);
+                    if ($requestedMonitoringTab !== '' && array_key_exists($requestedMonitoringTab, $monitoringTabs)) {
+                        $firstTab = $requestedMonitoringTab;
+                    }
+                    ?>
                     <?php foreach ($monitoringTabs as $tabKey => $tabLabel): ?>
                         <button type="button"
                                 class="monitoring-tab <?= $tabKey === $firstTab ? 'active' : '' ?>"
@@ -1240,7 +1601,7 @@ $livestockResult = $conn->query("
                         </div>
 
                         <!-- CHICKEN EGGS -->
-                        <div class="monitoring-panel" data-monitoring-panel="eggs">
+                        <div class="monitoring-panel <?= $firstTab === 'eggs' ? 'active' : '' ?>" data-monitoring-panel="eggs">
                             <div class="monitoring-panel-title">
                                 <div><h3>Egg Production</h3><span>Based on the Chicken Monitoring Sheet.</span></div>
                             </div>
@@ -1284,7 +1645,7 @@ $livestockResult = $conn->query("
                         </div>
 
                         <!-- CHICKEN MORTALITY -->
-                        <div class="monitoring-panel" data-monitoring-panel="mortality">
+                        <div class="monitoring-panel <?= $firstTab === 'mortality' ? 'active' : '' ?>" data-monitoring-panel="mortality">
                             <div class="monitoring-panel-title">
                                 <div><h3>Mortality</h3><span>Record mortality according to the monitoring sheet.</span></div>
                             </div>
@@ -1323,7 +1684,7 @@ $livestockResult = $conn->query("
                         </div>
 
                         <!-- CHICKEN FEED -->
-                        <div class="monitoring-panel" data-monitoring-panel="feed">
+                        <div class="monitoring-panel <?= $firstTab === 'feed' ? 'active' : '' ?>" data-monitoring-panel="feed">
                             <div class="monitoring-panel-title">
                                 <div><h3>Feed Ingredients</h3><span>Record formulation codes and feed ingredients.</span></div>
                             </div>
@@ -1356,7 +1717,7 @@ $livestockResult = $conn->query("
                         </div>
 
                         <!-- CHICKEN WATER -->
-                        <div class="monitoring-panel" data-monitoring-panel="water">
+                        <div class="monitoring-panel <?= $firstTab === 'water' ? 'active' : '' ?>" data-monitoring-panel="water">
                             <div class="monitoring-panel-title">
                                 <div><h3>Drinking Water / DW</h3><span>Water Code: PW = Pure Water MW = MOLASSES & WATER FW = FFJ & WATER SW = SALT & WATER OW = OREGANO & WATER GW = Garlic & Water OH = OTHER HERBS     </span></div>
                             </div>
@@ -1389,7 +1750,7 @@ $livestockResult = $conn->query("
                         </div>
 
                         <!-- CHICKEN FEEDING SCHEDULE -->
-                        <div class="monitoring-panel" data-monitoring-panel="feeding">
+                        <div class="monitoring-panel <?= $firstTab === 'feeding' ? 'active' : '' ?>" data-monitoring-panel="feeding">
                             <div class="monitoring-panel-title">
                                 <div><h3>Feeding Schedule</h3><span>Monthly feeding and sanitation monitoring.</span></div>
                             </div>
@@ -1437,7 +1798,7 @@ $livestockResult = $conn->query("
                     <?php elseif ($isGoat): ?>
 
                         <!-- GOAT DAILY MONITORING -->
-                        <div class="monitoring-panel active" data-monitoring-panel="daily">
+                        <div class="monitoring-panel <?= $firstTab === 'daily' ? 'active' : '' ?>" data-monitoring-panel="daily">
                             <div class="monitoring-panel-title">
                                 <div><h3>Goat Daily Monitoring</h3><span>Individual goat monitoring from the Goat Monitoring Sheet.</span></div>
                             </div>
@@ -1473,7 +1834,7 @@ $livestockResult = $conn->query("
                         </div>
 
                         <!-- GOAT FORAGES -->
-                        <div class="monitoring-panel" data-monitoring-panel="forage">
+                        <div class="monitoring-panel <?= $firstTab === 'forage' ? 'active' : '' ?>" data-monitoring-panel="forage">
                             <div class="monitoring-panel-title">
                                 <div><h3>Goat Forages</h3><span>Forage records from the Goat Monitoring Sheet.</span></div>
                             </div>
@@ -1536,796 +1897,6 @@ $livestockResult = $conn->query("
 
 
 <!-- =========================================================
-     EDIT MODAL
-========================================================= -->
-
-<div
-    class="modal-overlay"
-    id="editModal"
->
-
-    <div class="edit-modal">
-
-
-        <div class="modal-header">
-
-            <h3 id="editModalTitle">
-                Edit Livestock
-            </h3>
-
-
-            <button
-                type="button"
-                class="close-modal"
-                onclick="closeEditModal()"
-            >
-
-                <span class="material-symbols-rounded">
-                    close
-                </span>
-
-            </button>
-
-        </div>
-
-
-        <iframe
-            id="editFrame"
-            title="Livestock Form"
-        ></iframe>
-
-
-    </div>
-
-</div>
-
-
-<!-- =========================================================
-     ARCHIVE MODAL
-========================================================= -->
-
-<div
-    class="modal-overlay"
-    id="archiveModal"
->
-
-    <div class="archive-modal">
-
-
-        <div class="archive-icon-large">
-
-            <span class="material-symbols-rounded">
-                archive
-            </span>
-
-        </div>
-
-
-        <h3>
-            Archive Livestock?
-        </h3>
-
-
-        <p id="archiveMessage">
-            Are you sure you want to archive this livestock?
-        </p>
-
-
-        <div class="archive-actions">
-
-
-            <button
-                type="button"
-                class="cancel-btn"
-                onclick="closeArchiveModal()"
-            >
-
-                Cancel
-
-            </button>
-
-
-            <button
-                type="button"
-                class="confirm-archive-btn"
-                id="confirmArchiveBtn"
-            >
-
-                Archive
-
-            </button>
-
-
-        </div>
-
-
-    </div>
-
-</div>
-
-
-<!-- =========================================================
-     JAVASCRIPT
-========================================================= -->
-
-<script>
-
-
-// =========================================================
-// ARCHIVE STATE
-// =========================================================
-
-let archiveLivestockId = 0;
-
-
-// =========================================================
-// CHANGE LIVESTOCK TYPE
-// =========================================================
-
-function changeLivestockType(type) {
-
-    if (type === '') {
-
-        window.location.href =
-            'livestocks.php';
-
-        return;
-
-    }
-
-
-    window.location.href =
-        'livestocks.php?type=' +
-        encodeURIComponent(type);
-
-}
-
-
-// =========================================================
-// CHANGE LIVESTOCK
-// =========================================================
-
-function changeLivestock(id) {
-
-    if (!id) {
-
-        return;
-
-    }
-
-
-    const params =
-        new URLSearchParams(
-            window.location.search
-        );
-
-
-    const type =
-        params.get('type');
-
-
-    let url =
-        'livestocks.php?livestock_id=' +
-        encodeURIComponent(id);
-
-
-    if (type) {
-
-        url +=
-            '&type=' +
-            encodeURIComponent(type);
-
-    }
-
-
-    window.location.href =
-        url;
-
-}
-
-
-// =========================================================
-// SEARCH LIVESTOCK
-// =========================================================
-
-function searchLivestock() {
-
-    const input =
-        document.getElementById(
-            'livestockSearch'
-        );
-
-
-    if (!input) {
-
-        return;
-
-    }
-
-
-    const search =
-        input.value
-            .toLowerCase()
-            .trim();
-
-
-    const rows =
-        document.querySelectorAll(
-            '.livestock-row'
-        );
-
-
-    rows.forEach(function(row) {
-
-        const text =
-            row.textContent
-                .toLowerCase();
-
-
-        if (
-            text.includes(search)
-        ) {
-
-            row.style.display = '';
-
-        } else {
-
-            row.style.display = 'none';
-
-        }
-
-    });
-
-}
-
-
-// =========================================================
-// SEARCH RECORDS
-// =========================================================
-
-function searchRecords() {
-
-    filterRecords();
-
-}
-
-
-// =========================================================
-// FILTER RECORDS
-// =========================================================
-
-function filterRecords() {
-
-    const searchInput =
-        document.getElementById(
-            'recordSearch'
-        );
-
-
-    const monthFilter =
-        document.getElementById(
-            'monthFilter'
-        );
-
-
-    if (!searchInput) {
-
-        return;
-
-    }
-
-
-    const search =
-        searchInput.value
-            .toLowerCase()
-            .trim();
-
-
-    const month =
-        monthFilter
-            ? monthFilter.value
-            : 'all';
-
-
-    const rows =
-        document.querySelectorAll(
-            '.livestock-row'
-        );
-
-
-    rows.forEach(function(row) {
-
-        const text =
-            row.textContent
-                .toLowerCase();
-
-
-        const matchesSearch =
-            text.includes(search);
-
-
-        /*
-         * Month filtering can be connected
-         * to a date column when the livestock
-         * record date field is finalized.
-         */
-
-        const matchesMonth =
-            month === 'all'
-                ? true
-                : true;
-
-
-        row.style.display =
-            matchesSearch &&
-            matchesMonth
-                ? ''
-                : 'none';
-
-    });
-
-}
-
-
-// =========================================================
-// EDIT MODAL
-// =========================================================
-
-function openEditModal(
-    url,
-    title
-) {
-
-    const modal =
-        document.getElementById(
-            'editModal'
-        );
-
-
-    const frame =
-        document.getElementById(
-            'editFrame'
-        );
-
-
-    const modalTitle =
-        document.getElementById(
-            'editModalTitle'
-        );
-
-
-    if (
-        !modal ||
-        !frame ||
-        !modalTitle
-    ) {
-
-        console.error(
-            'Edit modal elements not found.'
-        );
-
-        return;
-
-    }
-
-
-    modalTitle.textContent =
-        title;
-
-
-    frame.src =
-        url;
-
-
-    modal.classList.add(
-        'active'
-    );
-
-
-    document.body.style.overflow =
-        'hidden';
-
-}
-
-
-// =========================================================
-// CLOSE EDIT MODAL
-// =========================================================
-
-function closeEditModal() {
-
-    const modal =
-        document.getElementById(
-            'editModal'
-        );
-
-
-    const frame =
-        document.getElementById(
-            'editFrame'
-        );
-
-
-    if (modal) {
-
-        modal.classList.remove(
-            'active'
-        );
-
-    }
-
-
-    if (frame) {
-
-        frame.src = '';
-
-    }
-
-
-    document.body.style.overflow =
-        '';
-
-}
-
-
-// =========================================================
-// OPEN ARCHIVE MODAL
-// =========================================================
-
-function openArchiveModal(
-    livestockId,
-    livestockName
-) {
-
-    archiveLivestockId =
-        parseInt(
-            livestockId,
-            10
-        );
-
-
-    const modal =
-        document.getElementById(
-            'archiveModal'
-        );
-
-
-    const message =
-        document.getElementById(
-            'archiveMessage'
-        );
-
-
-    if (!modal) {
-
-        console.error(
-            'Archive modal not found.'
-        );
-
-        return;
-
-    }
-
-
-    if (message) {
-
-        message.textContent =
-            'Are you sure you want to archive "' +
-            livestockName +
-            '"?';
-
-    }
-
-
-    modal.classList.add(
-        'active'
-    );
-
-
-    document.body.style.overflow =
-        'hidden';
-
-}
-
-
-// =========================================================
-// CLOSE ARCHIVE MODAL
-// =========================================================
-
-function closeArchiveModal() {
-
-    const modal =
-        document.getElementById(
-            'archiveModal'
-        );
-
-
-    if (modal) {
-
-        modal.classList.remove(
-            'active'
-        );
-
-    }
-
-
-    archiveLivestockId = 0;
-
-
-    document.body.style.overflow =
-        '';
-
-}
-
-
-// =========================================================
-// CONFIRM ARCHIVE
-// =========================================================
-
-function confirmArchive() {
-
-    if (!archiveLivestockId) {
-
-        console.error(
-            'No livestock selected for archiving.'
-        );
-
-        return;
-
-    }
-
-
-    /*
-     * Create a POST form dynamically.
-     *
-     * This sends the livestock ID to
-     * livestocks.php, where PHP performs:
-     *
-     * UPDATE livestocks
-     * SET archived = 1
-     */
-
-    const form =
-        document.createElement(
-            'form'
-        );
-
-
-    form.method =
-        'POST';
-
-
-    form.action =
-        'livestocks.php';
-
-
-    const input =
-        document.createElement(
-            'input'
-        );
-
-
-    input.type =
-        'hidden';
-
-
-    input.name =
-        'archive_livestock_id';
-
-
-    input.value =
-        archiveLivestockId;
-
-
-    form.appendChild(
-        input
-    );
-
-
-    document.body.appendChild(
-        form
-    );
-
-
-    form.submit();
-
-}
-
-
-// =========================================================
-// EDIT BUTTON EVENT LISTENERS
-// =========================================================
-
-document
-    .querySelectorAll(
-        '.edit-icon'
-    )
-    .forEach(function(button) {
-
-        button.addEventListener(
-            'click',
-            function() {
-
-                const url =
-                    this.dataset.editUrl;
-
-
-                const title =
-                    this.dataset.editTitle
-                    || 'Edit Livestock';
-
-
-                if (url) {
-
-                    openEditModal(
-                        url,
-                        title
-                    );
-
-                }
-
-            }
-        );
-
-    });
-
-
-// =========================================================
-// ARCHIVE BUTTON EVENT LISTENERS
-// =========================================================
-
-document
-    .querySelectorAll(
-        '.livestock-archive-btn'
-    )
-    .forEach(function(button) {
-
-        button.addEventListener(
-            'click',
-            function() {
-
-                const livestockId =
-                    this.dataset.livestockId;
-
-
-                const name =
-                    this.dataset.livestockName
-                    || 'this livestock';
-
-
-                if (!livestockId) {
-
-                    console.error(
-                        'Livestock ID is missing.'
-                    );
-
-                    return;
-
-                }
-
-
-                openArchiveModal(
-                    livestockId,
-                    name
-                );
-
-            }
-        );
-
-    });
-
-
-// =========================================================
-// CONFIRM ARCHIVE BUTTON
-// =========================================================
-
-const confirmArchiveButton =
-    document.getElementById(
-        'confirmArchiveBtn'
-    );
-
-
-if (confirmArchiveButton) {
-
-    confirmArchiveButton.addEventListener(
-        'click',
-        function() {
-
-            confirmArchive();
-
-        }
-    );
-
-}
-
-
-// =========================================================
-// CLICK OUTSIDE EDIT MODAL
-// =========================================================
-
-const editModal =
-    document.getElementById(
-        'editModal'
-    );
-
-
-if (editModal) {
-
-    editModal.addEventListener(
-        'click',
-        function(event) {
-
-            if (
-                event.target === this
-            ) {
-
-                closeEditModal();
-
-            }
-
-        }
-    );
-
-}
-
-
-// =========================================================
-// CLICK OUTSIDE ARCHIVE MODAL
-// =========================================================
-
-const archiveModal =
-    document.getElementById(
-        'archiveModal'
-    );
-
-
-if (archiveModal) {
-
-    archiveModal.addEventListener(
-        'click',
-        function(event) {
-
-            if (
-                event.target === this
-            ) {
-
-                closeArchiveModal();
-
-            }
-
-        }
-    );
-
-}
-
-
-// =========================================================
-// ESC KEY
-// =========================================================
-
-document.addEventListener(
-    'keydown',
-    function(event) {
-
-        if (
-            event.key === 'Escape'
-        ) {
-
-            closeEditModal();
-
-            closeArchiveModal();
-
-        }
-
-    }
-);
-
-
-</script>
-
-
-
-<!-- =========================================================
      MONITORING ADD MODAL
 ========================================================= -->
 <div class="monitoring-modal-overlay" id="monitoringModal">
@@ -2366,7 +1937,210 @@ document.addEventListener(
     </div>
 </div>
 
+<!-- ADD LIVESTOCK PROFILE MODAL -->
+<div class="add-profile-modal-overlay" id="addLivestockProfileModal">
+    <div class="add-profile-modal">
+        <div class="monitoring-modal-header">
+            <div>
+                <h3 id="livestockProfileModalTitle">Add Livestock Profile</h3>
+                <span id="livestockProfileModalSubtitle">Create a profile for Chicken, Goat, Pig, or Rabbit.</span>
+            </div>
+            <button type="button" class="monitoring-close" onclick="closeAddLivestockModal()" aria-label="Close">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+        <form method="POST" class="add-profile-form" id="addLivestockProfileForm">
+            <input type="hidden" name="create_livestock_profile" id="createLivestockProfileFlag" value="1">
+            <input type="hidden" name="update_livestock_profile" id="updateLivestockProfileFlag" value="1" disabled>
+            <input type="hidden" name="edit_page_id" id="edit_page_id" value="">
+            <input type="hidden" name="edit_pig_id" id="edit_pig_id" value="">
+            <input type="hidden" name="edit_map_livestock_id" id="edit_map_livestock_id" value="">
+            <div class="add-profile-fields">
+                <div class="add-profile-field">
+                    <label for="profile_type">Livestock Type *</label>
+                    <select id="profile_type" name="profile_type" required onchange="toggleAddProfileFields()">
+                        <?php foreach (['Chicken', 'Goat', 'Pig', 'Rabbit'] as $addType): ?>
+                            <option value="<?= htmlspecialchars($addType, ENT_QUOTES) ?>" <?= strcasecmp((string)($livestockProfile['type'] ?? $selectedType), $addType) === 0 ? 'selected' : '' ?>><?= htmlspecialchars($addType) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="add-profile-field">
+                    <label for="profile_name">Name *</label>
+                    <input id="profile_name" name="profile_name" type="text" maxlength="150" required>
+                </div>
+                <div class="add-profile-field pig-profile-field" id="pigTagField">
+                    <label for="profile_tag_number">Tag Number *</label>
+                    <input id="profile_tag_number" name="profile_tag_number" type="text" maxlength="100">
+                </div>
+                <div class="add-profile-field">
+                    <label for="profile_breed">Breed</label>
+                    <input id="profile_breed" name="profile_breed" type="text" maxlength="150">
+                </div>
+                <div class="add-profile-field">
+                    <label for="profile_date_of_birth">Date of Birth</label>
+                    <input id="profile_date_of_birth" name="profile_date_of_birth" type="date">
+                </div>
+                <div class="add-profile-field">
+                    <label for="profile_sex">Sex *</label>
+                    <select id="profile_sex" name="profile_sex" required>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Mixed" id="profileMixedSexOption">Mixed</option>
+                    </select>
+                </div>
+                <div class="add-profile-field">
+                    <label for="profile_weight">Estimated Weight (kg)</label>
+                    <input id="profile_weight" name="profile_weight" type="number" min="0" step="0.01">
+                </div>
+                <div class="add-profile-field regular-profile-field" id="profileNumberField">
+                    <label for="profile_number">Number *</label>
+                    <input id="profile_number" name="profile_number" type="number" min="1" step="1" value="1">
+                </div>
+                <div class="add-profile-field" id="profileHouseField">
+                    <label for="profile_house_id">Livestock House</label>
+                    <select id="profile_house_id" name="profile_house_id" required>
+                        <option value="">Select livestock house *</option>
+                        <?php foreach ($houseOptions as $houseOption): ?>
+                            <option value="<?= (int)$houseOption['house_id'] ?>"><?= htmlspecialchars($houseOption['house_name'] . (!empty($houseOption['house_code']) ? ' (' . $houseOption['house_code'] . ')' : '')) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="add-profile-field regular-profile-field" id="profileFeedingField">
+                    <label for="profile_feeding_schedule">Feeding Schedule *</label>
+                    <input id="profile_feeding_schedule" name="profile_feeding_schedule" type="text" placeholder="e.g. Morning and evening">
+                </div>
+                <div class="add-profile-field regular-profile-field" id="profileForSaleField">
+                    <label for="profile_for_sale">For Sale</label>
+                    <select id="profile_for_sale" name="profile_for_sale">
+                        <option value="0">No</option>
+                        <option value="1">Yes</option>
+                    </select>
+                </div>
+                <div class="add-profile-field pig-profile-field" id="pigPurposeField">
+                    <label for="profile_purpose">Purpose</label>
+                    <select id="profile_purpose" name="profile_purpose">
+                        <option value="">Select purpose</option>
+                        <option value="Breeding">Breeding</option>
+                        <option value="Meat Production">Meat Production</option>
+                        <option value="Sale">Sale</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="add-profile-field pig-profile-field" id="pigHealthField">
+                    <label for="profile_health_status">Health Status</label>
+                    <select id="profile_health_status" name="profile_health_status">
+                        <option value="Healthy">Healthy</option>
+                        <option value="Under Observation">Under Observation</option>
+                        <option value="Sick">Sick</option>
+                    </select>
+                </div>
+                <div class="add-profile-field full">
+                    <label for="profile_notes">Notes</label>
+                    <textarea id="profile_notes" name="profile_notes" maxlength="5000"></textarea>
+                </div>
+            </div>
+            <div class="monitor-form-actions">
+                <button type="button" class="monitor-cancel" onclick="closeAddLivestockModal()">Cancel</button>
+                <button type="submit" class="monitor-save" id="livestockProfileSubmitButton">Save Profile</button>
+            </div>
+        </form>
+    </div>
+</div>
 
+<script>
+// Keep the livestock type and name selectors connected to the page data.
+// Changing type reloads the matching records; changing name opens that profile.
+function changeLivestockType(type){
+    const params = new URLSearchParams(window.location.search);
+    if (type) params.set('type', type);
+    else params.delete('type');
+    // A profile ID belongs to the previously selected type, so clear it.
+    params.delete('livestock_id');
+    window.location.href = 'livestocks.php' + (params.toString() ? '?' + params.toString() : '');
+}
+function changeLivestock(id){
+    const params = new URLSearchParams(window.location.search);
+    if (id !== undefined && id !== null && String(id) !== '') params.set('livestock_id', String(id));
+    else params.delete('livestock_id');
+    window.location.href = 'livestocks.php' + (params.toString() ? '?' + params.toString() : '');
+}
+
+function openAddLivestockModal(){
+    const modal=document.getElementById('addLivestockProfileModal');
+    if(!modal) return;
+    toggleAddProfileFields();
+    modal.classList.add('active');
+    document.body.style.overflow='hidden';
+}
+function closeAddLivestockModal(){
+    const modal=document.getElementById('addLivestockProfileModal');
+    if(modal) modal.classList.remove('active');
+    document.body.style.overflow='';
+    resetLivestockProfileModal();
+}
+function toggleAddProfileFields(){
+    const type=document.getElementById('profile_type')?.value || '';
+    const isPig=type.toLowerCase()==='pig';
+    document.querySelectorAll('.pig-profile-field').forEach(el=>{el.style.display=isPig?'':'none';});
+    document.querySelectorAll('.regular-profile-field').forEach(el=>{el.style.display=isPig?'none':'';});
+    // The map requires every active livestock profile to have a house assignment.
+    const houseField=document.getElementById('profileHouseField');
+    if(houseField) houseField.style.display='block';
+    const houseSelect=document.getElementById('profile_house_id');
+    if(houseSelect) houseSelect.required=true;
+    const tag=document.getElementById('profile_tag_number');
+    const feeding=document.getElementById('profile_feeding_schedule');
+    const number=document.getElementById('profile_number');
+    if(tag) tag.required=isPig;
+    if(feeding) feeding.required=!isPig;
+    if(number) number.required=!isPig;
+    const mixed=document.getElementById('profileMixedSexOption');
+    if(mixed){mixed.hidden=isPig;if(isPig && document.getElementById('profile_sex').value==='Mixed') document.getElementById('profile_sex').value='Male';}
+}
+function openEditLivestockModal(profile){
+    const modal=document.getElementById('addLivestockProfileModal');
+    const form=document.getElementById('addLivestockProfileForm');
+    if(!modal || !form) return;
+    document.getElementById('createLivestockProfileFlag').disabled=true;
+    document.getElementById('updateLivestockProfileFlag').disabled=false;
+    document.getElementById('updateLivestockProfileFlag').value='1';
+    document.getElementById('edit_page_id').value=profile.page_id || 0;
+    document.getElementById('edit_pig_id').value=profile.pig_id || 0;
+    document.getElementById('edit_map_livestock_id').value=profile.map_id || 0;
+    document.getElementById('livestockProfileModalTitle').textContent='Edit Livestock Profile';
+    document.getElementById('livestockProfileModalSubtitle').textContent='Update the selected livestock profile.';
+    document.getElementById('livestockProfileSubmitButton').textContent='Update Profile';
+    for(const [field,value] of Object.entries({
+      profile_type:profile.type, profile_name:profile.name, profile_tag_number:profile.tag_number,
+      profile_breed:profile.breed, profile_date_of_birth:profile.date_of_birth, profile_sex:profile.sex,
+      profile_weight:profile.weight, profile_number:profile.number, profile_house_id:profile.house_id,
+      profile_feeding_schedule:profile.feeding_schedule, profile_for_sale:profile.for_sale,
+      profile_purpose:profile.purpose, profile_health_status:profile.health_status, profile_notes:profile.notes
+    })){
+      const el=document.getElementById(field); if(el && value !== undefined && value !== null) el.value=value;
+    }
+    toggleAddProfileFields();
+    modal.classList.add('active'); document.body.style.overflow='hidden';
+}
+function resetLivestockProfileModal(){
+    const form=document.getElementById('addLivestockProfileForm'); if(form) form.reset();
+    document.getElementById('createLivestockProfileFlag').disabled=false;
+    document.getElementById('updateLivestockProfileFlag').value='1';
+    document.getElementById('updateLivestockProfileFlag').disabled=true;
+    document.getElementById('edit_page_id').value='';
+    document.getElementById('edit_pig_id').value='';
+    document.getElementById('edit_map_livestock_id').value='';
+    document.getElementById('livestockProfileModalTitle').textContent='Add Livestock Profile';
+    document.getElementById('livestockProfileModalSubtitle').textContent='Create a profile for Chicken, Goat, Pig, or Rabbit.';
+    document.getElementById('livestockProfileSubmitButton').textContent='Save Profile';
+    toggleAddProfileFields();
+}
+document.addEventListener('DOMContentLoaded',function(){
+    toggleAddProfileFields();
+    const addModal=document.getElementById('addLivestockProfileModal');
+    if(addModal) addModal.addEventListener('click',function(event){if(event.target===addModal) closeAddLivestockModal();});
+});
+</script>
 
 <script>
 function switchMonitoringTab(tabKey){

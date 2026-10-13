@@ -459,13 +459,6 @@ if ($lowStockRes) {
         <div class="chart-title-row">
             <h3>LIVESTOCK MONITORING</h3>
 
-            <select id="livestockSelector" aria-label="Select livestock type">
-                <option value="all">All Livestock</option>
-                <option value="Chicken">Chicken</option>
-                <option value="Pig">Pig</option>
-                <option value="Goat">Goat</option>
-                <option value="Rabbit">Rabbit</option>
-            </select>
         </div>
 
         <div class="bar-chart">
@@ -544,7 +537,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /* Phone starts already zoomed; desktop keeps the normal scale. */
     const isPhone = () => window.innerWidth <= 600;
-    let scale = isPhone() ? 1.5 : 1;
+    let scale = isPhone() ? 1.5 : 1.6;
     const MIN_SCALE = 1;
     const MAX_SCALE = 3.25;
 
@@ -585,8 +578,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function updateContainerHeight() {
-        /* Phone gets the compact viewport from the reference image. */
-        container.style.height = isPhone() ? '158px' : '';
+        /* Keep the map viewport filled; desktop shows a zoomed section at a time. */
+        container.style.height = isPhone() ? '158px' : '500px';
     }
 
     function updateTransform() {
@@ -597,8 +590,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function refreshMapLayout(resetScale = false) {
         if (resetScale) {
-            scale = isPhone() ? 1.5 : 1;
-            translateX = 0;
+            /* Start zoomed in on desktop so the map fills its container.
+               Users can drag horizontally to explore the rest of the farm. */
+            scale = isPhone() ? 1.5 : 1.6;
+            translateX = 0; // Start at the left side of the map.
             translateY = 0;
         }
         updateContainerHeight();
@@ -838,8 +833,8 @@ document.addEventListener("DOMContentLoaded", () => {
                                     <strong>${safe(data.plot_house_name)}</strong>
                                 </div>
                                 <div class="map-popup-detail">
-                                    <span>NUMBER OF LIVESTOCKS:</span>
-                                    <strong>${formatNumber(data.number_of_livestock)}</strong>
+                                    <p> NUMBER OF LIVESTOCKS </p>
+                                
                                 </div>
                             </div>
 
@@ -970,9 +965,6 @@ document.addEventListener("DOMContentLoaded", () => {
 const livestockMonitoringCanvas =
     document.getElementById('livestockMonitoringChart');
 
-const livestockSelector =
-    document.getElementById('livestockSelector');
-
 const livestockCounts = <?= json_encode($livestockCounts, JSON_NUMERIC_CHECK) ?>;
 
 const livestockLabels = Object.keys(livestockCounts);
@@ -1023,30 +1015,7 @@ const livestockChart = new Chart(livestockMonitoringCanvas, {
     }
 });
 
-if (livestockSelector) {
-    livestockSelector.addEventListener('change', () => {
-        const selected = livestockSelector.value;
 
-        if (selected === 'all') {
-            livestockChart.data.labels = livestockLabels;
-            livestockChart.data.datasets[0].data = livestockLabels.map(
-                label => livestockCounts[label]
-            );
-            livestockChart.data.datasets[0].backgroundColor = [
-                '#96c08b',
-                '#f1d778',
-                '#ed9f69',
-                '#9077bf'
-            ];
-        } else {
-            livestockChart.data.labels = [selected];
-            livestockChart.data.datasets[0].data = [livestockCounts[selected] || 0];
-            livestockChart.data.datasets[0].backgroundColor = ['#96c08b'];
-        }
-
-        livestockChart.update();
-    });
-}
 
 
 /* =========================================

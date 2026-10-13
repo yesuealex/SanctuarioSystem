@@ -61,6 +61,23 @@ function ensureArchiveTable(mysqli $conn, string $source, bool $migrateLegacy = 
     return $archive;
 }
 
+function removeCropDependentRecords(mysqli $conn, int $cropId): void {
+    // These tables have foreign keys to crops.crop_id and must be cleared first
+    // when the archive implementation physically removes the active crop row.
+    foreach (['plot_crop_records', 'nursery_crops'] as $table) {
+        if (!archiveTableExists($conn, $table)) continue;
+        $stmt = $conn->prepare("DELETE FROM `{$table}` WHERE crop_id=?");
+        if (!$stmt) throw new Exception("Could not prepare related crop cleanup: " . $conn->error);
+        $stmt->bind_param('i', $cropId);
+        if (!$stmt->execute()) {
+            $error = $stmt->error;
+            $stmt->close();
+            throw new Exception("Could not remove related crop records: " . $error);
+        }
+        $stmt->close();
+    }
+}
+
 function archiveRecordInTransaction(mysqli $conn, string $source, string $pk, int $id, int $userId): void {
     if (!archiveTableAllowed($source)) throw new Exception('Archive source is not allowed.');
     $sourceCols=archiveColumns($conn,$source);
@@ -76,6 +93,7 @@ function archiveRecordInTransaction(mysqli $conn, string $source, string $pk, in
     if(!$stmt->execute()) { $e=$stmt->error; $stmt->close(); throw new Exception('Could not archive record: '.$e); }
     if($stmt->affected_rows!==1) { $stmt->close(); throw new Exception('Record was not found or is already archived.'); }
     $stmt->close();
+    if ($source === 'crops') removeCropDependentRecords($conn, $id);
     $stmt=$conn->prepare("DELETE FROM `{$source}` WHERE `{$pk}`=? LIMIT 1");
     if(!$stmt) throw new Exception('Could not prepare source deletion: '.$conn->error);
     $stmt->bind_param('i',$id);

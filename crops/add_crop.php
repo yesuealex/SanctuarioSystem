@@ -322,8 +322,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     |--------------------------------------------------------------------------
     */
 
+    $newCropId = (int)$conn->insert_id;
     $stmt->close();
-
+    if ($isNursery) {
+        $recordSync = $conn->prepare("INSERT INTO nursery_crops (crop_id, nursery_bed_label) VALUES (?, ?)");
+        if ($recordSync) {
+            $recordSync->bind_param('is', $newCropId, $transplanted_area);
+            $recordSync->execute();
+            $recordSync->close();
+        }
+    } else {
+        $recordDate = $date_transplanted ?: date('Y-m-d');
+        $recordSync = $conn->prepare("INSERT INTO plot_crop_records (crop_id, plot_id, bed_id, crop_name, variety, record_date, date_transplanted, expected_harvest, germination_rate) VALUES (?,?,?,?,?,?,?,?,?)");
+        if ($recordSync) {
+            $recordSync->bind_param('iiisssssd', $newCropId, $plot_id, $bed_id, $crop_name, $variety, $recordDate, $date_transplanted, $expected_harvest, $germination_rate);
+            $recordSync->execute();
+            $recordSync->close();
+        }
+    }
 
     /*
     |--------------------------------------------------------------------------

@@ -68,9 +68,13 @@ if (!$user) {
     exit();
 }
 
-/* Accept legacy plaintext rows during migration, and verify modern hashes securely. */
+/* Accept legacy plaintext rows during migration, and verify modern hashes securely.
+ * PHP 8 may report algo=null for plaintext values, so do not compare algo to 0.
+ */
 $passwordStored = (string)$user['password'];
-$passwordCorrect = password_get_info($passwordStored)['algo'] !== 0
+$passwordInfo = password_get_info($passwordStored);
+$isHashedPassword = !empty($passwordInfo['algo']);
+$passwordCorrect = $isHashedPassword
     ? password_verify((string)$password, $passwordStored)
     : hash_equals($passwordStored, (string)$password);
 
@@ -117,7 +121,7 @@ if (!$passwordCorrect) {
 }
 
 /* Upgrade a legacy plaintext password after a successful login. */
-if (password_get_info($passwordStored)['algo'] === 0) {
+if (!$isHashedPassword) {
     $upgrade = $conn->prepare('UPDATE users SET password = ? WHERE user_id = ? LIMIT 1');
     if ($upgrade) { $newHash = password_hash((string)$password, PASSWORD_DEFAULT); $upgrade->bind_param('si', $newHash, $user['user_id']); $upgrade->execute(); $upgrade->close(); }
 }

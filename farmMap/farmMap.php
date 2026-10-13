@@ -39,6 +39,7 @@ if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(a
     $result->free();
 }
 
+$plotHarvestReady = ['A' => 0, 'B' => 0, 'C' => 0, 'MNO' => 0, 'NURSERY' => 0];
 /*
 |--------------------------------------------------------------------------
 | PLOTS
@@ -63,53 +64,56 @@ $plotCodeByLetter = [
 
 /*
 |--------------------------------------------------------------------------
-| CROPS (grouped by ACTUAL FARM LOCATION, active only)
+| CROPS / NURSERY / PLOT RECORDS (authoritative map source)
 |--------------------------------------------------------------------------
 |
-| The crop record's transplanted_area is the authoritative farm-map
-| location. This is important because older records may have a plot_id
-| that points to a production plot even when the crop is currently in the
-| Nursery or another named area such as MNO.
+| The records pages use nursery_crops and plot_crop_records as the
+| location-specific record tables. Keep the map on the same source so the
+| number of records shown in a plot is exactly the number of crop markers.
+| The crops row remains the shared crop detail record.
 */
-
-$cropsByLocation = [];
-
-$cropsRes2 = $conn->query("
-    SELECT *
-    FROM crops
-    WHERE COALESCE(archived, 0) = 0
-    ORDER BY crop_id ASC
-");
-
+$dbBeds = [];
+$bedsRes = $conn->query("SELECT bed_id, plot_id, bed_number, bed_code, map_x, map_y FROM plot_beds ORDER BY plot_id ASC, bed_number ASC");
+if ($bedsRes) while ($bedRow = $bedsRes->fetch_assoc()) $dbBeds[] = $bedRow;
 $normaliseCropLocation = static function ($area, $plotId = null) use ($plotCodeByLetter, $plotRowsByCode) {
     $area = trim((string)$area);
     $compact = preg_replace('/\s+/', '', $area);
     $lower = strtolower($compact);
-
     if ($lower === 'nursery') return 'NURSERY';
     if ($lower === 'mno') return 'MNO';
     if (preg_match('/^(?:plot_)?([abc])(?:[0-9]+)?$/i', $compact, $m)) return strtoupper($m[1]);
-
-    if ($plotId !== null) {
-        foreach ($plotCodeByLetter as $letter => $code) {
-            if ((int)($plotRowsByCode[$code]['plot_id'] ?? 0) === (int)$plotId) {
-                return $letter;
-            }
-        }
+    if ($plotId !== null) foreach ($plotCodeByLetter as $letter => $code) {
+        if ((int)($plotRowsByCode[$code]['plot_id'] ?? 0) === (int)$plotId) return $letter;
     }
-
     return '';
 };
-
-if ($cropsRes2) {
-    while ($c = $cropsRes2->fetch_assoc()) {
-        $location = $normaliseCropLocation($c['transplanted_area'] ?? '', $c['plot_id'] ?? null);
-        if ($location !== '') {
-            $cropsByLocation[$location][] = $c;
-        }
+// Fill missing record-to-bed links from the crop's selected bed. Explicit links are never overwritten.
+$conn->query("UPDATE plot_crop_records pcr INNER JOIN crops c ON c.crop_id=pcr.crop_id SET pcr.bed_id=c.bed_id WHERE COALESCE(pcr.archived,0)=0 AND pcr.bed_id IS NULL AND c.bed_id IS NOT NULL");
+$conn->query("UPDATE plot_crop_records pcr INNER JOIN crops c ON c.crop_id=pcr.crop_id INNER JOIN plot_beds pb ON pb.plot_id=pcr.plot_id AND UPPER(TRIM(pb.bed_code))=UPPER(TRIM(c.transplanted_area)) SET pcr.bed_id=pb.bed_id WHERE COALESCE(pcr.archived,0)=0 AND pcr.bed_id IS NULL");
+$conn->query("UPDATE crops c INNER JOIN plot_crop_records pcr ON pcr.crop_id=c.crop_id SET c.bed_id=pcr.bed_id WHERE COALESCE(c.archived,0)=0 AND c.bed_id IS NULL AND pcr.bed_id IS NOT NULL");
+$cropsByLocation = [];
+$recordTablesAvailable = false;
+$plotRecordsRes = $conn->query("\n    SELECT pcr.record_id, pcr.crop_id, pcr.plot_id, COALESCE(pcr.bed_id,c.bed_id) AS bed_id,\n           COALESCE(NULLIF(pcr.crop_name,''),c.crop_name) AS crop_name,\n           COALESCE(NULLIF(pcr.variety,''),c.variety) AS variety, c.recipient, c.pcs,\n           c.date_sowing, COALESCE(pcr.germination_rate,c.germination_rate) AS germination_rate,\n           COALESCE(pcr.date_transplanted,c.date_transplanted) AS date_transplanted,\n           COALESCE(pcr.expected_harvest,c.expected_harvest) AS expected_harvest,\n           c.target_transplant_date, c.target_area, c.seedlings_received, c.image,\n           c.transplanted_area, c.status, p.plot_code, p.plot_name, pb.bed_code, pb.bed_number\n    FROM plot_crop_records pcr INNER JOIN crops c ON c.crop_id=pcr.crop_id\n    INNER JOIN plots p ON p.plot_id=pcr.plot_id\n    LEFT JOIN plot_beds pb ON pb.bed_id=COALESCE(pcr.bed_id,c.bed_id)\n    WHERE COALESCE(pcr.archived,0)=0 AND COALESCE(c.archived,0)=0\n    ORDER BY pcr.record_id ASC\n");
+$nurseryRecordsRes = $conn->query("\n    SELECT nc.nursery_record_id AS record_id, c.crop_id, c.plot_id, NULL AS bed_id,\n           c.crop_name, c.variety, c.recipient, c.pcs, c.date_sowing, c.germination_rate,\n           c.date_transplanted, c.expected_harvest, c.target_transplant_date, c.target_area,\n           c.seedlings_received, c.image, 'NURSERY' AS transplanted_area, c.status,\n           'nursery' AS plot_code, 'Nursery' AS plot_name, nc.nursery_bed_label AS bed_code\n    FROM nursery_crops nc INNER JOIN crops c ON c.crop_id=nc.crop_id\n    WHERE COALESCE(nc.archived,0)=0 AND COALESCE(c.archived,0)=0\n    ORDER BY nc.nursery_record_id ASC\n");
+if ($plotRecordsRes && $nurseryRecordsRes) {
+    $recordTablesAvailable = true;
+    while ($row = $plotRecordsRes->fetch_assoc()) {
+        $location = $normaliseCropLocation($row['plot_code'] ?? $row['transplanted_area'] ?? '', $row['plot_id'] ?? null);
+        if ($location !== '') $cropsByLocation[$location][] = $row;
     }
+    while ($row = $nurseryRecordsRes->fetch_assoc()) $cropsByLocation['NURSERY'][] = $row;
 }
-
+// MNO has no separate record table in the current schema; retain its active crop rows.
+if (!$recordTablesAvailable) {
+    $legacyCropsRes = $conn->query("SELECT * FROM crops WHERE COALESCE(archived,0)=0 ORDER BY crop_id ASC");
+    if ($legacyCropsRes) while ($row = $legacyCropsRes->fetch_assoc()) {
+        $location = $normaliseCropLocation($row['transplanted_area'] ?? '', $row['plot_id'] ?? null);
+        if ($location !== '') $cropsByLocation[$location][] = $row;
+    }
+} else {
+    $mnoRes = $conn->query("SELECT * FROM crops WHERE COALESCE(archived,0)=0 AND (UPPER(TRIM(COALESCE(transplanted_area,'')))='MNO' OR plot_id IN (SELECT plot_id FROM plots WHERE LOWER(plot_code)='mno')) ORDER BY crop_id ASC");
+    if ($mnoRes) while ($row = $mnoRes->fetch_assoc()) $cropsByLocation['MNO'][] = $row;
+}
 $dbCropsByPlot = [
     'A' => array_values($cropsByLocation['A'] ?? []),
     'B' => array_values($cropsByLocation['B'] ?? []),
@@ -117,7 +121,12 @@ $dbCropsByPlot = [
     'NURSERY' => array_values($cropsByLocation['NURSERY'] ?? []),
     'MNO' => array_values($cropsByLocation['MNO'] ?? [])
 ];
-
+foreach ($dbCropsByPlot as $location => $rows) foreach ($rows as $row) {
+    $status = strtolower(trim((string)($row['status'] ?? '')));
+    $ready = in_array($status, ['ready','ready for harvest'], true);
+    if (!$ready && !empty($row['expected_harvest'])) $ready = (string)$row['expected_harvest'] <= date('Y-m-d') && $status !== 'harvested';
+    if ($ready && array_key_exists($location, $plotHarvestReady)) $plotHarvestReady[$location]++;
+}
 /*
 |--------------------------------------------------------------------------
 | LIVESTOCK HOUSES + LIVESTOCK (grouped by house, active only)
@@ -231,7 +240,7 @@ foreach ($houseRowsByCode as $code => $h) {
     <!-- CROP LIFECYCLE GANTT (ADD-ON) -->
     <link
         rel="stylesheet"
-        href="<?= $basePath ?>farmMap/farmMap_lifecycle.css?v=20261007-readable-labels"
+        href="<?= $basePath ?>farmMap/farmMap_lifecycle.css?v=20261012-red-dot"
     >
 
 
@@ -476,6 +485,26 @@ foreach ($houseRowsByCode as $code => $h) {
 
 }
 
+
+.bed-marker.crop-image-marker .harvest-alert-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    z-index: 4;
+    width: 12px;
+    height: 12px;
+    min-width: 12px;
+    padding: 0;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: #d62828;
+    box-shadow: 0 1px 5px rgba(91, 20, 20, .3);
+    pointer-events: none;
+}
+@keyframes harvestAlertPulse {
+    0%, 100% { box-shadow: 0 1px 5px rgba(91, 20, 20, .3); }
+    50% { box-shadow: 0 0 0 4px rgba(214, 40, 40, .14), 0 1px 5px rgba(91, 20, 20, .3); }
+}
 
 /* =========================================================
    LIVESTOCK HOUSE EDIT CONTROLS
@@ -2330,6 +2359,54 @@ foreach ($houseRowsByCode as $code => $h) {
     height: var(--main-map-marker-size, 6%) !important;
     box-sizing: border-box !important;
 }
+.main-map-layer > .main-marker { overflow: visible !important; }
+.plot-harvest-alert {
+    position: absolute !important;
+    top: -3px !important;
+    right: -5px !important;
+    transform: translateX(5px) !important;
+    z-index: 30 !important;
+    width: 13px !important;
+    height: 13px !important;
+    min-width: 13px !important;
+    min-height: 13px !important;
+    display: block !important;
+    padding: 0 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: none !important;
+    border: 2px solid #fff !important;
+    border-radius: 50% !important;
+    background: #d52f36 !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    box-shadow: 0 2px 6px rgba(80, 18, 18, .4) !important;
+}
+.plot-harvest-alert i { display: none !important; }
+.main-map-layer > .main-marker > .plot-harvest-alert {
+    position: absolute !important;
+    top: -3px !important;
+    right: -5px !important;
+    transform: translateX(5px) !important;
+    width: 13px !important;
+    height: 13px !important;
+    display: block !important;
+    padding: 0 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    background: #d52f36 !important;
+    color: transparent !important;
+    border: 2px solid #fff !important;
+    border-radius: 50% !important;
+    box-shadow: 0 2px 6px rgba(80, 18, 18, .4) !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+}
+@keyframes plotHarvestAlertPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.14); box-shadow: 0 0 0 6px rgba(213, 47, 54, .18), 0 2px 8px rgba(80, 18, 18, .45); }
+}
 
 .main-map-layer > .main-marker .new-map-icon {
     width: 100% !important;
@@ -2638,9 +2715,6 @@ foreach ($houseRowsByCode as $code => $h) {
 
             
 
-                    </button>
-
-
                     <button
                         type="button"
                         data-tool="move"
@@ -2837,7 +2911,7 @@ foreach ($houseRowsByCode as $code => $h) {
 
                     <button
                         type="button"
-                        class="main-marker plot-marker editable-marker"
+                        class="main-marker plot-marker editable-marker<?= (($plotHarvestReady['A'] ?? 0) > 0 ? ' has-harvest-alert' : '') ?>"
                         id="plot-A"
                         data-marker="plot"
                         data-id="A"
@@ -2850,6 +2924,9 @@ foreach ($houseRowsByCode as $code => $h) {
                             alt="Plot A"
                         >
 
+                        <?php if (($plotHarvestReady['A'] ?? 0) > 0): ?>
+                            <span class="plot-harvest-alert" title="<?= (int)$plotHarvestReady['A'] ?> crop(s) ready for harvest" aria-label="<?= (int)$plotHarvestReady['A'] ?> crop(s) ready for harvest"></span>
+                        <?php endif; ?>
                         <span>
                             Plot A
                         </span>
@@ -2863,7 +2940,7 @@ foreach ($houseRowsByCode as $code => $h) {
 
                     <button
                         type="button"
-                        class="main-marker plot-marker editable-marker"
+                        class="main-marker plot-marker editable-marker<?= (($plotHarvestReady['B'] ?? 0) > 0 ? ' has-harvest-alert' : '') ?>"
                         id="plot-B"
                         data-marker="plot"
                         data-id="B"
@@ -2876,6 +2953,9 @@ foreach ($houseRowsByCode as $code => $h) {
                             alt="Plot B"
                         >
 
+                        <?php if (($plotHarvestReady['B'] ?? 0) > 0): ?>
+                            <span class="plot-harvest-alert" title="<?= (int)$plotHarvestReady['B'] ?> crop(s) ready for harvest" aria-label="<?= (int)$plotHarvestReady['B'] ?> crop(s) ready for harvest"></span>
+                        <?php endif; ?>
                         <span>
                             Plot B
                         </span>
@@ -2889,7 +2969,7 @@ foreach ($houseRowsByCode as $code => $h) {
 
                     <button
                         type="button"
-                        class="main-marker plot-marker editable-marker"
+                        class="main-marker plot-marker editable-marker<?= (($plotHarvestReady['C'] ?? 0) > 0 ? ' has-harvest-alert' : '') ?>"
                         id="plot-C"
                         data-marker="plot"
                         data-id="C"
@@ -2902,6 +2982,9 @@ foreach ($houseRowsByCode as $code => $h) {
                             alt="Plot C"
                         >
 
+                        <?php if (($plotHarvestReady['C'] ?? 0) > 0): ?>
+                            <span class="plot-harvest-alert" title="<?= (int)$plotHarvestReady['C'] ?> crop(s) ready for harvest" aria-label="<?= (int)$plotHarvestReady['C'] ?> crop(s) ready for harvest"></span>
+                        <?php endif; ?>
                         <span>
                             Plot C
                         </span>
@@ -2914,7 +2997,7 @@ foreach ($houseRowsByCode as $code => $h) {
                     ================================================== -->
                     <button
                         type="button"
-                        class="main-marker plot-marker editable-marker"
+                        class="main-marker plot-marker editable-marker<?= (($plotHarvestReady['MNO'] ?? 0) > 0 ? ' has-harvest-alert' : '') ?>"
                         id="plot-MNO"
                         data-marker="plot"
                         data-id="MNO"
@@ -2922,6 +3005,9 @@ foreach ($houseRowsByCode as $code => $h) {
                         style="left:88%; top:36%;"
                     >
                         <img src="<?= $basePath ?>markers/mno.png" alt="MNO">
+                        <?php if (($plotHarvestReady['MNO'] ?? 0) > 0): ?>
+                            <span class="plot-harvest-alert" title="<?= (int)$plotHarvestReady['MNO'] ?> crop(s) ready for harvest" aria-label="<?= (int)$plotHarvestReady['MNO'] ?> crop(s) ready for harvest"></span>
+                        <?php endif; ?>
                         <span>MNO</span>
                     </button>
 
@@ -4241,7 +4327,7 @@ foreach ($houseRowsByCode as $code => $h) {
                                 <div class="crop-profile-field">
 
                                     <span>
-                                        Targeted Area
+                                        Bed Number
                                     </span>
 
                                     <strong id="profileCropArea">
@@ -4367,21 +4453,7 @@ foreach ($houseRowsByCode as $code => $h) {
                                 id="cropEditForm"
                             >
 
-                                <div class="crop-edit-grid">
-
-
-                                    <div class="crop-input-group">
-
-                                        <label>
-                                            Crop Name
-                                        </label>
-
-                                        <input
-                                            type="text"
-                                            id="editCropName"
-                                        >
-
-                                    </div>
+                                
 
  <!-- =================================================
      CROP MARKER ICON
@@ -4729,43 +4801,21 @@ foreach ($houseRowsByCode as $code => $h) {
 
 </div>
 
-<!-- =================================================
-     CROP MARKER POSITION
-================================================== -->
-
-<div class="crop-input-group">
-
-    <label for="editCropMarkerX">
-        Position X (%)
-    </label>
-
-    <input
-        type="number"
-        id="editCropMarkerX"
-        min="0"
-        max="100"
-        step="0.1"
-    >
-
-</div>
+<div class="crop-edit-grid">
 
 
-<div class="crop-input-group">
+                                    <div class="crop-input-group">
 
-    <label for="editCropMarkerY">
-        Position Y (%)
-    </label>
+                                        <label>
+                                            Crop Name
+                                        </label>
 
-    <input
-        type="number"
-        id="editCropMarkerY"
-        min="0"
-        max="100"
-        step="0.1"
-    >
+                                        <input
+                                            type="text"
+                                            id="editCropName"
+                                        >
 
-</div>
-
+                                    </div>
 
                                     <div class="crop-input-group">
 
@@ -4791,47 +4841,9 @@ foreach ($houseRowsByCode as $code => $h) {
                                             type="text"
                                             id="editCropStaff"
                                         >
-                                        <div class="crop-input-group">
-
-    <label>
-        Date Sowing
-    </label>
-
-    <input
-        type="date"
-        id="editCropDateSowing"
-    >
-
-</div>
 
 
-<div class="crop-input-group">
 
-    <label>
-        Target Transplant Date
-    </label>
-
-    <input
-        type="date"
-        id="editCropTargetTransplant"
-    >
-
-</div>
-
-
-<div class="crop-input-group">
-
-    <label>
-        Target Area
-    </label>
-
-    <input
-        type="text"
-        id="editCropTargetArea"
-        placeholder="e.g. 100m²"
-    >
-
-</div>
 
 
 <div class="crop-input-group">
@@ -4883,7 +4895,7 @@ foreach ($houseRowsByCode as $code => $h) {
                                     <div class="crop-input-group">
 
                                         <label>
-                                            Targeted Area
+                                            Bed Number
                                         </label>
 
                                         <input
@@ -4903,22 +4915,6 @@ foreach ($houseRowsByCode as $code => $h) {
                                         <input
                                             type="date"
                                             id="editCropPlantedDate"
-                                        >
-
-                                    </div>
-
-
-                                    <div class="crop-input-group">
-
-                                        <label>
-                                            Weeks Planted
-                                        </label>
-
-                                        <input
-                                            type="number"
-                                            id="editCropWeeks"
-                                            min="0"
-                                            step="1"
                                         >
 
                                     </div>
@@ -5982,9 +5978,42 @@ function saveStoredLivestockMarkerData(data) {
 
 const userRole = "<?= htmlspecialchars($role, ENT_QUOTES) ?>";
 
-const dbCropsByPlot = <?= json_encode($dbCropsByPlot) ?>;
+const dbCropsByPlot = <?= json_encode($dbCropsByPlot, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
+const dbBeds = <?= json_encode($dbBeds, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
+window.dbBeds = dbBeds;
+const dbLivestockHouses = <?= json_encode($dbLivestockHouses, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
 
-const dbLivestockHouses = <?= json_encode($dbLivestockHouses) ?>;
+function mapCropIsHarvestReady(row) {
+    const status = String(row?.status || "").trim().toLowerCase();
+    if (status.includes("harvested")) return false;
+    if (status === "ready" || status.includes("ready for harvest") || status.includes("ready")) return true;
+    if (!row?.expected_harvest) return false;
+    const date = new Date(`${row.expected_harvest}T23:59:59`);
+    return !Number.isNaN(date.getTime()) && date <= new Date();
+}
+function applyMapPlotHarvestAlerts() {
+    ["A", "B", "C", "MNO"].forEach((plot) => {
+        const marker = document.querySelector(`.main-marker[data-marker="plot"][data-id="${plot}"]`);
+        if (!marker) return;
+
+        const rows = Array.isArray(dbCropsByPlot[plot]) ? dbCropsByPlot[plot] : [];
+        const ready = rows.some(mapCropIsHarvestReady);
+        let badge = marker.querySelector(".plot-harvest-alert");
+
+        marker.classList.toggle("has-harvest-alert", ready);
+
+        if (ready && !badge) {
+            badge = document.createElement("span");
+            badge.className = "plot-harvest-alert";
+            badge.setAttribute("title", "Crops ready for harvest");
+            badge.setAttribute("aria-label", `${plot} has crops ready for harvest`);
+            marker.appendChild(badge);
+        } else if (!ready && badge) {
+            badge.remove();
+        }
+    });
+}
+
 
 
 
@@ -6200,7 +6229,8 @@ function getBedsForPlot(plot) {
     const saved = Array.isArray(stored[plot]) ? stored[plot] : [];
     const byNumber = new Map();
     const dbBeds = Array.isArray(window.dbBeds) ? window.dbBeds : [];
-    const dbBedByNumber = new Map(dbBeds.filter(b => String(b.plot_id) === String(plotData[plot]?.plot_id || "")).map(b => [Number(b.bed_number), b]));
+    const plotPrefix = String(plot || "").toUpperCase();
+    const dbBedByNumber = new Map(dbBeds.filter(b => String(b.bed_code || "").toUpperCase().startsWith(plotPrefix)).map(b => [Number(b.bed_number), b]));
 
     saved.forEach(bed => {
         if (!bed || bed.number == null) return;
@@ -6264,6 +6294,17 @@ function getCropMarkerIconKey(
 
 }
 
+function cropNeedsHarvestAlert(crop) {
+    if (!crop) return false;
+    const status = String(crop.status || '').toLowerCase();
+    if (status.includes('harvested')) return false;
+    if (status.includes('ready')) return true;
+    const harvestValue = crop.expected_harvest || crop.harvest || "";
+    if (!harvestValue) return false;
+    const harvestDate = new Date(`${harvestValue}T00:00:00`);
+    return !Number.isNaN(harvestDate.getTime()) && harvestDate <= new Date();
+}
+
 function createBedMarker(bed) {
 
     const marker =
@@ -6293,10 +6334,12 @@ function createBedMarker(bed) {
     /*
      * Find the crop represented by this bed.
      */
-    const crop =
-        getCropProfile(
-            Number(bed.number)
-        );
+    const crop = bed.cropRow
+        ? dbCropToProfile(bed.cropRow)
+        : getCropProfile(Number(bed.number));
+    if (bed.cropRow && bed.cropRow.crop_id != null) {
+        marker.dataset.cropId = String(bed.cropRow.crop_id);
+    }
 
 
     const cropKey =
@@ -6318,12 +6361,17 @@ function createBedMarker(bed) {
             : `Bed ${bed.number}`;
 
 
-    marker.title =
-        cropName;
+    const harvestReady = cropNeedsHarvestAlert(crop);
+    const harvestNotice = harvestReady
+        ? " Harvest ready — click to view crop details."
+        : "";
+    marker.title = cropName + harvestNotice;
+    marker.setAttribute("aria-label", cropName + harvestNotice);
 
 
     marker.innerHTML =
         `
+            ${harvestReady ? '<span class="harvest-alert-badge" aria-label="Harvest ready" title="Ready to harvest"></span>' : ""}
             <img
                 src="${iconPath}"
                 alt="${escapeHTML(cropName)}"
@@ -6361,9 +6409,8 @@ function createBedMarker(bed) {
 
 
             openCropProfile(
-                Number(
-                    marker.dataset.bed
-                )
+                Number(marker.dataset.bed),
+                marker.dataset.cropId || null
             );
 
         }
@@ -6472,34 +6519,43 @@ function renderBedMarkers(plot) {
         });
     }
 
-    /* Prefer explicit user-facing bed codes such as C10. Older records
-       without a bed code retain the historical row-order fallback. */
-    const explicitNumbers = new Set(rows.map(row => {
+    /* Assign each authoritative record to exactly one bed. Prefer the
+       selected bed code, then fill the next free bed for incomplete legacy
+       records. This prevents duplicate codes or missing bed_id values from
+       hiding records on the map. */
+    const bedByNumber = new Map(beds.map(bed => [Number(bed.number), bed]));
+    const usedNumbers = new Set();
+    const occupiedBeds = [];
+    const nextFreeBed = () => beds.find(bed => !usedNumbers.has(Number(bed.number)));
+    rows.forEach(row => {
         const code = String(row.bed_code || row.transplanted_area || "")
             .toUpperCase().replace(/\s+/g, "");
         const match = code.match(/^[A-Z]+([0-9]+)$/);
-        return match ? Number(match[1]) : null;
-    }).filter(number => Number.isInteger(number) && number > 0));
-    const occupiedBeds = explicitNumbers.size
-        ? beds.filter(bed => explicitNumbers.has(Number(bed.number)))
-        : beds.slice(0, rows.length);
+        let bed = null;
+        const preferredNumber = match ? Number(match[1]) : 0;
+        const expectedPrefix = String(currentPlot || "").toUpperCase();
+        if (preferredNumber > 0 && code.startsWith(expectedPrefix) && !usedNumbers.has(preferredNumber)) {
+            bed = bedByNumber.get(preferredNumber) || null;
+        }
+        if (!bed) bed = nextFreeBed();
+        if (!bed) return;
+        usedNumbers.add(Number(bed.number));
+        occupiedBeds.push({ ...bed, cropRow: row });
+    });
     occupiedBeds.forEach(bed => container.appendChild(createBedMarker(bed)));
-
     // Keep the existing +/empty-bed editing behavior for unused slots.
     if (bedEditMode) {
         beds.forEach(bed => {
-            if (explicitNumbers.has(Number(bed.number)) ||
-                (!explicitNumbers.size && Number(bed.number) <= rows.length)) return;
+            if (usedNumbers.has(Number(bed.number))) return;
             if (deletedNumbers.has(Number(bed.number))) return;
             container.appendChild(createDeletedBedSlotMarker(bed));
         });
         slots.forEach(slot => {
-            if (!explicitNumbers.has(Number(slot.number))) {
+            if (!usedNumbers.has(Number(slot.number))) {
                 container.appendChild(createDeletedBedSlotMarker(slot));
             }
         });
     }
-
     updateBedCount();
 }
 
@@ -6672,9 +6728,12 @@ function openPlot(plot) {
     document.getElementById(
         "plotPopup"
     ).classList.remove(
-        "bed-editing"
+        "bed-editing",
+        "nursery-bed-popup"
     );
 
+    const plotSummary = document.getElementById("plotRecordSummary");
+    if (plotSummary) plotSummary.style.display = "";
 
     document.getElementById(
         "plotImage"
@@ -7091,23 +7150,41 @@ function deleteSelectedBed() {
 
     if (!confirm(`Remove the crop from Bed ${number}?`)) return;
 
-    const slots = Array.isArray(deletedBedSlots[currentPlot])
-        ? deletedBedSlots[currentPlot]
-        : [];
+    const crop = getCropProfile(number);
+    const cropId = crop && crop.cropId ? Number(crop.cropId) : 0;
 
-    deletedBedSlots[currentPlot] = slots.filter(
-        slot => Number(slot.number) !== number
-    );
+    // A planted crop must be archived in the database, not merely hidden
+    // from this browser. Empty beds can still be cleared without a request.
+    const archiveRequest = cropId
+        ? fetch("../crops/archive_crop_from_map.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+            body: new URLSearchParams({ crop_id: String(cropId) })
+        }).then(response => response.json())
+        : Promise.resolve({ success: true, empty: true });
 
-    deletedBedSlots[currentPlot].push({ number, x, y });
+    archiveRequest.then(result => {
+        if (!result || !result.success) {
+            alert(result?.message || "Unable to archive this crop. The bed was not changed.");
+            return;
+        }
 
-    selectedBed.remove();
-    selectedBed = null;
+        const slots = Array.isArray(deletedBedSlots[currentPlot])
+            ? deletedBedSlots[currentPlot]
+            : [];
 
-    saveCurrentBedState();
-    renderBedMarkers(currentPlot);
-    updateBedEditUI();
-    showFarmMapToast(`Bed ${number} is empty — + is ready`);
+        deletedBedSlots[currentPlot] = slots.filter(
+            slot => Number(slot.number) !== number
+        );
+        deletedBedSlots[currentPlot].push({ number, x, y });
+
+        selectedBed = null;
+        saveCurrentBedState();
+        location.reload();
+    }).catch(error => {
+        console.error("Crop archive failed:", error);
+        alert("Unable to archive this crop. Please check your connection and try again.");
+    });
 }
 
 
@@ -7224,15 +7301,11 @@ function saveStoredCropProfiles(data) {
 */
 
 function statusDbToLabel(status) {
-
-    const map = {
-        planted: "Planted",
-        growing: "Growing",
-        ready: "Ready for Harvest",
-        harvested: "Harvested"
-    };
-
-    return map[status] || "Planted";
+    const normalized = String(status || "").trim().toLowerCase();
+    if (normalized === "harvested" || normalized.includes("harvested")) return "Harvested";
+    if (normalized === "ready" || normalized.includes("ready for harvest") || normalized.includes("ready")) return "Ready for Harvest";
+    if (normalized === "growing" || normalized.includes("growing")) return "Growing";
+    return "Planted";
 }
 
 function statusLabelToDb(label) {
@@ -7313,11 +7386,13 @@ function dbCropToProfile(row) {
    GET CROP PROFILE
 ========================================================= */
 
-function getCropProfile(bedNumber) {
+function getCropProfile(bedNumber, cropId = null) {
 
     const plotCrops = dbCropsByPlot[currentPlot] || [];
     const requestedCode = `${String(currentPlot || '').toUpperCase()}${Number(bedNumber)}`.replace('PLOT_', '');
-    const row = plotCrops.find(item => {
+    const row = (cropId != null
+        ? plotCrops.find(item => String(item.crop_id) === String(cropId))
+        : null) || plotCrops.find(item => {
         const code = String(item.bed_code || item.transplanted_area || '').toUpperCase().replace(/\s+/g, '');
         return code === requestedCode || code.endsWith(requestedCode);
     }) || plotCrops.find(item => !item.bed_code && !/^[A-Za-z]+\s*[0-9]+$/.test(String(item.transplanted_area || ''))) || plotCrops[bedNumber - 1];
@@ -7549,7 +7624,7 @@ function getStatusClass(status) {
    OPEN CROP PROFILE
 ========================================================= */
 
-function openCropProfile(bedNumber) {
+function openCropProfile(bedNumber, cropId = null) {
 
     if (!currentPlot) {
         return;
@@ -7564,7 +7639,8 @@ function openCropProfile(bedNumber) {
 
     const crop =
         getCropProfile(
-            bedNumber
+            bedNumber,
+            cropId
         );
 
 
@@ -7882,22 +7958,6 @@ function startCropProfileEditing() {
         crop.pcs || "";
 
 
-    document.getElementById(
-        "editCropDateSowing"
-    ).value =
-        crop.dateSowing || "";
-
-
-    document.getElementById(
-        "editCropTargetTransplant"
-    ).value =
-        crop.targetTransplantDate || "";
-
-
-    document.getElementById(
-        "editCropTargetArea"
-    ).value =
-        crop.targetArea || "";
 
 
     document.getElementById(
@@ -7925,14 +7985,6 @@ function startCropProfileEditing() {
         getTodayDate();
 
 
-    document.getElementById(
-        "editCropWeeks"
-    ).value =
-        Math.floor(
-            calculateDaysPlanted(
-                crop.plantedDate
-            ) / 7
-        );
 
 
     document.getElementById(
@@ -7945,21 +7997,6 @@ function startCropProfileEditing() {
         "editCropStatus"
     ).value =
         crop.status || "Planted";
-
-
-    /*
-     * Load current marker position.
-     */
-    document.getElementById(
-        "editCropMarkerX"
-    ).value =
-        cropProfileSnapshot.x;
-
-
-    document.getElementById(
-        "editCropMarkerY"
-    ).value =
-        cropProfileSnapshot.y;
 
 
     /*
@@ -8237,12 +8274,10 @@ function saveCropProfile() {
         ).value;
 
 
-    let weeks =
-        Number(
-            document.getElementById(
-                "editCropWeeks"
-            ).value
-        );
+    const weeksInput = document.getElementById("editCropWeeks");
+    let weeks = weeksInput
+        ? Number(weeksInput.value)
+        : Math.floor(calculateDaysPlanted(plantedDate) / 7);
 
 
     if (
@@ -8459,9 +8494,7 @@ if (cropMarker) {
 
     formData.append(
         "date_sowing",
-        document.getElementById(
-            "editCropDateSowing"
-        ).value || ""
+        existing.dateSowing || ""
     );
 
 
@@ -8477,18 +8510,9 @@ if (cropMarker) {
 
     formData.append(
         "target_transplant_date",
-        document.getElementById(
-            "editCropTargetTransplant"
-        ).value || ""
+        existing.targetTransplantDate || ""
     );
 
-
-    formData.append(
-        "target_area",
-        document.getElementById(
-            "editCropTargetArea"
-        ).value.trim()
-    );
 
 
     formData.append(
@@ -8642,26 +8666,6 @@ if (cropMarker) {
 
             saveBtn.disabled =
                 false;
-
-        }
-    );
-
-}
-
-/* =========================================================
-   SAVE CROP PROFILE BUTTON
-========================================================= */
-
-const saveCropProfileBtn =
-    document.getElementById("saveCropProfileBtn");
-
-if (saveCropProfileBtn) {
-
-    saveCropProfileBtn.addEventListener(
-        "click",
-        function () {
-
-            saveCropProfile();
 
         }
     );
@@ -9220,27 +9224,15 @@ document.getElementById(
    LIVE WEEKS CALCULATION
 ========================================================= */
 
-document.getElementById(
-    "editCropPlantedDate"
-).addEventListener(
-    "change",
-    function() {
-
-        const weeks =
-            Math.floor(
-                calculateDaysPlanted(
-                    this.value
-                ) / 7
-            );
-
-
-        document.getElementById(
-            "editCropWeeks"
-        ).value =
-            weeks;
-
-    }
-);
+const editCropPlantedDateInput = document.getElementById("editCropPlantedDate");
+const editCropWeeksInput = document.getElementById("editCropWeeks");
+if (editCropPlantedDateInput && editCropWeeksInput) {
+    editCropPlantedDateInput.addEventListener("change", function() {
+        editCropWeeksInput.value = Math.floor(
+            calculateDaysPlanted(this.value) / 7
+        );
+    });
+}
 
 
 function openPlant(id) {
@@ -9318,7 +9310,8 @@ function openNursery() {
      * while Nursery is open.
      */
     if (plotSummary) {
-        plotSummary.style.display = "none";
+        plotSummary.style.display = "";
+        updatePlotRecordSummary("NURSERY");
     }
 
     if (bedToolbar) {
@@ -9326,6 +9319,9 @@ function openNursery() {
     }
 
     renderBedMarkers("NURSERY");
+    if (typeof window.renderPlotLifecycleGantt === "function") {
+        window.renderPlotLifecycleGantt("NURSERY");
+    }
     updateBedEditUI();
 
     /*
@@ -12818,7 +12814,7 @@ updateBedEditUI();
 </script>
 
 <!-- DATABASE-DRIVEN CROP LIFECYCLE GANTT (ADD-ON) -->
-<script src="<?= $basePath ?>farmMap/farmMap_lifecycle.js?v=20261007-bedlabels"></script>
+<script src="<?= $basePath ?>farmMap/farmMap_lifecycle.js?v=20261013-bed-code-match"></script>
 
 <div id="farmMapToast" class="farm-map-toast" role="status" aria-live="polite"></div>
 </body>

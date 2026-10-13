@@ -664,6 +664,20 @@ if ($cropId !== null) {
     $stmt->close();
 
 
+    // Keep the separate plot record in step with the shared crop row.
+    $recordSync = $conn->prepare("UPDATE plot_crop_records SET crop_name=?, variety=?, date_transplanted=?, expected_harvest=?, germination_rate=? WHERE crop_id=? AND COALESCE(archived,0)=0");
+    if ($recordSync) {
+        $recordSync->bind_param('ssssdi', $cropName, $variety, $dateTransplanted, $expectedHarvest, $germinationRate, $cropId);
+        $recordSync->execute();
+        $recordSync->close();
+    }
+    // If the selected area is a plot bed, keep the record's bed link aligned too.
+    $bedSync = $conn->prepare("UPDATE plot_crop_records pcr INNER JOIN plot_beds pb ON pb.plot_id=pcr.plot_id AND UPPER(TRIM(pb.bed_code))=UPPER(TRIM(?)) SET pcr.bed_id=pb.bed_id WHERE pcr.crop_id=? AND COALESCE(pcr.archived,0)=0");
+    if ($bedSync) {
+        $bedSync->bind_param('si', $transplantedArea, $cropId);
+        $bedSync->execute();
+        $bedSync->close();
+    }
     /* =====================================================
        ACTIVITY LOG
     ===================================================== */

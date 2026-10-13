@@ -26,11 +26,12 @@ $stmt->bind_param('ss',$wanted,$wanted); $stmt->execute(); $plotRow=$stmt->get_r
 $plotId=$plotRow ? (int)$plotRow['plot_id'] : 0;
 $stmt=$conn->prepare("SELECT c.*, b.bed_code FROM crops c LEFT JOIN plot_beds b ON b.bed_id=c.bed_id WHERE COALESCE(c.archived,0)=0 AND (LOWER(TRIM(c.transplanted_area))=? OR (? > 0 AND c.plot_id=?)) ORDER BY c.crop_id ASC");
 $stmt->bind_param('sii',$wanted,$plotId,$plotId); $stmt->execute(); $rows=safeRows($stmt->get_result()); $stmt->close();
+$activeRows = ($wanted === 'nursery') ? array_values(array_filter($rows, static fn($c) => empty($c['transferred_out']))) : $rows;
 $ready=$soon=$growing=0; $today=new DateTime('today'); $limit=(clone $today)->modify('+14 days');
-foreach($rows as $c){$st=strtolower((string)($c['status']??'')); if($st==='ready')$ready++; elseif($st!=='harvested'){ $growing++; if(!empty($c['expected_harvest'])){try{$d=new DateTime($c['expected_harvest']);if($d>=$today&&$d<=$limit)$soon++;}catch(Throwable $e){}}}}
+foreach($activeRows as $c){$st=strtolower((string)($c['status']??'')); if($st==='ready')$ready++; elseif($st!=='harvested'){ $growing++; if(!empty($c['expected_harvest'])){try{$d=new DateTime($c['expected_harvest']);if($d>=$today&&$d<=$limit)$soon++;}catch(Throwable $e){}}}}
 $bedTotal=0; $occupied=[];
 if($plotId>0){$bs=$conn->prepare('SELECT COUNT(*) AS n FROM plot_beds WHERE plot_id=?');$bs->bind_param('i',$plotId);$bs->execute();$bedTotal=(int)($bs->get_result()->fetch_assoc()['n']??0);$bs->close();}
-foreach($rows as $c) if(($c['bed_id']??'')!=='') $occupied[(string)$c['bed_id']]=1;
+foreach($activeRows as $c) if(($c['bed_id']??'')!=='') $occupied[(string)$c['bed_id']]=1;
 $available=max(0,$bedTotal-count($occupied));
 $name=$plotRow['plot_name']??($wanted==='nursery'?'Nursery':($wanted==='mno'?'MNO':'Plot '.strtoupper(substr($wanted,-1))));
-echo json_encode(['type'=>'crop','plot_name'=>$name,'plants_planted'=>count($rows),'bed_available'=>$available,'soon_to_harvest'=>$soon,'ready_to_harvest'=>$ready,'growing'=>$growing,'crop_records'=>$rows]);
+echo json_encode(['type'=>'crop','plot_name'=>$name,'plot_id'=>$plotId,'plants_planted'=>count($activeRows),'bed_available'=>$available,'soon_to_harvest'=>$soon,'ready_to_harvest'=>$ready,'growing'=>$growing,'crop_records'=>$rows]);
