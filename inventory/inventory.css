@@ -108,6 +108,10 @@ button {
 
    background: linear-gradient(135deg,#4F7D3A,#7EB26D);
 
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
 }
 
 

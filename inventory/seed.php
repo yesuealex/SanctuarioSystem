@@ -222,7 +222,7 @@ if (!empty($_SESSION['inventory_flash'])) {
 }
 
 $items = [];
-$totalItems = 0;
+$totalSeedPacks = 0;
 $lowStockItems = 0;
 $noStockItems = 0;
 $months = [
@@ -269,6 +269,13 @@ try {
     while ($row = $result->fetch_assoc()) {
         $items[] = $row;
 
+        // The Pieces field stores values such as "2 Packs". Sum the numeric
+        // pack count instead of counting inventory rows.
+        $piecesText = str_replace(',', '', trim((string)($row['pieces'] ?? '')));
+        if (preg_match('/\d+(?:\.\d+)?/', $piecesText, $packMatch)) {
+            $totalSeedPacks += (float)$packMatch[0];
+        }
+
         if ($row['status'] === 'Low Stock') {
             $lowStockItems++;
         } elseif ($row['status'] === 'No Stock') {
@@ -285,7 +292,6 @@ try {
         }
     }
 
-    $totalItems = count($items);
     natcasesort($varietyOptions);
     natcasesort($brandOptions);
 } catch (Throwable $ex) {
@@ -320,7 +326,7 @@ try {
         <?php if ($error): ?><div class="inventory-page-alert error"><?= e($error) ?></div><?php endif; ?>
 
         <div class="summary-cards">
-            <div class="summary-card"><div class="summary-icon summary-green"><i class="fa-solid fa-seedling"></i></div><div class="summary-info"><span>Total Seeds</span><strong><?= $totalItems ?></strong></div></div>
+            <div class="summary-card"><div class="summary-icon summary-green"><i class="fa-solid fa-seedling"></i></div><div class="summary-info"><span>Total Seed Packs</span><strong><?= rtrim(rtrim(number_format($totalSeedPacks, 2, '.', ''), '0'), '.') ?></strong></div></div>
             <div class="summary-card"><div class="summary-icon summary-orange"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="summary-info"><span>Low Stock</span><strong><?= $lowStockItems ?></strong></div></div>
             <div class="summary-card"><div class="summary-icon summary-red"><i class="fa-solid fa-box-open"></i></div><div class="summary-info"><span>No Stock</span><strong><?= $noStockItems ?></strong></div></div>
         </div>

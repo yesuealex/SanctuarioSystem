@@ -7,9 +7,15 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 include 'db.php';
+include 'map_special_plots.php';
 
 /* TOTAL CROPS */
 $totalCrops = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived,0) = 0")->fetch_assoc()['total'];
+
+/* READY TO HARVEST (ACTIVE, NON-TRANSFERRED CROPS) */
+$readyToHarvest = 0;
+$readyRes = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived,0)=0 AND COALESCE(transferred_out,0)=0 AND (LOWER(TRIM(COALESCE(status,'')))='ready' OR LOWER(TRIM(COALESCE(status,''))) LIKE '%ready%harvest%')");
+if ($readyRes) $readyToHarvest = (int)($readyRes->fetch_assoc()['total'] ?? 0);
 
 /* TOTAL LIVESTOCKS */
 $totalLivestock = $conn->query("SELECT COALESCE(SUM(number),0) AS total FROM livestocks WHERE COALESCE(archived,0) = 0")->fetch_assoc()['total'];
@@ -60,6 +66,11 @@ if ($livestockRes) {
 $cropSuccessTimeline = [];
 $successRes = $conn->query("SELECT DATE_FORMAT(COALESCE(date_transplanted, date_sowing), '%Y-%m') AS cycle_month, COALESCE(NULLIF(plot_name,''), NULLIF(transplanted_area,''), 'Unassigned') AS plot_label, COUNT(*) AS successful FROM crops WHERE COALESCE(archived,0)=0 AND LOWER(COALESCE(status,''))='harvested' AND COALESCE(date_transplanted,date_sowing) IS NOT NULL GROUP BY cycle_month, plot_label ORDER BY cycle_month ASC");
 if ($successRes) while ($row = $successRes->fetch_assoc()) $cropSuccessTimeline[] = $row;
+
+/* Active crops by plot for the dashboard line graph. */
+$cropCountsByPlot = [];
+$cropCountRes = $conn->query("SELECT COALESCE(NULLIF(p.plot_name,''), NULLIF(bp.plot_name,''), CASE WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^(PLOT_)?A[0-9]*$' THEN 'Plot A' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^(PLOT_)?B[0-9]*$' THEN 'Plot B' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^(PLOT_)?C[0-9]*$' THEN 'Plot C' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^MNO[0-9]*$' THEN 'MNO' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^HYDRO[0-9]*$' THEN 'Hydro' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^TENT[_ -]?HOUSE[0-9]*$' THEN 'Tent House' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^NURSERY[0-9]*$' THEN 'NURSERY' ELSE 'Unassigned' END) AS plot_label, COUNT(*) AS crop_count FROM crops c LEFT JOIN plots p ON p.plot_id=c.plot_id AND COALESCE(p.archived,0)=0 LEFT JOIN plot_beds cb ON cb.bed_id=c.bed_id LEFT JOIN plots bp ON bp.plot_id=cb.plot_id AND COALESCE(bp.archived,0)=0 WHERE COALESCE(c.archived,0)=0 AND COALESCE(c.transferred_out,0)=0 AND LOWER(COALESCE(c.status,'')) <> 'harvested' GROUP BY COALESCE(NULLIF(p.plot_name,''), NULLIF(bp.plot_name,''), CASE WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^(PLOT_)?A[0-9]*$' THEN 'Plot A' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^(PLOT_)?B[0-9]*$' THEN 'Plot B' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^(PLOT_)?C[0-9]*$' THEN 'Plot C' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^MNO[0-9]*$' THEN 'MNO' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^HYDRO[0-9]*$' THEN 'Hydro' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^TENT[_ -]?HOUSE[0-9]*$' THEN 'Tent House' WHEN UPPER(TRIM(c.transplanted_area)) REGEXP '^NURSERY[0-9]*$' THEN 'NURSERY' ELSE 'Unassigned' END) ORDER BY plot_label ASC");
+if ($cropCountRes) while ($row = $cropCountRes->fetch_assoc()) $cropCountsByPlot[] = $row;
 /* LOW STOCK ITEMS (ACTIVE INVENTORY) */
 $lowStockItems = 0;
 $lowStockRes = $conn->query("
@@ -327,6 +338,22 @@ if ($lowStockRes) {
 
 
 
+        <!-- Ready to Harvest -->
+        <div class="hero-card">
+
+            <div class="hero-icon olive">
+                <span class="material-symbols-rounded">agriculture</span>
+            </div>
+
+            <div class="hero-info">
+                <span>Ready to Harvest</span>
+                <h3><?= $readyToHarvest ?></h3>
+            </div>
+
+        </div>
+
+
+
     </div>
 
 </div>
@@ -343,7 +370,7 @@ if ($lowStockRes) {
      preserveAspectRatio="xMidYMid meet">
 
     <image
-        href="farm_map.jpg"
+        href="farm_map.jpg?v=20261013-map-cleanup"
         x="0"
         y="0"
         width="1706"
@@ -393,6 +420,24 @@ if ($lowStockRes) {
         width="35"
         height="35"
         data-plot="mno"/>
+
+    <!-- Hydro -->
+    <image class="marker"
+        href="markers/hydro.png"
+        x="850"
+        y="160"
+        width="35"
+        height="35"
+        data-plot="hydro"/>
+
+    <!-- Tent House -->
+    <image class="marker"
+        href="markers/tent_house.png"
+        x="620"
+        y="160"
+        width="35"
+        height="35"
+        data-plot="tent_house"/>
 
     <!-- Rabbit -->
     <image class="marker"
@@ -468,48 +513,10 @@ if ($lowStockRes) {
     </div>
 
 
-    <!-- PIE CHART -->
+    <!-- CROPS PER PLOT LINE GRAPH -->
     <div class="chart-box">
-
-        <div class="pie-header">
-
-            <select id="plotSelector">
-                <option value="plot_a">Plot A</option>
-                <option value="plot_b">Plot B</option>
-                <option value="plot_c">Plot C</option>
-                <option value="mno">MNO</option>
-            </select>
-
-        </div>
-
-        <div class="pie-content">
-
-            <div class="pie-legend">
-
-                <div>
-                    <span class="legend growing"></span>
-                    Growing
-                    <b id="plotGrowingCount">0</b>
-                </div>
-
-                <div>
-                    <span class="legend soon"></span>
-                    Soon
-                    <b id="plotSoonCount">0</b>
-                </div>
-
-                <div>
-                    <span class="legend ready"></span>
-                    Ready
-                    <b id="plotReadyCount">0</b>
-                </div>
-
-            </div>
-
-            <div class="pie-chart">
-                <canvas id="cropStatusChart"></canvas>
-            </div>
-
+        <div class="pie-chart">
+            <canvas id="cropStatusChart"></canvas>
         </div>
 
     </div>
@@ -1019,78 +1026,46 @@ const livestockChart = new Chart(livestockMonitoringCanvas, {
 
 
 /* =========================================
-   CROP STATUS PIE CHART
+   CROPS PER PLOT LINE GRAPH
    ========================================= */
 
 const cropStatusChart =
     document.getElementById('cropStatusChart');
 
-const plotSelector = document.getElementById('plotSelector');
-const growingCountEl = document.getElementById('plotGrowingCount');
-const soonCountEl = document.getElementById('plotSoonCount');
-const readyCountEl = document.getElementById('plotReadyCount');
+const cropCountsByPlot = <?= json_encode($cropCountsByPlot, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+const plotLabels = cropCountsByPlot.map(row => row.plot_label || 'Unassigned');
+const plotCounts = cropCountsByPlot.map(row => Number(row.crop_count || 0));
 
 const cropStatusChartInstance = new Chart(cropStatusChart, {
     type: 'line',
-    data: { labels: [], datasets: [] },
+    data: {
+        labels: plotLabels,
+        datasets: [{
+            data: plotCounts,
+            borderColor: '#4f8a50',
+            backgroundColor: 'rgba(79, 138, 80, 0.16)',
+            pointBackgroundColor: '#4f8a50',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            tension: 0.25,
+            fill: true
+        }]
+    },
     options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
             legend: { display: false }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { precision: 0 }
+            }
         }
     }
 });
-
-async function loadPlotStatusChart(plotCode) {
-    if (!plotCode) return;
-
-    try {
-        const response = await fetch(
-            `get_plot_data.php?plot=${encodeURIComponent(plotCode)}`,
-            { cache: 'no-store' }
-        );
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const data = await response.json();
-        const growing = Number(data.growing || 0);
-        const soon = Number(data.soon_to_harvest || 0);
-        const ready = Number(data.ready_to_harvest || 0);
-
-        const timeline = <?= json_encode($cropSuccessTimeline, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
-        const months = [...new Set(timeline.map(row => row.cycle_month))];
-        const selectedLabel = plotCode === 'all' ? null : (plotSelector?.selectedOptions?.[0]?.textContent?.trim() || plotCode);
-        const labels = months.length ? months : ['No harvested records'];
-        const plotLabels = [...new Set(timeline.map(row => row.plot_label))].filter(Boolean);
-        const colors = ['#4f8a50','#ed9f69','#9077bf','#3d7ea6','#d36b6b'];
-        cropStatusChartInstance.data.labels = labels;
-        cropStatusChartInstance.data.datasets = (selectedLabel ? [selectedLabel] : plotLabels).map((plot, index) => ({
-            label: `${plot} — successful harvests`, borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length], tension: .25, fill: false,
-            data: labels.map(month => { const row = timeline.find(item => item.cycle_month === month && item.plot_label.toLowerCase() === plot.toLowerCase()); return Number(row?.successful || 0); })
-        }));
-        cropStatusChartInstance.update();
-
-        if (growingCountEl) growingCountEl.textContent = growing.toLocaleString();
-        if (soonCountEl) soonCountEl.textContent = soon.toLocaleString();
-        if (readyCountEl) readyCountEl.textContent = ready.toLocaleString();
-    } catch (error) {
-        console.error('Unable to load crop status chart:', error);
-        cropStatusChartInstance.data.datasets[0].data = [0, 0, 0];
-        cropStatusChartInstance.update();
-        if (growingCountEl) growingCountEl.textContent = '0';
-        if (soonCountEl) soonCountEl.textContent = '0';
-        if (readyCountEl) readyCountEl.textContent = '0';
-    }
-}
-
-if (plotSelector) {
-    plotSelector.addEventListener('change', () => {
-        loadPlotStatusChart(plotSelector.value);
-    });
-
-    loadPlotStatusChart(plotSelector.value || 'plot_a');
-}
 
 </script>
 </body>

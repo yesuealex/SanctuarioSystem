@@ -65,6 +65,11 @@
             return [upper, letter, `PLOT_${letter}`];
         }
 
+        if (upper === "HYDRO") return [upper, "HYDRO"];
+        if (["TENT_HOUSE", "TENT-HOUSE", "TENT"].includes(upper)) {
+            return ["TENT_HOUSE", upper];
+        }
+
         return [upper, raw];
     }
 
@@ -473,3 +478,4 @@
         `;
     };
 })();
+

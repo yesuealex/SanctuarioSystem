@@ -3,6 +3,7 @@
 session_start();
 
 include '../db.php';
+include '../map_special_plots.php';
 
 header('Content-Type: application/json');
 
@@ -95,6 +96,7 @@ $result = $conn->query("
         status
     FROM crops
     WHERE archived = 0
+      AND COALESCE(transferred_out, 0) = 0
     ORDER BY crop_id ASC
 ");
 

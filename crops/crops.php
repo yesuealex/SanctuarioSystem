@@ -3,6 +3,7 @@
 session_start();
 
 include '../db.php';
+include '../map_special_plots.php';
 
 
 /*
@@ -29,7 +30,8 @@ if (!isset($_SESSION['user_id'])) {
 $role = $_SESSION['role'] ?? 'staff';
 $selectedLocation = trim((string)($_GET['location'] ?? 'all'));
 $selectedLocationKey = strtoupper(preg_replace('/\s+/', ' ', $selectedLocation));
-$isPlotView = preg_match('/^PLOT\s+[A-Z0-9_-]+$/', $selectedLocationKey) === 1;
+$isPlotView = preg_match('/^PLOT\s+[A-Z0-9_-]+$/', $selectedLocationKey) === 1
+    || in_array($selectedLocationKey, ['MNO', 'HYDRO', 'TENT HOUSE', 'TENT_HOUSE'], true);
 $plotNameMatch = $selectedLocationKey;
 $plotCodeMatch = strtolower(str_replace(' ', '_', $selectedLocationKey));
 $plotRecords = null;
@@ -40,21 +42,28 @@ if ($isPlotView) {
     $plotCode = strtolower(str_replace(' ', '_', $selectedLocationKey));
     $plotStmt = $conn->prepare("SELECT pcr.record_id, pcr.crop_id, pcr.plot_id, pcr.bed_id,
             COALESCE(NULLIF(pcr.crop_name,''), c.crop_name) AS crop_name,
-            c.variety, c.pcs AS crop_count, p.plot_name, p.plot_code, pb.bed_code,
-            pcr.record_date, pcr.fertilizer_insecticide_applied, pcr.archived AS record_archived,
+            c.variety, c.pcs AS crop_count, p.plot_name, p.plot_code,
+            COALESCE(pb.bed_code, pb2.bed_code, c.transplanted_area) AS bed_code,
+            COALESCE(pcr.record_date, c.date_transplanted, c.date_sowing) AS record_date,
+            pcr.fertilizer_insecticide_applied, pcr.archived AS record_archived,
             h.harvest_id, h.harvest_date, h.total_quantity, h.total_unit,
             h.sales_quantity, h.sales_unit, h.sales_amount,
             h.farm_use_quantity, h.farm_use_unit, h.animal_feed_quantity,
             h.animal_feed_unit, h.rejected_quantity, h.rejected_unit,
             (SELECT COUNT(*) FROM plot_crop_harvests hx WHERE hx.record_id=pcr.record_id) AS harvest_count
-        FROM plot_crop_records pcr
-        INNER JOIN crops c ON c.crop_id=pcr.crop_id
-        INNER JOIN plots p ON p.plot_id=pcr.plot_id
+        FROM plots p
+        LEFT JOIN crops c ON (
+            c.plot_id=p.plot_id
+            OR UPPER(TRIM(c.transplanted_area))=UPPER(TRIM(p.plot_name))
+            OR LOWER(TRIM(c.transplanted_area))=LOWER(TRIM(p.plot_code))
+        )
+        LEFT JOIN plot_crop_records pcr ON pcr.crop_id=c.crop_id AND pcr.plot_id=p.plot_id AND COALESCE(pcr.archived,0)=0
         LEFT JOIN plot_beds pb ON pb.bed_id=pcr.bed_id
+        LEFT JOIN plot_beds pb2 ON pb2.bed_id=c.bed_id
         LEFT JOIN plot_crop_harvests h ON h.record_id=pcr.record_id
-        WHERE COALESCE(pcr.archived,0)=0 AND COALESCE(c.archived,0)=0
+        WHERE c.crop_id IS NOT NULL AND COALESCE(c.archived,0)=0 AND COALESCE(p.archived,0)=0
           AND (UPPER(p.plot_name)=? OR LOWER(p.plot_code)=?)
-        ORDER BY COALESCE(h.harvest_date,pcr.record_date) DESC, pcr.record_id DESC, h.harvest_id DESC");
+        ORDER BY COALESCE(h.harvest_date,pcr.record_date,c.date_transplanted,c.date_sowing) DESC, c.crop_id DESC, h.harvest_id DESC");
     if ($plotStmt) {
         $plotNameMatch = $selectedLocationKey;
         $plotCodeMatch = strtolower(str_replace(' ', '_', $selectedLocationKey));
@@ -77,14 +86,26 @@ function cropLocationKey($value): string {
 }
 
 // transplanted_area is the existing current-location field for crop records.
-$locationLabels = ['NURSERY' => 'Nursery', 'PLOT A' => 'Plot A', 'PLOT B' => 'Plot B', 'PLOT C' => 'Plot C', 'MNO' => 'MNO'];
-$locationResult = $conn->query("SELECT DISTINCT TRIM(transplanted_area) AS location FROM crops WHERE COALESCE(archived, 0) = 0 AND TRIM(COALESCE(transplanted_area, '')) <> '' ORDER BY location ASC");
+$locationLabels = [
+    'NURSERY' => 'Nursery',
+    'PLOT A' => 'Plot A',
+    'PLOT B' => 'Plot B',
+    'PLOT C' => 'Plot C',
+    'MNO' => 'MNO',
+    'HYDRO' => 'Hydro',
+    'TENT HOUSE' => 'Tent House'
+];
+$allowedLocationKeys = array_keys($locationLabels);
+$locationResult = $conn->query("SELECT DISTINCT TRIM(transplanted_area) AS location FROM crops WHERE COALESCE(archived, 0) = 0 AND COALESCE(transferred_out, 0) = 0 AND TRIM(COALESCE(transplanted_area, '')) <> '' ORDER BY location ASC");
 if ($locationResult) {
     while ($locationRow = $locationResult->fetch_assoc()) {
         $rawLocation = strtoupper(trim((string)$locationRow['location']));
         $normalLocation = cropLocationKey($rawLocation);
         if (preg_match('/^([ABC])(?:[0-9]+)?$/', str_replace(' ', '', $normalLocation), $match)) {
             $normalLocation = 'PLOT ' . $match[1];
+        }
+        if (!in_array($normalLocation, $allowedLocationKeys, true)) {
+            continue;
         }
         $locationLabels[$normalLocation] = ucwords(strtolower($normalLocation));
     }
@@ -102,6 +123,9 @@ if ($plotsForSelector) {
             $locationLabels['MNO'] = 'MNO';
         } else {
             $normal = cropLocationKey($name !== '' ? $name : $code);
+            if (!in_array($normal, $allowedLocationKeys, true)) {
+                continue;
+            }
             $locationLabels[$normal] = ucwords(strtolower($normal));
         }
     }
@@ -115,15 +139,15 @@ if ($plotsForSelector) {
 */
 
 if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
-    $cropsStmt = $conn->prepare("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 AND (UPPER(TRIM(crops.transplanted_area))='NURSERY' OR LOWER(TRIM(COALESCE(plots.plot_code,'')))='nursery' OR UPPER(TRIM(COALESCE(plots.plot_name,'')))='NURSERY') ORDER BY crops.crop_id DESC");
+    $cropsStmt = $conn->prepare("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 AND COALESCE(crops.transferred_out,0)=0 AND (UPPER(TRIM(crops.transplanted_area))='NURSERY' OR LOWER(TRIM(COALESCE(plots.plot_code,'')))='nursery' OR UPPER(TRIM(COALESCE(plots.plot_name,'')))='NURSERY') ORDER BY crops.crop_id DESC");
     $cropsStmt->execute();
     $cropsResult = $cropsStmt->get_result();
 } elseif (!$isPlotView && $selectedLocationKey === 'MNO') {
-    $cropsStmt = $conn->prepare("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 AND (UPPER(TRIM(crops.transplanted_area))='MNO' OR LOWER(TRIM(COALESCE(plots.plot_code,'')))='mno' OR UPPER(TRIM(COALESCE(plots.plot_name,'')))='MNO') ORDER BY crops.crop_id DESC");
+    $cropsStmt = $conn->prepare("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 AND COALESCE(crops.transferred_out,0)=0 AND (UPPER(TRIM(crops.transplanted_area))='MNO' OR LOWER(TRIM(COALESCE(plots.plot_code,'')))='mno' OR UPPER(TRIM(COALESCE(plots.plot_name,'')))='MNO') ORDER BY crops.crop_id DESC");
     $cropsStmt->execute();
     $cropsResult = $cropsStmt->get_result();
 } else {
-    $cropsResult = $conn->query("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 ORDER BY crops.crop_id DESC");
+    $cropsResult = $conn->query("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 AND COALESCE(crops.transferred_out,0)=0 ORDER BY crops.crop_id DESC");
 }
 
 ?>
@@ -235,16 +259,9 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
         <?php include '../topRightBar.php'; ?>
 
 
-        <!-- PAGE TITLE -->
-
-        <h2 class="page-title">
-            CROPS RECORDS
-        </h2>
-
-
         <!-- =====================================================
              CROP RECORDS
-             ===================================================== -->
+         ===================================================== -->
 
         <section class="crop-records">
 
@@ -742,7 +759,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                         <div class="action-buttons">
 
 
-                                            <?php if (strtoupper(trim($row['transplanted_area'] ?? '')) === 'NURSERY' && empty($row['transferred_out'])): ?>
+                                            <?php if ((strtoupper(trim($row['transplanted_area'] ?? '')) === 'NURSERY' || strtoupper(trim($row['plot_name'] ?? '')) === 'NURSERY') && empty($row['transferred_out'])): ?>
                                                 <button
                                                     type="button"
                                                     class="action-icon transfer-icon"

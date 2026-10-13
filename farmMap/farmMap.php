@@ -13,6 +13,7 @@ $adminName = $_SESSION['name'] ?? 'Admin';
 $basePath = '/SanctuarioSystem/';
 
 include '../db.php';
+include '../map_special_plots.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -24,7 +25,7 @@ $totalActiveCrops = 0;
 $totalActiveLivestock = 0;
 $totalHarvestReady = 0;
 
-if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived, 0) = 0")) {
+if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived, 0) = 0 AND COALESCE(transferred_out, 0) = 0")) {
     $totalActiveCrops = (int)($result->fetch_assoc()['total'] ?? 0);
     $result->free();
 }
@@ -34,12 +35,12 @@ if ($result = $conn->query("SELECT COALESCE(SUM(number), 0) AS total FROM livest
     $result->free();
 }
 
-if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived, 0) = 0 AND LOWER(COALESCE(status, '')) = 'ready'")) {
+if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived, 0) = 0 AND COALESCE(transferred_out, 0) = 0 AND LOWER(COALESCE(status, '')) = 'ready'")) {
     $totalHarvestReady = (int)($result->fetch_assoc()['total'] ?? 0);
     $result->free();
 }
 
-$plotHarvestReady = ['A' => 0, 'B' => 0, 'C' => 0, 'MNO' => 0, 'NURSERY' => 0];
+$plotHarvestReady = ['A' => 0, 'B' => 0, 'C' => 0, 'MNO' => 0, 'NURSERY' => 0, 'HYDRO' => 0, 'TENT_HOUSE' => 0];
 /*
 |--------------------------------------------------------------------------
 | PLOTS
@@ -81,6 +82,8 @@ $normaliseCropLocation = static function ($area, $plotId = null) use ($plotCodeB
     $lower = strtolower($compact);
     if ($lower === 'nursery') return 'NURSERY';
     if ($lower === 'mno') return 'MNO';
+    if ($lower === 'hydro') return 'HYDRO';
+    if ($lower === 'tent_house' || $lower === 'tent-house' || $lower === 'tent') return 'TENT_HOUSE';
     if (preg_match('/^(?:plot_)?([abc])(?:[0-9]+)?$/i', $compact, $m)) return strtoupper($m[1]);
     if ($plotId !== null) foreach ($plotCodeByLetter as $letter => $code) {
         if ((int)($plotRowsByCode[$code]['plot_id'] ?? 0) === (int)$plotId) return $letter;
@@ -93,8 +96,8 @@ $conn->query("UPDATE plot_crop_records pcr INNER JOIN crops c ON c.crop_id=pcr.c
 $conn->query("UPDATE crops c INNER JOIN plot_crop_records pcr ON pcr.crop_id=c.crop_id SET c.bed_id=pcr.bed_id WHERE COALESCE(c.archived,0)=0 AND c.bed_id IS NULL AND pcr.bed_id IS NOT NULL");
 $cropsByLocation = [];
 $recordTablesAvailable = false;
-$plotRecordsRes = $conn->query("\n    SELECT pcr.record_id, pcr.crop_id, pcr.plot_id, COALESCE(pcr.bed_id,c.bed_id) AS bed_id,\n           COALESCE(NULLIF(pcr.crop_name,''),c.crop_name) AS crop_name,\n           COALESCE(NULLIF(pcr.variety,''),c.variety) AS variety, c.recipient, c.pcs,\n           c.date_sowing, COALESCE(pcr.germination_rate,c.germination_rate) AS germination_rate,\n           COALESCE(pcr.date_transplanted,c.date_transplanted) AS date_transplanted,\n           COALESCE(pcr.expected_harvest,c.expected_harvest) AS expected_harvest,\n           c.target_transplant_date, c.target_area, c.seedlings_received, c.image,\n           c.transplanted_area, c.status, p.plot_code, p.plot_name, pb.bed_code, pb.bed_number\n    FROM plot_crop_records pcr INNER JOIN crops c ON c.crop_id=pcr.crop_id\n    INNER JOIN plots p ON p.plot_id=pcr.plot_id\n    LEFT JOIN plot_beds pb ON pb.bed_id=COALESCE(pcr.bed_id,c.bed_id)\n    WHERE COALESCE(pcr.archived,0)=0 AND COALESCE(c.archived,0)=0\n    ORDER BY pcr.record_id ASC\n");
-$nurseryRecordsRes = $conn->query("\n    SELECT nc.nursery_record_id AS record_id, c.crop_id, c.plot_id, NULL AS bed_id,\n           c.crop_name, c.variety, c.recipient, c.pcs, c.date_sowing, c.germination_rate,\n           c.date_transplanted, c.expected_harvest, c.target_transplant_date, c.target_area,\n           c.seedlings_received, c.image, 'NURSERY' AS transplanted_area, c.status,\n           'nursery' AS plot_code, 'Nursery' AS plot_name, nc.nursery_bed_label AS bed_code\n    FROM nursery_crops nc INNER JOIN crops c ON c.crop_id=nc.crop_id\n    WHERE COALESCE(nc.archived,0)=0 AND COALESCE(c.archived,0)=0\n    ORDER BY nc.nursery_record_id ASC\n");
+$plotRecordsRes = $conn->query("\n    SELECT pcr.record_id, pcr.crop_id, pcr.plot_id, COALESCE(pcr.bed_id,c.bed_id) AS bed_id,\n           COALESCE(NULLIF(pcr.crop_name,''),c.crop_name) AS crop_name,\n           COALESCE(NULLIF(pcr.variety,''),c.variety) AS variety, c.recipient, c.pcs,\n           c.date_sowing, COALESCE(pcr.germination_rate,c.germination_rate) AS germination_rate,\n           COALESCE(pcr.date_transplanted,c.date_transplanted) AS date_transplanted,\n           COALESCE(pcr.expected_harvest,c.expected_harvest) AS expected_harvest,\n           c.target_transplant_date, c.target_area, c.seedlings_received, c.image,\n           c.transplanted_area, c.status, p.plot_code, p.plot_name, pb.bed_code, pb.bed_number\n    FROM plot_crop_records pcr INNER JOIN crops c ON c.crop_id=pcr.crop_id\n    INNER JOIN plots p ON p.plot_id=pcr.plot_id\n    LEFT JOIN plot_beds pb ON pb.bed_id=COALESCE(pcr.bed_id,c.bed_id)\n    WHERE COALESCE(pcr.archived,0)=0 AND COALESCE(c.archived,0)=0 AND COALESCE(c.transferred_out,0)=0\n    ORDER BY pcr.record_id ASC\n");
+$nurseryRecordsRes = $conn->query("\n    SELECT nc.nursery_record_id AS record_id, c.crop_id, c.plot_id, NULL AS bed_id,\n           c.crop_name, c.variety, c.recipient, c.pcs, c.date_sowing, c.germination_rate,\n           c.date_transplanted, c.expected_harvest, c.target_transplant_date, c.target_area,\n           c.seedlings_received, c.image, 'NURSERY' AS transplanted_area, c.status,\n           'nursery' AS plot_code, 'Nursery' AS plot_name, nc.nursery_bed_label AS bed_code\n    FROM nursery_crops nc INNER JOIN crops c ON c.crop_id=nc.crop_id\n    WHERE COALESCE(nc.archived,0)=0 AND COALESCE(c.archived,0)=0 AND COALESCE(c.transferred_out,0)=0\n    ORDER BY nc.nursery_record_id ASC\n");
 if ($plotRecordsRes && $nurseryRecordsRes) {
     $recordTablesAvailable = true;
     while ($row = $plotRecordsRes->fetch_assoc()) {
@@ -105,13 +108,13 @@ if ($plotRecordsRes && $nurseryRecordsRes) {
 }
 // MNO has no separate record table in the current schema; retain its active crop rows.
 if (!$recordTablesAvailable) {
-    $legacyCropsRes = $conn->query("SELECT * FROM crops WHERE COALESCE(archived,0)=0 ORDER BY crop_id ASC");
+    $legacyCropsRes = $conn->query("SELECT * FROM crops WHERE COALESCE(archived,0)=0 AND COALESCE(transferred_out,0)=0 ORDER BY crop_id ASC");
     if ($legacyCropsRes) while ($row = $legacyCropsRes->fetch_assoc()) {
         $location = $normaliseCropLocation($row['transplanted_area'] ?? '', $row['plot_id'] ?? null);
         if ($location !== '') $cropsByLocation[$location][] = $row;
     }
 } else {
-    $mnoRes = $conn->query("SELECT * FROM crops WHERE COALESCE(archived,0)=0 AND (UPPER(TRIM(COALESCE(transplanted_area,'')))='MNO' OR plot_id IN (SELECT plot_id FROM plots WHERE LOWER(plot_code)='mno')) ORDER BY crop_id ASC");
+    $mnoRes = $conn->query("SELECT * FROM crops WHERE COALESCE(archived,0)=0 AND COALESCE(transferred_out,0)=0 AND (UPPER(TRIM(COALESCE(transplanted_area,'')))='MNO' OR plot_id IN (SELECT plot_id FROM plots WHERE LOWER(plot_code)='mno')) ORDER BY crop_id ASC");
     if ($mnoRes) while ($row = $mnoRes->fetch_assoc()) $cropsByLocation['MNO'][] = $row;
 }
 $dbCropsByPlot = [
@@ -119,7 +122,9 @@ $dbCropsByPlot = [
     'B' => array_values($cropsByLocation['B'] ?? []),
     'C' => array_values($cropsByLocation['C'] ?? []),
     'NURSERY' => array_values($cropsByLocation['NURSERY'] ?? []),
-    'MNO' => array_values($cropsByLocation['MNO'] ?? [])
+    'MNO' => array_values($cropsByLocation['MNO'] ?? []),
+    'HYDRO' => array_values($cropsByLocation['HYDRO'] ?? []),
+    'TENT_HOUSE' => array_values($cropsByLocation['TENT_HOUSE'] ?? [])
 ];
 foreach ($dbCropsByPlot as $location => $rows) foreach ($rows as $row) {
     $status = strtolower(trim((string)($row['status'] ?? '')));
@@ -2897,7 +2902,7 @@ foreach ($houseRowsByCode as $code => $h) {
                 >
 
                     <img
-                        src="<?= $basePath ?>farm_map.jpg"
+                        src="<?= $basePath ?>farm_map.jpg?v=20261013-map-cleanup"
                         id="farmMap"
                         class="farm-map-image"
                         draggable="false"
@@ -3009,6 +3014,46 @@ foreach ($houseRowsByCode as $code => $h) {
                             <span class="plot-harvest-alert" title="<?= (int)$plotHarvestReady['MNO'] ?> crop(s) ready for harvest" aria-label="<?= (int)$plotHarvestReady['MNO'] ?> crop(s) ready for harvest"></span>
                         <?php endif; ?>
                         <span>MNO</span>
+                    </button>
+
+
+                    <!-- =================================================
+                         HYDRO
+                    ================================================== -->
+                    <button
+                        type="button"
+                        class="main-marker plot-marker editable-marker<?= (($plotHarvestReady['HYDRO'] ?? 0) > 0 ? ' has-harvest-alert' : '') ?>"
+                        id="plot-HYDRO"
+                        data-marker="plot"
+                        data-id="HYDRO"
+                        data-name="Hydro"
+                        style="left:50%; top:28%;"
+                    >
+                        <img src="<?= $basePath ?>markers/hydro.png" alt="Hydro">
+                        <?php if (($plotHarvestReady['HYDRO'] ?? 0) > 0): ?>
+                            <span class="plot-harvest-alert" title="<?= (int)$plotHarvestReady['HYDRO'] ?> crop(s) ready for harvest" aria-label="<?= (int)$plotHarvestReady['HYDRO'] ?> crop(s) ready for harvest"></span>
+                        <?php endif; ?>
+                        <span>Hydro</span>
+                    </button>
+
+
+                    <!-- =================================================
+                         TENT HOUSE
+                    ================================================== -->
+                    <button
+                        type="button"
+                        class="main-marker plot-marker editable-marker<?= (($plotHarvestReady['TENT_HOUSE'] ?? 0) > 0 ? ' has-harvest-alert' : '') ?>"
+                        id="plot-TENT_HOUSE"
+                        data-marker="plot"
+                        data-id="TENT_HOUSE"
+                        data-name="Tent House"
+                        style="left:38%; top:28%;"
+                    >
+                        <img src="<?= $basePath ?>markers/tent_house.png" alt="Tent House">
+                        <?php if (($plotHarvestReady['TENT_HOUSE'] ?? 0) > 0): ?>
+                            <span class="plot-harvest-alert" title="<?= (int)$plotHarvestReady['TENT_HOUSE'] ?> crop(s) ready for harvest" aria-label="<?= (int)$plotHarvestReady['TENT_HOUSE'] ?> crop(s) ready for harvest"></span>
+                        <?php endif; ?>
+                        <span>Tent House</span>
                     </button>
 
 
@@ -3226,10 +3271,6 @@ foreach ($houseRowsByCode as $code => $h) {
                                 class="plot-record-summary"
                                 id="plotRecordSummary"
                             >
-                                <div class="plot-record-item full">
-                                    <span>PLOT NAME:</span>
-                                    <strong id="plotSummaryName">--</strong>
-                                </div>
                                 <div class="plot-record-item">
                                     <span>PLANTS PLANTED:</span>
                                     <strong id="plotSummaryPlants">0</strong>
@@ -3237,14 +3278,6 @@ foreach ($houseRowsByCode as $code => $h) {
                                 <div class="plot-record-item">
                                     <span>BED AVAILABLE:</span>
                                     <strong id="plotSummaryBeds">0</strong>
-                                </div>
-                                <div class="plot-record-item">
-                                    <span>SOON TO HARVEST:</span>
-                                    <strong id="plotSummarySoon">0</strong>
-                                </div>
-                                <div class="plot-record-item">
-                                    <span>READY TO HARVEST:</span>
-                                    <strong id="plotSummaryReady">0</strong>
                                 </div>
                             </div>
 
@@ -5709,7 +5742,9 @@ const FIXED_PLOT_MARKER_COUNTS = {
     B: 15,
     C: 19,
     NURSERY: 20,
-    MNO: 20
+    MNO: 20,
+    HYDRO: 16,
+    TENT_HOUSE: 9
 };
 
 plotData.NURSERY = {
@@ -5726,6 +5761,22 @@ plotData.MNO = {
     description: "MNO Crop Area",
     beds: 20,
     area: "MNO"
+};
+
+plotData.HYDRO = {
+    image: "<?= $basePath ?>farmMap/hydro.jpg",
+    title: "Hydro",
+    description: "Hydroponic Crop Production Area",
+    beds: 16,
+    area: "Hydro"
+};
+
+plotData.TENT_HOUSE = {
+    image: "<?= $basePath ?>farmMap/tent_house.jpg",
+    title: "Tent House",
+    description: "Tent House Crop Production Area",
+    beds: 9,
+    area: "Tent House"
 };
 
 
@@ -5992,7 +6043,7 @@ function mapCropIsHarvestReady(row) {
     return !Number.isNaN(date.getTime()) && date <= new Date();
 }
 function applyMapPlotHarvestAlerts() {
-    ["A", "B", "C", "MNO"].forEach((plot) => {
+    ["A", "B", "C", "MNO", "HYDRO", "TENT_HOUSE"].forEach((plot) => {
         const marker = document.querySelector(`.main-marker[data-marker="plot"][data-id="${plot}"]`);
         if (!marker) return;
 
@@ -11846,9 +11897,19 @@ function getStoredMapData() {
             );
 
 
-        return Array.isArray(value)
-            ? value
-            : [];
+        const markers = Array.isArray(value) ? value : [];
+        const filtered = markers.filter(marker => {
+            const name = String(marker?.name || "").trim().toLowerCase();
+            const id = String(marker?.id || "").trim().toLowerCase();
+            return name !== "plot 9" && name !== "plot9" && id !== "plot-9" && id !== "plot_9";
+        });
+
+        // One-time cleanup for the old manually-added Plot 9 marker.
+        if (filtered.length !== markers.length) {
+            localStorage.setItem(MAP_STORAGE_KEY, JSON.stringify(filtered));
+        }
+
+        return filtered;
 
     } catch (error) {
 
