@@ -23,7 +23,6 @@ include '../map_special_plots.php';
 
 $totalActiveCrops = 0;
 $totalActiveLivestock = 0;
-$totalHarvestReady = 0;
 
 if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived, 0) = 0 AND COALESCE(transferred_out, 0) = 0")) {
     $totalActiveCrops = (int)($result->fetch_assoc()['total'] ?? 0);
@@ -32,11 +31,6 @@ if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(a
 
 if ($result = $conn->query("SELECT COALESCE(SUM(number), 0) AS total FROM livestocks WHERE COALESCE(archived, 0) = 0")) {
     $totalActiveLivestock = (int)($result->fetch_assoc()['total'] ?? 0);
-    $result->free();
-}
-
-if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived, 0) = 0 AND COALESCE(transferred_out, 0) = 0 AND LOWER(COALESCE(status, '')) = 'ready'")) {
-    $totalHarvestReady = (int)($result->fetch_assoc()['total'] ?? 0);
     $result->free();
 }
 
@@ -96,8 +90,26 @@ $conn->query("UPDATE plot_crop_records pcr INNER JOIN crops c ON c.crop_id=pcr.c
 $conn->query("UPDATE crops c INNER JOIN plot_crop_records pcr ON pcr.crop_id=c.crop_id SET c.bed_id=pcr.bed_id WHERE COALESCE(c.archived,0)=0 AND c.bed_id IS NULL AND pcr.bed_id IS NOT NULL");
 $cropsByLocation = [];
 $recordTablesAvailable = false;
-$plotRecordsRes = $conn->query("\n    SELECT pcr.record_id, pcr.crop_id, pcr.plot_id, COALESCE(pcr.bed_id,c.bed_id) AS bed_id,\n           COALESCE(NULLIF(pcr.crop_name,''),c.crop_name) AS crop_name,\n           COALESCE(NULLIF(pcr.variety,''),c.variety) AS variety, c.recipient, c.pcs,\n           c.date_sowing, COALESCE(pcr.germination_rate,c.germination_rate) AS germination_rate,\n           COALESCE(pcr.date_transplanted,c.date_transplanted) AS date_transplanted,\n           COALESCE(pcr.expected_harvest,c.expected_harvest) AS expected_harvest,\n           c.target_transplant_date, c.target_area, c.seedlings_received, c.image,\n           c.transplanted_area, c.status, p.plot_code, p.plot_name, pb.bed_code, pb.bed_number\n    FROM plot_crop_records pcr INNER JOIN crops c ON c.crop_id=pcr.crop_id\n    INNER JOIN plots p ON p.plot_id=pcr.plot_id\n    LEFT JOIN plot_beds pb ON pb.bed_id=COALESCE(pcr.bed_id,c.bed_id)\n    WHERE COALESCE(pcr.archived,0)=0 AND COALESCE(c.archived,0)=0 AND COALESCE(c.transferred_out,0)=0\n    ORDER BY pcr.record_id ASC\n");
-$nurseryRecordsRes = $conn->query("\n    SELECT nc.nursery_record_id AS record_id, c.crop_id, c.plot_id, NULL AS bed_id,\n           c.crop_name, c.variety, c.recipient, c.pcs, c.date_sowing, c.germination_rate,\n           c.date_transplanted, c.expected_harvest, c.target_transplant_date, c.target_area,\n           c.seedlings_received, c.image, 'NURSERY' AS transplanted_area, c.status,\n           'nursery' AS plot_code, 'Nursery' AS plot_name, nc.nursery_bed_label AS bed_code\n    FROM nursery_crops nc INNER JOIN crops c ON c.crop_id=nc.crop_id\n    WHERE COALESCE(nc.archived,0)=0 AND COALESCE(c.archived,0)=0 AND COALESCE(c.transferred_out,0)=0\n    ORDER BY nc.nursery_record_id ASC\n");
+$plotRecordsRes = $conn->query("\n    SELECT pcr.record_id, pcr.crop_id, pcr.plot_id, COALESCE(pcr.bed_id,c.bed_id) AS bed_id,\n           COALESCE(NULLIF(pcr.crop_name,''),c.crop_name) AS crop_name,\n           COALESCE(NULLIF(pcr.variety,''),c.variety) AS variety, c.recipient, c.pcs,\n           c.date_sowing, COALESCE(pcr.germination_rate,c.germination_rate) AS germination_rate,\n           COALESCE(pcr.date_transplanted,c.date_transplanted) AS date_transplanted,\n           COALESCE((SELECT MAX(h.harvest_date) FROM plot_crop_harvests h INNER JOIN plot_crop_records hr ON hr.record_id=h.record_id WHERE hr.crop_id=pcr.crop_id), COALESCE(pcr.expected_harvest,c.expected_harvest)) AS expected_harvest,\n           c.target_transplant_date, c.target_area, c.seedlings_received, c.image,\n           c.transplanted_area, c.status, p.plot_code, p.plot_name, pb.bed_code, pb.bed_number\n    FROM plot_crop_records pcr INNER JOIN crops c ON c.crop_id=pcr.crop_id\n    INNER JOIN plots p ON p.plot_id=pcr.plot_id\n    LEFT JOIN plot_beds pb ON pb.bed_id=COALESCE(pcr.bed_id,c.bed_id)\n    WHERE COALESCE(pcr.archived,0)=0 AND COALESCE(c.archived,0)=0 AND COALESCE(c.transferred_out,0)=0\n    ORDER BY pcr.record_id ASC\n");
+$nurseryRecordsRes = $conn->query("\n    SELECT c.crop_id AS record_id, c.crop_id, c.plot_id,
+           COALESCE(ncBed.bed_id, cropBed.bed_id, c.bed_id) AS bed_id,
+           c.crop_name, c.variety, c.recipient, c.pcs, c.date_sowing, c.germination_rate,
+           c.date_transplanted, COALESCE((SELECT MAX(h.harvest_date) FROM plot_crop_harvests h INNER JOIN plot_crop_records hr ON hr.record_id=h.record_id WHERE hr.crop_id=c.crop_id), c.expected_harvest) AS expected_harvest, c.target_transplant_date, c.target_area,
+           c.seedlings_received, c.image, 'NURSERY' AS transplanted_area, c.status,
+           'nursery' AS plot_code, 'Nursery' AS plot_name,
+           COALESCE(NULLIF(TRIM(nc.nursery_bed_label),''), cropBed.bed_code, ncBed.bed_code,
+                    CASE WHEN UPPER(REPLACE(TRIM(COALESCE(c.transplanted_area,'')),' ','')) REGEXP '^N(URSERY)?[0-9]+$'
+                         THEN UPPER(REPLACE(TRIM(c.transplanted_area),' ','')) ELSE NULL END) AS bed_code,
+           COALESCE(ncBed.bed_number, cropBed.bed_number) AS bed_number
+    FROM crops c
+    LEFT JOIN nursery_crops nc ON nc.crop_id=c.crop_id AND COALESCE(nc.archived,0)=0
+    LEFT JOIN plot_beds ncBed ON ncBed.plot_id=5 AND UPPER(TRIM(ncBed.bed_code))=UPPER(TRIM(nc.nursery_bed_label))
+    LEFT JOIN plot_beds cropBed ON cropBed.plot_id=5 AND cropBed.bed_id=c.bed_id
+    WHERE COALESCE(c.archived,0)=0 AND COALESCE(c.transferred_out,0)=0
+      AND (c.plot_id=5 OR UPPER(TRIM(COALESCE(c.transplanted_area,'')))='NURSERY'
+           OR LOWER(TRIM(COALESCE(c.plot_name,'')))='nursery')
+    ORDER BY c.crop_id ASC
+");
 if ($plotRecordsRes && $nurseryRecordsRes) {
     $recordTablesAvailable = true;
     while ($row = $plotRecordsRes->fetch_assoc()) {
@@ -245,7 +257,7 @@ foreach ($houseRowsByCode as $code => $h) {
     <!-- CROP LIFECYCLE GANTT (ADD-ON) -->
     <link
         rel="stylesheet"
-        href="<?= $basePath ?>farmMap/farmMap_lifecycle.css?v=20261012-red-dot"
+        href="<?= $basePath ?>farmMap/farmMap_lifecycle.css?v=20261015-continuous-lifecycle"
     >
 
 
@@ -602,6 +614,9 @@ foreach ($houseRowsByCode as $code => $h) {
 
 /* =========================================================
    ICON CHOOSER
+   (selectors are prefixed with .marker-icon-chooser so they
+    win over the generic ".crop-input-group label" and
+    ".livestock-input-group label" rules)
 ========================================================= */
 
 .marker-icon-chooser {
@@ -610,32 +625,93 @@ foreach ($houseRowsByCode as $code => $h) {
 
 }
 
-.marker-icon-chooser-label {
+.marker-icon-chooser .marker-icon-chooser-label {
 
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 
-    margin-bottom: 7px;
+    margin: 0 0 5px;
 
-    color: #666;
+    color: #3f4f3a;
 
     font-size: 9px;
-
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: .3px;
 
 }
 
-.marker-icon-options {
+.marker-icon-chooser .marker-icon-chooser-label::before {
+
+    content: "";
+
+    width: 3px;
+    height: 10px;
+
+    border-radius: 3px;
+
+    background: linear-gradient(180deg, #8fb339, #6b8e23);
+
+}
+
+.marker-icon-chooser > .marker-icon-options {
 
     display: grid;
 
     grid-template-columns:
-        repeat(4, minmax(0, 1fr));
+        repeat(auto-fill, minmax(58px, 1fr));
 
-    gap: 7px;
+    gap: 5px;
+
+    max-height: 158px;
+
+    padding: 6px;
+
+    overflow-y: auto;
+
+    border: 1px solid #e1e8dc;
+    border-radius: 10px;
+
+    background:
+        linear-gradient(180deg, #fafcf8, #f3f7ef);
+
+    box-shadow:
+        inset 0 1px 3px rgba(60,80,40,.06);
+
+    scrollbar-width: thin;
+    scrollbar-color: #b9c9ae transparent;
 
 }
 
-.marker-icon-option {
+.marker-icon-chooser > .marker-icon-options::-webkit-scrollbar {
+
+    width: 6px;
+
+}
+
+.marker-icon-chooser > .marker-icon-options::-webkit-scrollbar-thumb {
+
+    border-radius: 6px;
+
+    background: #b9c9ae;
+
+}
+
+/* extra icons that sit in a nested options grid */
+.marker-icon-chooser .marker-icon-options .marker-icon-options {
+
+    grid-column: 1 / -1;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(auto-fill, minmax(58px, 1fr));
+
+    gap: 5px;
+
+}
+
+.marker-icon-chooser .marker-icon-option {
 
     position: relative;
 
@@ -643,7 +719,7 @@ foreach ($houseRowsByCode as $code => $h) {
 
 }
 
-.marker-icon-option input {
+.marker-icon-chooser .marker-icon-option input {
 
     position: absolute;
 
@@ -653,14 +729,18 @@ foreach ($houseRowsByCode as $code => $h) {
 
 }
 
-.marker-icon-option label {
+.marker-icon-chooser .marker-icon-option label {
 
-    min-height: 72px;
+    position: relative;
 
-    padding: 7px 5px;
+    box-sizing: border-box;
 
-    border: 1px solid #d9e0d5;
+    min-height: 56px;
 
+    margin: 0;
+    padding: 5px 3px 4px;
+
+    border: 1.5px solid #e1e8dc;
     border-radius: 9px;
 
     background: #ffffff;
@@ -672,58 +752,149 @@ foreach ($houseRowsByCode as $code => $h) {
     flex-direction: column;
 
     align-items: center;
-
     justify-content: center;
 
-    gap: 5px;
+    gap: 3px;
 
     transition:
-        border-color .2s ease,
-        background .2s ease,
-        box-shadow .2s ease,
-        transform .15s ease;
+        border-color .18s ease,
+        background .18s ease,
+        box-shadow .18s ease,
+        transform .18s ease;
 
 }
 
-.marker-icon-option label:hover {
+.marker-icon-chooser .marker-icon-option label:hover {
 
     border-color: #a8bd9e;
 
     transform: translateY(-1px);
 
+    box-shadow:
+        0 6px 14px rgba(70,95,45,.14);
+
 }
 
-.marker-icon-option input:checked + label {
+.marker-icon-chooser .marker-icon-option input:focus-visible + label {
+
+    outline: 2px solid #6b8e23;
+    outline-offset: 2px;
+
+}
+
+.marker-icon-chooser .marker-icon-option input:checked + label {
 
     border-color: #6b8e23;
 
-    background: #f1f6ed;
+    background:
+        linear-gradient(180deg, #f6faf0, #e8f1dc);
 
     box-shadow:
-        0 0 0 2px rgba(107,142,35,.12);
+        0 0 0 3px rgba(107,142,35,.16),
+        0 6px 14px rgba(70,95,45,.16);
 
 }
 
-.marker-icon-option img {
+/* check badge on the selected icon */
+.marker-icon-chooser .marker-icon-option input:checked + label::after {
 
-    width: 38px;
-    height: 38px;
+    content: "\2713";
+
+    position: absolute;
+    top: -5px;
+    right: -5px;
+
+    width: 14px;
+    height: 14px;
+
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+
+    background: #6b8e23;
+    color: #ffffff;
+
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 10px;
+    text-align: center;
+
+    box-shadow: 0 2px 5px rgba(0,0,0,.2);
+
+}
+
+.marker-icon-chooser .marker-icon-option input:disabled + label {
+
+    opacity: .5;
+
+    cursor: not-allowed;
+
+    transform: none;
+
+    box-shadow: none;
+
+}
+
+.marker-icon-chooser .marker-icon-option img {
+
+    width: 28px;
+    height: 28px;
+
+    padding: 2px;
+
+    box-sizing: content-box;
+
+    border-radius: 50%;
+
+    background: #f1f6ed;
 
     object-fit: contain;
 
     display: block;
 
+    transition:
+        transform .18s ease,
+        background .18s ease;
+
 }
 
-.marker-icon-option span {
+.marker-icon-chooser .marker-icon-option label:hover img {
+
+    transform: scale(1.08);
+
+}
+
+.marker-icon-chooser .marker-icon-option input:checked + label img {
+
+    background: #ffffff;
+
+    transform: scale(1.08);
+
+}
+
+.marker-icon-chooser .marker-icon-option span {
+
+    display: block;
+
+    max-width: 100%;
+
+    overflow: hidden;
 
     color: #52604d;
 
-    font-size: 8px;
-
+    font-size: 8.5px;
     font-weight: 600;
 
     text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+}
+
+.marker-icon-chooser .marker-icon-option input:checked + label span {
+
+    color: #3d5a12;
+
+    font-weight: 700;
 
 }
 
@@ -743,10 +914,11 @@ foreach ($houseRowsByCode as $code => $h) {
 
 @media (max-width: 600px) {
 
-    .marker-icon-options {
+    .marker-icon-chooser > .marker-icon-options,
+    .marker-icon-chooser .marker-icon-options .marker-icon-options {
 
         grid-template-columns:
-            repeat(2, minmax(0,1fr));
+            repeat(4, minmax(0,1fr));
 
     }
 
@@ -1577,6 +1749,21 @@ foreach ($houseRowsByCode as $code => $h) {
 /* =========================================================
    EDIT FORM
 ========================================================= */
+
+
+
+.crop-transplant-btn { background: #3c7d8f; color: #fff; }
+.crop-transplant-btn:hover { background: #2f6675; }
+.farm-map-transfer-overlay { position: fixed; inset: 0; z-index: 120000; display: none; align-items: center; justify-content: center; padding: 18px; background: rgba(0,0,0,.58); }
+.farm-map-transfer-overlay.show { display: flex; }
+.farm-map-transfer-popup { position: relative; width: min(620px, 100%); height: min(760px, 94vh); overflow: hidden; background: #fff; border-radius: 14px; box-shadow: 0 18px 55px rgba(0,0,0,.28); }
+.farm-map-transfer-popup iframe { width: 100%; height: 100%; border: 0; display: block; }
+.farm-map-transfer-close { position: absolute; top: 10px; right: 12px; z-index: 2; width: 32px; height: 32px; border: 0; border-radius: 50%; background: rgba(255,255,255,.92); color: #38513a; font-size: 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+
+.crop-harvest-form h3 { margin: 0 0 12px; color: #3e5d2d; font-size: 14px; }
+.crop-harvest-btn { background: #d28a2d; color: #fff; }
+.crop-harvest-btn:hover { background: #b87521; }
+.crop-harvest-save-btn { background: #527b42; color: #fff; }
 
 .crop-edit-form {
     display: none;
@@ -2558,6 +2745,54 @@ foreach ($houseRowsByCode as $code => $h) {
 .nursery-popup p { font-size: 15px; }
 
 
+/* Plot title and lifecycle rows stay compact and readable on one line. */
+.plot-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    margin-bottom: 10px;
+}
+.plot-title-row h3 {
+    min-width: 0;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.plot-title-row #startEditBedsBtn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 36px;
+    padding: 8px 13px;
+    border: 0;
+    border-radius: 9px;
+    background: #6b8e23;
+    color: #fff;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .2s ease;
+}
+.plot-title-row #startEditBedsBtn:hover {
+    transform: translateY(-1px);
+    opacity: .9;
+}
+.plot-title-row #startEditBedsBtn.is-done {
+    background: #527b42 !important;
+}
+@media (max-width: 520px) {
+    .plot-title-row #startEditBedsBtn {
+        padding: 7px 9px;
+        font-size: 11px;
+    }
+}
+
 /* Popup content scrolls independently without moving the farm map. */
 .plot-popup, .nursery-popup, .crop-profile-popup, .livestock-profile-popup { overscroll-behavior: contain; }
 .plot-popup .plot-info, .nursery-popup { max-height: min(42vh, 520px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
@@ -2821,28 +3056,6 @@ foreach ($houseRowsByCode as $code => $h) {
 
             </div>
 
-
-            <div class="summary-card">
-
-                <div class="summary-icon summary-light-green">
-
-                    <i class="fa-solid fa-check"></i>
-
-                </div>
-
-                <div>
-
-                    <span class="summary-label">
-                        Harvest Ready
-                    </span>
-
-                    <strong class="summary-number">
-                        <?= $totalHarvestReady ?>
-                    </strong>
-
-                </div>
-
-            </div>
 
         </div>
 
@@ -3260,11 +3473,13 @@ foreach ($houseRowsByCode as $code => $h) {
                         <div class="plot-info">
 
                             <div class="plot-title-row">
-
                                 <h3 id="plotTitle">
                                     Plot A
                                 </h3>
-
+                                <button type="button" id="startEditBedsBtn" title="Edit this plot" aria-label="Edit this plot">
+                                    <i class="fa-solid fa-pen"></i>
+                                    Edit Plot
+                                </button>
                             </div>
 
                             <div
@@ -3292,22 +3507,7 @@ foreach ($houseRowsByCode as $code => $h) {
                                 class="bed-edit-toolbar"
                                 id="bedEditToolbar"
                             >
-
-                                <button
-                                    type="button"
-                                    id="startEditBedsBtn"
-                                    title="Finish editing this plot"
-                                    aria-label="Done editing this plot"
-                                >
-
-                                    <i class="fa-solid fa-pen"></i>
-
-                                    Edit Beds
-
-                                </button>
-
-
-                                <button
+<button
                                     type="button"
                                     id="editPositionBtn"
                                     style="display:none;"
@@ -4181,6 +4381,13 @@ foreach ($houseRowsByCode as $code => $h) {
 
 </div>
 
+                <div class="farm-map-transfer-overlay" id="farmMapTransferOverlay" role="dialog" aria-modal="true" aria-label="Transfer crop to plot">
+                    <div class="farm-map-transfer-popup">
+                        <button type="button" class="farm-map-transfer-close" id="farmMapTransferClose" aria-label="Close transfer form">&times;</button>
+                        <iframe id="farmMapTransferFrame" title="Transfer crop to plot"></iframe>
+                    </div>
+                </div>
+
                 <!-- =================================================
                      CROP PROFILE POPUP
                 ================================================== -->
@@ -4828,11 +5035,28 @@ foreach ($houseRowsByCode as $code => $h) {
 
         </div>
 
-    
-
+    <div class="marker-icon-options">
+        <div class="marker-icon-option">
+            <input type="radio" name="cropMarkerIcon" id="cropIconBasil" value="basil">
+            <label for="cropIconBasil"><img src="<?= $basePath ?>farmMap/icons/crops/basil.png" alt="Basil"><span>Basil</span></label>
+        </div>
+        <div class="marker-icon-option">
+            <input type="radio" name="cropMarkerIcon" id="cropIconBrocolli" value="brocolli">
+            <label for="cropIconBrocolli"><img src="<?= $basePath ?>farmMap/icons/crops/brocolli.png" alt="Brocolli"><span>Brocolli</span></label>
+        </div>
+        <div class="marker-icon-option">
+            <input type="radio" name="cropMarkerIcon" id="cropIconDill" value="dill">
+            <label for="cropIconDill"><img src="<?= $basePath ?>farmMap/icons/crops/dill.png" alt="Dill"><span>Dill</span></label>
+        </div>
+        <div class="marker-icon-option">
+            <input type="radio" name="cropMarkerIcon" id="cropIconMelon" value="melon">
+            <label for="cropIconMelon"><img src="<?= $basePath ?>farmMap/icons/crops/melon.png" alt="Melon"><span>Melon</span></label>
+        </div>
+    </div>
     </div>
 
 </div>
+
 
 <div class="crop-edit-grid">
 
@@ -5002,10 +5226,41 @@ foreach ($houseRowsByCode as $code => $h) {
                             </div>
 
 
+                            <div class="crop-edit-form crop-harvest-form" id="cropHarvestForm">
+                                <h3>Harvest Record</h3>
+                                <div class="crop-edit-grid">
+                                    <div class="crop-input-group"><label for="harvestCount">Total Number of Harvest</label><input type="number" id="harvestCount" min="1" step="1" value="1" required></div>
+                                    <div class="crop-input-group"><label for="harvestDate">Date of Pull / Harvest</label><input type="date" id="harvestDate" required></div>
+                                    <div class="crop-input-group"><label for="harvestTotalQuantity">Total Quantity</label><input type="number" id="harvestTotalQuantity" min="0" step="0.001"></div>
+                                    <div class="crop-input-group"><label for="harvestTotalUnit">Total Quantity Unit</label><input type="text" id="harvestTotalUnit" placeholder="kg, g, pcs"></div>
+                                    <div class="crop-input-group"><label for="harvestSalesQuantity">Sales Quantity</label><input type="number" id="harvestSalesQuantity" min="0" step="0.001"></div>
+                                    <div class="crop-input-group"><label for="harvestSalesUnit">Sales Unit</label><input type="text" id="harvestSalesUnit" placeholder="kg, g, pcs"></div>
+                                    <div class="crop-input-group"><label for="harvestSalesAmount">Sales Amount (PHP)</label><input type="number" id="harvestSalesAmount" min="0" step="0.01"></div>
+                                    <div class="crop-input-group"><label for="harvestFarmUseQuantity">Farm Use Quantity</label><input type="number" id="harvestFarmUseQuantity" min="0" step="0.001"></div>
+                                    <div class="crop-input-group"><label for="harvestFarmUseUnit">Farm Use Unit</label><input type="text" id="harvestFarmUseUnit" placeholder="kg, g, pcs"></div>
+                                    <div class="crop-input-group"><label for="harvestAnimalFeedQuantity">Animal Feed Quantity</label><input type="number" id="harvestAnimalFeedQuantity" min="0" step="0.001"></div>
+                                    <div class="crop-input-group"><label for="harvestAnimalFeedUnit">Animal Feed Unit</label><input type="text" id="harvestAnimalFeedUnit" placeholder="kg, g, pcs"></div>
+                                    <div class="crop-input-group"><label for="harvestRejectedQuantity">Reject Quantity</label><input type="number" id="harvestRejectedQuantity" min="0" step="0.001"></div>
+                                    <div class="crop-input-group"><label for="harvestRejectedUnit">Reject Unit</label><input type="text" id="harvestRejectedUnit" placeholder="kg, g, pcs"></div>
+                                    <div class="crop-input-group"><label for="harvestOtherQuantity">Other Purposes Quantity</label><input type="number" id="harvestOtherQuantity" min="0" step="0.001"></div>
+                                    <div class="crop-input-group"><label for="harvestOtherUnit">Other Purposes Unit</label><input type="text" id="harvestOtherUnit" placeholder="kg, g, pcs"></div>
+                                </div>
+                                <div class="crop-profile-actions">
+                                    <button type="button" class="crop-harvest-save-btn" id="saveCropHarvestBtn"><i class="fa-solid fa-floppy-disk"></i> Save Harvest</button>
+                                    <button type="button" class="crop-cancel-btn" id="cancelCropHarvestBtn"><i class="fa-solid fa-xmark"></i> Cancel</button>
+                                </div>
+                            </div>
+
                             <!-- ACTIONS -->
 
                             <div class="crop-profile-actions">
 
+                                <button type="button" class="crop-transplant-btn" id="transplantCropBtn" style="display:none;">
+                                    <i class="fa-solid fa-up-long"></i> Transplant
+                                </button>
+                                <button type="button" class="crop-harvest-btn" id="harvestCropBtn" style="display:none;">
+                                    <i class="fa-solid fa-basket-shopping"></i> Harvest
+                                </button>
                                 <button
                                     type="button"
                                     class="crop-edit-btn"
@@ -5837,7 +6092,19 @@ const FARM_MARKER_ICONS = {
             `${basePath}farmMap/icons/crops/radish.png`,
 
         spinach:
-            `${basePath}farmMap/icons/crops/spinach.png`
+            `${basePath}farmMap/icons/crops/spinach.png`,
+
+        basil:
+            `${basePath}farmMap/icons/crops/basil.png`,
+
+        brocolli:
+            `${basePath}farmMap/icons/crops/brocolli.png`,
+
+        dill:
+            `${basePath}farmMap/icons/crops/dill.png`,
+
+        melon:
+            `${basePath}farmMap/icons/crops/melon.png`
 
     },
 
@@ -6030,6 +6297,16 @@ function saveStoredLivestockMarkerData(data) {
 const userRole = "<?= htmlspecialchars($role, ENT_QUOTES) ?>";
 
 const dbCropsByPlot = <?= json_encode($dbCropsByPlot, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
+// Keep the complete crop history for the lifecycle Gantt. Active map controls
+// must still ignore harvested crops so harvested beds remain visually empty.
+const dbActiveCropsByPlot = Object.fromEntries(
+    Object.entries(dbCropsByPlot).map(([location, rows]) => [
+        location,
+        Array.isArray(rows)
+            ? rows.filter(row => String(row?.status || '').trim().toLowerCase() !== 'harvested')
+            : []
+    ])
+);
 const dbBeds = <?= json_encode($dbBeds, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
 window.dbBeds = dbBeds;
 const dbLivestockHouses = <?= json_encode($dbLivestockHouses, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
@@ -6047,7 +6324,7 @@ function applyMapPlotHarvestAlerts() {
         const marker = document.querySelector(`.main-marker[data-marker="plot"][data-id="${plot}"]`);
         if (!marker) return;
 
-        const rows = Array.isArray(dbCropsByPlot[plot]) ? dbCropsByPlot[plot] : [];
+        const rows = Array.isArray(dbActiveCropsByPlot[plot]) ? dbActiveCropsByPlot[plot] : [];
         const ready = rows.some(mapCropIsHarvestReady);
         let badge = marker.querySelector(".plot-harvest-alert");
 
@@ -6281,7 +6558,9 @@ function getBedsForPlot(plot) {
     const byNumber = new Map();
     const dbBeds = Array.isArray(window.dbBeds) ? window.dbBeds : [];
     const plotPrefix = String(plot || "").toUpperCase();
-    const dbBedByNumber = new Map(dbBeds.filter(b => String(b.bed_code || "").toUpperCase().startsWith(plotPrefix)).map(b => [Number(b.bed_number), b]));
+    const dbPrefixByPlot = { A: "A", B: "B", C: "C", NURSERY: "N", HYDRO: "H", TENT_HOUSE: "T", MNO: "M" };
+    const dbPrefix = dbPrefixByPlot[plotPrefix] || plotPrefix;
+    const dbBedByNumber = new Map(dbBeds.filter(b => String(b.bed_code || "").toUpperCase().startsWith(dbPrefix)).map(b => [Number(b.bed_number), b]));
 
     saved.forEach(bed => {
         if (!bed || bed.number == null) return;
@@ -6549,7 +6828,7 @@ function renderBedMarkers(plot) {
     container.innerHTML = "";
 
     const fixedCount = FIXED_PLOT_MARKER_COUNTS[plot] || 0;
-    const rows = Array.isArray(dbCropsByPlot[plot]) ? dbCropsByPlot[plot] : [];
+    const rows = Array.isArray(dbActiveCropsByPlot[plot]) ? dbActiveCropsByPlot[plot] : [];
     const slots = Array.isArray(deletedBedSlots[plot])
         ? deletedBedSlots[plot].filter(slot => Number(slot.number) >= 1 && Number(slot.number) <= fixedCount)
         : [];
@@ -6577,14 +6856,22 @@ function renderBedMarkers(plot) {
     const bedByNumber = new Map(beds.map(bed => [Number(bed.number), bed]));
     const usedNumbers = new Set();
     const occupiedBeds = [];
-    const nextFreeBed = () => beds.find(bed => !usedNumbers.has(Number(bed.number)));
+    const plotKey = String(currentPlot || "").toUpperCase();
+    const expectedPrefix = ({ A: "A", B: "B", C: "C", NURSERY: "N", HYDRO: "H", TENT_HOUSE: "T", MNO: "M" })[plotKey] || plotKey;
+    // Reserve all explicitly selected beds before assigning visual positions
+    // to older records that do not yet have a saved bed code.
+    const reservedNumbers = new Set(rows.map(row => {
+        const code = String(row.bed_code || row.transplanted_area || "").toUpperCase().replace(/\s+/g, "");
+        const match = code.match(/^[A-Z]+([0-9]+)$/);
+        return match && code.startsWith(expectedPrefix) ? Number(match[1]) : 0;
+    }).filter(number => number > 0));
+    const nextFreeBed = () => beds.find(bed => !usedNumbers.has(Number(bed.number)) && !reservedNumbers.has(Number(bed.number)));
     rows.forEach(row => {
         const code = String(row.bed_code || row.transplanted_area || "")
             .toUpperCase().replace(/\s+/g, "");
         const match = code.match(/^[A-Z]+([0-9]+)$/);
         let bed = null;
         const preferredNumber = match ? Number(match[1]) : 0;
-        const expectedPrefix = String(currentPlot || "").toUpperCase();
         if (preferredNumber > 0 && code.startsWith(expectedPrefix) && !usedNumbers.has(preferredNumber)) {
             bed = bedByNumber.get(preferredNumber) || null;
         }
@@ -6681,8 +6968,8 @@ function saveCurrentBedState() {
    DATABASE-CONNECTED PLOT SUMMARY
 ========================================================= */
 function updatePlotRecordSummary(plot) {
-    const rows = Array.isArray(dbCropsByPlot[plot])
-        ? dbCropsByPlot[plot]
+    const rows = Array.isArray(dbActiveCropsByPlot[plot])
+        ? dbActiveCropsByPlot[plot]
         : [];
 
     const fallbackBeds = Number(FIXED_PLOT_MARKER_COUNTS[plot] || plotData[plot]?.beds || 0);
@@ -7201,8 +7488,14 @@ function deleteSelectedBed() {
 
     if (!confirm(`Remove the crop from Bed ${number}?`)) return;
 
-    const crop = getCropProfile(number);
-    const cropId = crop && crop.cropId ? Number(crop.cropId) : 0;
+    // The marker is created from the authoritative database row and carries
+    // its exact crop ID. Use it directly; looking up by array position can
+    // archive the wrong Nursery crop when beds are sparse or out of order.
+    const markerCropId = selectedBed.dataset.cropId || null;
+    const crop = getCropProfile(number, markerCropId);
+    const cropId = markerCropId
+        ? Number(markerCropId)
+        : (crop && crop.cropId ? Number(crop.cropId) : 0);
 
     // A planted crop must be archived in the database, not merely hidden
     // from this browser. Empty beds can still be cleared without a request.
@@ -7288,6 +7581,8 @@ const CROP_STORAGE_KEY =
 
 
 let currentCropBed =
+    null;
+let currentCropId =
     null;
 
 
@@ -7439,7 +7734,7 @@ function dbCropToProfile(row) {
 
 function getCropProfile(bedNumber, cropId = null) {
 
-    const plotCrops = dbCropsByPlot[currentPlot] || [];
+    const plotCrops = dbActiveCropsByPlot[currentPlot] || [];
     const requestedCode = `${String(currentPlot || '').toUpperCase()}${Number(bedNumber)}`.replace('PLOT_', '');
     const row = (cropId != null
         ? plotCrops.find(item => String(item.crop_id) === String(cropId))
@@ -7693,6 +7988,7 @@ function openCropProfile(bedNumber, cropId = null) {
             bedNumber,
             cropId
         );
+    currentCropId = crop && crop.cropId ? Number(crop.cropId) : null;
 
 
     renderCropProfile(
@@ -7852,6 +8148,20 @@ function renderCropProfile(crop) {
     updateCropImage(
         crop.image
     );
+    const harvestButton = document.getElementById("harvestCropBtn");
+    if (harvestButton) {
+        const allowed = ["A", "B", "C", "MNO", "HYDRO", "TENT_HOUSE"].includes(String(currentPlot || "").toUpperCase());
+        harvestButton.style.display = allowed && !!crop.cropId ? "inline-flex" : "none";
+    }
+    const transplantButton = document.getElementById("transplantCropBtn");
+    if (transplantButton) {
+        const profileLocation = String(currentPlot || "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+        // Keep the action visible on the Nursery crop board. The click handler
+        // still validates that the selected bed has a database crop record.
+        transplantButton.style.display = profileLocation === "NURSERY" ? "inline-flex" : "none";
+        transplantButton.dataset.cropId = crop && crop.cropId ? String(crop.cropId) : "";
+    }
+    cancelCropHarvestForm();
 
 }
 
@@ -7898,6 +8208,83 @@ function updateCropImage(image) {
 
 }
 
+
+/* =========================================================
+   TRANSPLANT NURSERY CROP
+========================================================= */
+function closeFarmMapTransferModal() {
+    const overlay = document.getElementById("farmMapTransferOverlay");
+    const frame = document.getElementById("farmMapTransferFrame");
+    if (overlay) overlay.classList.remove("show");
+    if (frame) frame.src = "about:blank";
+}
+// transfer_crop.php calls this shared name after a successful transfer.
+window.closeEditModal = closeFarmMapTransferModal;
+function openCropTransplantForm() {
+    const transplantButton = document.getElementById("transplantCropBtn");
+    const cropId = transplantButton?.dataset.cropId || null;
+    const crop = getCropProfile(currentCropBed, cropId);
+    const profileLocation = String(currentPlot || "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+    if (profileLocation !== "NURSERY") return;
+    if (!crop || !crop.cropId) {
+        alert("This Nursery bed does not have a database crop record yet.");
+        return;
+    }
+    const frame = document.getElementById("farmMapTransferFrame");
+    const overlay = document.getElementById("farmMapTransferOverlay");
+    if (!frame || !overlay) return;
+    frame.src = `../crops/transfer_crop.php?id=${encodeURIComponent(crop.cropId)}`;
+    overlay.classList.add("show");
+}
+
+/* =========================================================
+   HARVEST CROP
+========================================================= */
+function cancelCropHarvestForm() {
+    const form = document.getElementById("cropHarvestForm");
+    if (form) form.classList.remove("show");
+}
+function openCropHarvestForm() {
+    const crop = getCropProfile(currentCropBed);
+    if (!crop || !crop.cropId) { alert("This crop does not have a database record yet."); return; }
+    const allowed = ["A", "B", "C", "MNO", "HYDRO", "TENT_HOUSE"].includes(String(currentPlot || "").toUpperCase());
+    if (!allowed) { alert("Harvest records are available only for Plot A, Plot B, Plot C, Hydro, MNO, and Tent House."); return; }
+    document.getElementById("harvestDate").value = getTodayDate();
+    document.getElementById("harvestCount").value = "1";
+    ["harvestTotalQuantity","harvestTotalUnit","harvestSalesQuantity","harvestSalesUnit","harvestSalesAmount","harvestFarmUseQuantity","harvestFarmUseUnit","harvestAnimalFeedQuantity","harvestAnimalFeedUnit","harvestRejectedQuantity","harvestRejectedUnit","harvestOtherQuantity","harvestOtherUnit"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+    document.getElementById("cropHarvestForm").classList.add("show");
+}
+function saveCropHarvest() {
+    const crop = getCropProfile(currentCropBed);
+    if (!crop || !crop.cropId) return;
+    const date = document.getElementById("harvestDate").value;
+    const count = document.getElementById("harvestCount").value;
+    if (!date || !count || Number(count) < 1) { alert("Enter the total number of harvest and date of pull / harvest."); return; }
+    const formData = new FormData();
+    formData.append("crop_id", crop.cropId);
+    formData.append("location", currentPlot);
+    formData.append("harvest_date", date);
+    formData.append("harvest_count", count);
+    const fields = {
+        harvestTotalQuantity: "total_quantity", harvestTotalUnit: "total_unit",
+        harvestSalesQuantity: "sales_quantity", harvestSalesUnit: "sales_unit", harvestSalesAmount: "sales_amount",
+        harvestFarmUseQuantity: "farm_use_quantity", harvestFarmUseUnit: "farm_use_unit",
+        harvestAnimalFeedQuantity: "animal_feed_quantity", harvestAnimalFeedUnit: "animal_feed_unit",
+        harvestRejectedQuantity: "rejected_quantity", harvestRejectedUnit: "rejected_unit",
+        harvestOtherQuantity: "other_purposes_quantity", harvestOtherUnit: "other_purposes_unit"
+    };
+    Object.entries(fields).forEach(([id, key]) => formData.append(key, document.getElementById(id).value.trim()));
+    const saveButton = document.getElementById("saveCropHarvestBtn");
+    saveButton.disabled = true;
+    fetch("save_harvest.php", { method: "POST", body: formData })
+        .then(response => response.json())
+        .then(result => {
+            if (!result.success) throw new Error(result.message || "Unable to save harvest record.");
+            alert("Harvest record saved successfully.");
+            location.reload();
+        })
+        .catch(error => { alert(error.message || "Unable to save harvest record. Please try again."); saveButton.disabled = false; });
+}
 
 /* =========================================================
    EDIT CROP PROFILE
@@ -7949,7 +8336,8 @@ function startCropProfileEditing() {
 
     const crop =
         getCropProfile(
-            currentCropBed
+            currentCropBed,
+            currentCropId
         );
 
 
@@ -8394,7 +8782,8 @@ function saveCropProfile() {
 
     const existing =
         getCropProfile(
-            currentCropBed
+            currentCropBed,
+            currentCropId
         );
 /*
  * SAVE CROP MARKER ICON
@@ -8850,6 +9239,8 @@ function closeCropProfile() {
         cancelCropProfileEditing();
     }
 
+    cancelCropHarvestForm();
+    closeFarmMapTransferModal();
     document.getElementById("cropProfileOverlay").classList.remove("show");
     currentCropBed = null;
 }
@@ -12654,6 +13045,16 @@ if (closeLivestockProfileBtn) {
 /* =========================================================
    CROP PROFILE BUTTONS
 ========================================================= */
+
+document.getElementById("transplantCropBtn")?.addEventListener("click", openCropTransplantForm);
+document.getElementById("farmMapTransferClose")?.addEventListener("click", closeFarmMapTransferModal);
+document.getElementById("farmMapTransferOverlay")?.addEventListener("click", event => {
+    if (event.target.id === "farmMapTransferOverlay") closeFarmMapTransferModal();
+});
+
+document.getElementById("harvestCropBtn")?.addEventListener("click", openCropHarvestForm);
+document.getElementById("saveCropHarvestBtn")?.addEventListener("click", saveCropHarvest);
+document.getElementById("cancelCropHarvestBtn")?.addEventListener("click", cancelCropHarvestForm);
 
 document.getElementById(
     "editCropProfileBtn"

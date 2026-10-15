@@ -188,7 +188,6 @@
             1,
             Math.round((axisEnd - axisStart) / DAY_MS)
         );
-
         const pos = d => d
             ? Math.max(
                 0,
@@ -199,37 +198,47 @@
             )
             : null;
 
+        /*
+         * Build one continuous lifecycle. The previous implementation
+         * ended the sowing bar at the target date but started the growing
+         * bar at the actual transplant date. If those dates differed, or
+         * the target date was empty, the interval was displayed as a gap.
+         */
+        const lifecycleStart = sow || target || actual;
+        const phaseStart = actual || target || sow;
+        const lifecycleEnd = harvest || (
+            lifecycleStart && today > lifecycleStart
+                ? today
+                : axisEnd
+        );
         const bars = [];
-        const startGrow = actual || target || sow;
 
-        if (sow && target && target > sow) {
-            bars.push([
-                "sowing",
-                pos(sow),
-                Math.max(1, pos(target) - pos(sow))
-            ]);
-        }
+        if (lifecycleStart && lifecycleEnd && lifecycleEnd >= lifecycleStart) {
+            const transition = phaseStart && phaseStart > lifecycleStart
+                ? new Date(Math.min(phaseStart.getTime(), lifecycleEnd.getTime()))
+                : lifecycleStart;
 
-        if (startGrow && harvest && harvest > startGrow) {
-            bars.push([
-                "growing",
-                pos(startGrow),
-                Math.max(1, pos(harvest) - pos(startGrow))
-            ]);
-        } else if (startGrow) {
-            bars.push([
-                "growing",
-                pos(startGrow),
-                Math.max(1, 100 - pos(startGrow))
-            ]);
-        }
+            if (transition > lifecycleStart) {
+                bars.push([
+                    "sowing",
+                    pos(lifecycleStart),
+                    Math.max(1, pos(transition) - pos(lifecycleStart))
+                ]);
+            }
 
-        if (!bars.length && sow && harvest && harvest > sow) {
-            bars.push([
-                "growing",
-                pos(sow),
-                Math.max(1, pos(harvest) - pos(sow))
-            ]);
+            if (lifecycleEnd > transition) {
+                bars.push([
+                    "growing",
+                    pos(transition),
+                    Math.max(1, pos(lifecycleEnd) - pos(transition))
+                ]);
+            } else if (!bars.length) {
+                bars.push([
+                    "growing",
+                    pos(lifecycleStart),
+                    Math.max(1, pos(lifecycleEnd) - pos(lifecycleStart))
+                ]);
+            }
         }
 
         return {
@@ -241,7 +250,6 @@
             bars
         };
     }
-
     window.renderPlotLifecycleGantt = function (plot) {
         const host = document.getElementById(
             "plotCropLifecycleGantt"
@@ -287,6 +295,10 @@
                 if (date) dates.push(date);
             });
         });
+
+        // Keep the visible timeline through today when a crop has no future
+        // harvest date, instead of ending it at the last historical marker.
+        dates.push(today);
 
         if (!dates.length) {
             host.innerHTML = `
@@ -423,7 +435,7 @@
                 <div>
                     <strong>Crop Lifecycle Gantt</strong>
                     <span>
-                        All ${rows.length} active crop record${rows.length === 1 ? "" : "s"}
+                        All ${rows.length} tracked crop record${rows.length === 1 ? "" : "s"}
                         in this plot
                     </span>
                 </div>

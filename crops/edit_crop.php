@@ -72,7 +72,38 @@ if (!$data) {
 
 }
 
+$isNurseryRecord = strtoupper(trim((string)($data['transplanted_area'] ?? ''))) === 'NURSERY';
+// A crop can belong to Nursery through its nursery_crops record even when older
+// rows have a missing/legacy plot_id or transplanted_area value.
+$nurseryRecordCheck = $conn->prepare("SELECT 1 FROM nursery_crops WHERE crop_id=? AND COALESCE(archived,0)=0 LIMIT 1");
+if ($nurseryRecordCheck) {
+    $nurseryRecordCheck->bind_param('i', $id);
+    $nurseryRecordCheck->execute();
+    if ($nurseryRecordCheck->get_result()->num_rows > 0) $isNurseryRecord = true;
+    $nurseryRecordCheck->close();
+}
+$plotNameCheck = $conn->prepare("SELECT plot_name, plot_code FROM plots WHERE plot_id=? LIMIT 1");
+if ($plotNameCheck) {
+    $currentPlotId = (int)($data['plot_id'] ?? 0);
+    $plotNameCheck->bind_param('i', $currentPlotId);
+    $plotNameCheck->execute();
+    $currentPlot = $plotNameCheck->get_result()->fetch_assoc() ?: [];
+    $plotNameCheck->close();
+    if (strtoupper(trim((string)($currentPlot['plot_name'] ?? ''))) === 'NURSERY' || strtolower(trim((string)($currentPlot['plot_code'] ?? ''))) === 'nursery') {
+        $isNurseryRecord = true;
+    }
+}
 $bed_id = intval($data['bed_id'] ?? 0);
+// Detect Nursery records by their assigned bed as well as their plot/location fields.
+if (!$isNurseryRecord && $bed_id > 0) {
+    $nurseryBedCheck = $conn->prepare("SELECT 1 FROM plot_beds WHERE bed_id=? AND plot_id=5 LIMIT 1");
+    if ($nurseryBedCheck) {
+        $nurseryBedCheck->bind_param('i', $bed_id);
+        $nurseryBedCheck->execute();
+        if ($nurseryBedCheck->get_result()->num_rows > 0) $isNurseryRecord = true;
+        $nurseryBedCheck->close();
+    }
+}
 $nurseryBedLabel = '';
 $nurseryBedStmt = $conn->prepare("SELECT nursery_bed_label FROM nursery_crops WHERE crop_id=? AND COALESCE(archived,0)=0 LIMIT 1");
 if ($nurseryBedStmt) {
@@ -145,6 +176,26 @@ if ($bedsResult) {
         $bedsByPlot[(int)$bedRow['plot_id']][] = $bedRow;
     }
 }
+
+$currentArea = strtoupper(trim((string)($data['transplanted_area'] ?? '')));
+$isNurseryCrop = ((int)($data['plot_id'] ?? 0) === 5 || $currentArea === 'NURSERY' || $currentArea === 'NURSERY BED');
+if ($bed_id <= 0 && $nurseryBedLabel !== '') {
+    foreach (($bedsByPlot[5] ?? []) as $nurseryBed) {
+        if (strcasecmp(trim((string)$nurseryBed['bed_code']), trim($nurseryBedLabel)) === 0) {
+            $bed_id = (int)$nurseryBed['bed_id'];
+            break;
+        }
+    }
+}
+$occupiedBedIds = [];
+$occupiedResult = $conn->query("SELECT bed_id, crop_id FROM crops WHERE COALESCE(archived,0)=0 AND COALESCE(transferred_out,0)=0 AND bed_id IS NOT NULL");
+if ($occupiedResult) {
+    while ($occupiedRow = $occupiedResult->fetch_assoc()) {
+        if ((int)$occupiedRow['crop_id'] !== $id) {
+            $occupiedBedIds[(int)$occupiedRow['bed_id']] = true;
+        }
+    }
+}
 /*
 |--------------------------------------------------------------------------
 | UPDATE CROP
@@ -193,6 +244,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $germination_rate = floatval(
         $_POST['germination_rate'] ?? 0
     );
+
+    $date_sowing = !empty($_POST['date_sowing']) ? $_POST['date_sowing'] : null;
+    $target_transplant_date = !empty($_POST['target_transplant_date']) ? $_POST['target_transplant_date'] : null;
+    $seedlings_received = max(0, intval($_POST['seedlings_received'] ?? 0));
+    $statusKey = strtolower(trim((string)($_POST['status'] ?? ($data['status'] ?? 'planted'))));
+    $statusKey = trim(preg_replace('/[^a-z]+/', ' ', $statusKey));
+    $statusAliases = [
+        'planted' => 'planted',
+        'growing' => 'growing',
+        'soon to harvest' => 'growing',
+        'ready' => 'ready',
+        'ready for harvest' => 'ready',
+        'ready to harvest' => 'ready',
+        'harvested' => 'harvested'
+    ];
+    $status = $statusAliases[$statusKey] ?? 'planted';
 
 
     $target_area = trim(
@@ -249,7 +316,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
 
-    if ($target_area === '') {
+    if ($target_area === '' && $plot_id !== 5) {
 
         die("Target area is required.");
 
@@ -271,6 +338,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $bed_id = intval($_POST['bed_id'] ?? 0);
     $nurseryBedLabel = trim((string)($_POST['nursery_bed_label'] ?? ''));
+    $isNurseryPost = ($plot_id === 5);
     $selectedBed = null;
     if ($bed_id > 0) {
         $bedCheck = $conn->prepare("SELECT bed_id, bed_code FROM plot_beds WHERE bed_id=? AND plot_id=? LIMIT 1");
@@ -284,8 +352,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $occupiedCheck->execute();
         $occupied = $occupiedCheck->get_result()->fetch_assoc();
         $occupiedCheck->close();
-        if ($occupied) die("That bed is already occupied by another active crop.");
-        $transplanted_area = (string)$selectedBed['bed_code'];
+        if ($occupied) die("That bed is already occupied by another active crop. Please choose an available bed.");
+        if ($isNurseryPost) {
+            $nurseryBedLabel = (string)$selectedBed['bed_code'];
+            $transplanted_area = 'NURSERY';
+        } else {
+            $transplanted_area = (string)$selectedBed['bed_code'];
+        }
+    } elseif ($isNurseryPost) {
+        die("Please choose an available nursery bed number.");
     }
     if (in_array(false, [$total_quantity, $sales_quantity, $sales_amount, $farm_use_quantity, $animal_feed_quantity, $rejected_quantity], true)) {
         die("Harvest quantities and sales amount must be valid non-negative numbers.");
@@ -340,8 +415,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             recipient = ?,
             variety = ?,
             pcs = ?,
+            date_sowing = ?,
             germination_rate = ?,
+            target_transplant_date = ?,
             target_area = ?,
+            seedlings_received = ?,
+            status = ?,
             transplanted_area = ?,
             date_transplanted = ?,
             expected_harvest = ?,
@@ -386,14 +465,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     */
 
     $stmt->bind_param(
-        "sissidssssii",
+        "sissisdssissssii",
         $crop_name,
         $plot_id,
         $recipient,
         $variety,
         $pcs,
+        $date_sowing,
         $germination_rate,
+        $target_transplant_date,
         $target_area,
+        $seedlings_received,
+        $status,
         $transplanted_area,
         $date_transplanted,
         $expected_harvest,
@@ -723,6 +806,9 @@ body {
 
 }
 
+.nursery-edit-modal .nursery-toggle-field { display: block; }
+.nursery-edit-modal .nursery-field-note { color: #777; font-size: .78rem; margin-top: 4px; }
+
 
 @media (max-width: 600px) {
 
@@ -743,13 +829,95 @@ body {
 <body>
 
 
-<form method="POST" class="edit-modal">
+<form method="POST" class="edit-modal <?= $isNurseryRecord ? 'nursery-edit-modal' : '' ?>">
 
 
-            <h3 class="record-section-title transplant-section-title">Transplant Records</h3>
+            <?php if ($isNurseryRecord): ?>
+                <h3 class="record-section-title transplant-section-title">Nursery Records</h3>
+
+                <div class="form-group nursery-toggle-field">
+                    <label>Recipient</label>
+                    <input type="text" name="recipient" value="<?= htmlspecialchars($data['recipient'] ?? '') ?>" required>
+                </div>
+
+                <div class="form-group nursery-toggle-field">
+                    <label>Plot</label>
+                    <input type="text" value="Nursery" readonly>
+                    <input type="hidden" name="plot_id" value="5">
+                    <input type="hidden" name="transplanted_area" value="NURSERY">
+                </div>
+
+                <div class="form-group">
+                    <label>Crop</label>
+                    <input type="text" name="crop_name" value="<?= htmlspecialchars($data['crop_name'] ?? '') ?>" required>
+                </div>
+
+                <div class="form-group nursery-toggle-field">
+                    <label>Variety</label>
+                    <input type="text" name="variety" value="<?= htmlspecialchars($data['variety'] ?? '') ?>">
+                </div>
+
+                <div class="form-group">
+                    <label>No. of Plants</label>
+                    <input type="number" name="pcs" min="0" value="<?= htmlspecialchars($data['pcs'] ?? 0) ?>">
+                </div>
+
+                <div class="form-group nursery-toggle-field">
+                    <label>Date of Sowing</label>
+                    <input type="date" name="date_sowing" value="<?= htmlspecialchars($data['date_sowing'] ?? '') ?>">
+                </div>
+
+                <div class="form-group nursery-toggle-field">
+                    <label>Germination Rate (%)</label>
+                    <input type="number" name="germination_rate" min="0" max="100" step="0.01" value="<?= htmlspecialchars($data['germination_rate'] ?? 0) ?>">
+                </div>
+
+                <div class="form-group nursery-toggle-field">
+                    <label>Target Area</label>
+                    <input type="text" name="target_area" value="<?= htmlspecialchars($data['target_area'] ?? '') ?>" placeholder="e.g. Plot A" >
+                </div>
+
+                <div class="form-group nursery-toggle-field">
+                    <label>Seedlings Received</label>
+                    <input type="number" name="seedlings_received" min="0" value="<?= htmlspecialchars($data['seedlings_received'] ?? 0) ?>">
+                </div>
+
+                <div class="form-group">
+                    <label>Date Transplanted</label>
+                    <input type="date" name="date_transplanted" value="<?= htmlspecialchars($data['date_transplanted'] ?? '') ?>">
+                </div>
+
+                <div class="form-group nursery-toggle-field">
+                    <label>Expected Harvest</label>
+                    <input type="date" name="expected_harvest" value="<?= htmlspecialchars($data['expected_harvest'] ?? '') ?>">
+                </div>
+
+                <div class="form-group nursery-toggle-field">
+                    <label>Plot Number / Nursery Bed</label>
+                    <select id="edit-bed-id" name="bed_id" required>
+                        <option value="0">Select available bed</option>
+                        <?php foreach (($bedsByPlot[5] ?? []) as $nurseryBed): $isOccupied = !empty($occupiedBedIds[(int)$nurseryBed['bed_id']]) && (int)$nurseryBed['bed_id'] !== $bed_id; ?>
+                            <option value="<?= (int)$nurseryBed['bed_id'] ?>" data-plot-id="5" data-bed-code="<?= htmlspecialchars($nurseryBed['bed_code'] ?: ('Nursery ' . $nurseryBed['bed_number']), ENT_QUOTES) ?>" <?= (int)$nurseryBed['bed_id'] === (int)$bed_id ? 'selected' : '' ?> <?= $isOccupied ? 'disabled' : '' ?>><?= htmlspecialchars($nurseryBed['bed_code'] ?: ('Nursery ' . $nurseryBed['bed_number'])) ?><?= $isOccupied ? ' — Occupied' : ' — Available' ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small class="nursery-field-note">Choose the bed where this crop is planted.</small>
+                    <input type="hidden" name="nursery_bed_label" id="nursery-bed-label" value="<?= htmlspecialchars($nurseryBedLabel) ?>">
+                </div>
+
+                <div class="form-group nursery-toggle-field">
+                    <label>Status</label>
+                    <?php $nurseryStatus = strtolower(trim((string)($data['status'] ?? 'growing'))); ?>
+                    <select name="status">
+                        <?php foreach (['growing' => 'Growing', 'soon_to_harvest' => 'Soon to Harvest', 'ready_to_harvest' => 'Ready to Harvest'] as $statusValue => $statusLabel): ?>
+                            <option value="<?= $statusValue ?>" <?= in_array($nurseryStatus, [$statusValue, str_replace('_', ' ', $statusValue)], true) || ($statusValue === 'ready_to_harvest' && in_array($nurseryStatus, ['ready', 'ready for harvest', 'ready to harvest'], true)) ? 'selected' : '' ?>><?= $statusLabel ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php else: ?>
+            <h3 class="record-section-title transplant-section-title"><?= $isNurseryRecord ? 'Nursery Records' : 'Transplant Records' ?></h3>
 
             <div class="form-group">
-                <label>Date</label>
+                <label><?= $isNurseryRecord ? 'Date Transplanted' : 'Date' ?></label>
                 <input
                     type="date"
                     name="date_transplanted"
@@ -757,6 +925,17 @@ body {
                 >
             </div>
 
+
+            <?php /* Nursery-specific sowing and seedling fields */ ?>
+            <div class="form-group transplant-hidden nursery-toggle-field" id="date-sowing-field">
+                <label>Date of Sowing</label>
+                <input type="date" name="date_sowing" value="<?= htmlspecialchars($data['date_sowing'] ?? '') ?>">
+            </div>
+
+            <div class="form-group transplant-hidden nursery-toggle-field" id="target-transplant-field">
+                <label>Target Transplant Date</label>
+                <input type="date" name="target_transplant_date" value="<?= htmlspecialchars($data['target_transplant_date'] ?? '') ?>">
+            </div>
 
             <!-- =====================================================
                  CROP NAME
@@ -784,7 +963,7 @@ body {
                  RECIPIENT
                  ===================================================== -->
 
-            <div class="form-group transplant-hidden">
+            <div class="form-group transplant-hidden nursery-toggle-field">
 
                 <label>
                     Staff Name
@@ -806,7 +985,7 @@ body {
                  VARIETY
                  ===================================================== -->
 
-            <div class="form-group transplant-hidden">
+            <div class="form-group transplant-hidden nursery-toggle-field">
 
                 <label>
                     Variety
@@ -845,11 +1024,25 @@ body {
             </div>
 
 
+            <div class="form-group transplant-hidden nursery-toggle-field" id="seedlings-received-field">
+                <label>Seedlings Received</label>
+                <input type="number" name="seedlings_received" min="0" value="<?= htmlspecialchars($data['seedlings_received'] ?? 0) ?>">
+            </div>
+
+            <div class="form-group transplant-hidden nursery-toggle-field" id="crop-status-field">
+                <label>Status</label>
+                <select name="status">
+                    <?php foreach (['planted' => 'Planted', 'growing' => 'Growing', 'ready' => 'Ready for Harvest', 'harvested' => 'Harvested'] as $statusValue => $statusLabel): ?>
+                        <option value="<?= htmlspecialchars($statusValue) ?>" <?= strtolower((string)($data['status'] ?? 'planted')) === $statusValue ? 'selected' : '' ?>><?= htmlspecialchars($statusLabel) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
             <!-- =====================================================
                  GERMINATION RATE
                  ===================================================== -->
 
-            <div class="form-group transplant-hidden">
+            <div class="form-group transplant-hidden nursery-toggle-field">
 
                 <label>
                     Germination Rate (%)
@@ -873,10 +1066,10 @@ body {
                  TRANSPLANTED AREA
                  ===================================================== -->
 
-            <div class="form-group transplant-hidden">
+            <div class="form-group transplant-hidden nursery-toggle-field">
 
                 <label>
-                    Target Area
+                    <?= $isNurseryRecord ? 'Plot Number' : 'Target Area' ?>
                 </label>
 
                 <input
@@ -891,7 +1084,7 @@ body {
             </div>
 
 
-            <div class="form-group transplant-hidden">
+            <div class="form-group transplant-hidden nursery-toggle-field">
 
                 <label>
                     Area
@@ -912,7 +1105,7 @@ body {
                  EXPECTED HARVEST
                  ===================================================== -->
 
-            <div class="form-group transplant-hidden">
+            <div class="form-group transplant-hidden nursery-toggle-field">
 
                 <label>
                     Expected Harvest
@@ -933,7 +1126,7 @@ body {
                  PLOT LOCATION
                  ===================================================== -->
 
-            <div class="form-group transplant-hidden">
+            <div class="form-group transplant-hidden nursery-toggle-field">
 
                 <label>
                     Plot Location
@@ -990,22 +1183,25 @@ body {
             </div>
 
 
-            <div class="form-group transplant-hidden">
-                <label for="edit-bed-id">Bed Number</label>
+            <div class="form-group transplant-hidden nursery-toggle-field">
+                <label for="edit-bed-id">Available Bed Number / Transplanted Area</label>
                 <select id="edit-bed-id" name="bed_id">
                     <option value="0" data-plot-id="0">No bed assigned</option>
-                    <?php foreach ($bedsByPlot as $bedPlotId => $plotBeds): foreach ($plotBeds as $bed): ?>
-                        <option value="<?= (int)$bed['bed_id'] ?>" data-plot-id="<?= (int)$bedPlotId ?>" <?= (int)$bed['bed_id'] === (int)$bed_id ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($bed['bed_code'] ?: ('Bed ' . $bed['bed_number'])) ?>
+                    <?php foreach ($bedsByPlot as $bedPlotId => $plotBeds): foreach ($plotBeds as $bed): $isOccupied = !empty($occupiedBedIds[(int)$bed['bed_id']]) && (int)$bed['bed_id'] !== $bed_id; ?>
+                        <option value="<?= (int)$bed['bed_id'] ?>" data-plot-id="<?= (int)$bedPlotId ?>" data-bed-code="<?= htmlspecialchars($bed['bed_code'] ?: ('Bed ' . $bed['bed_number']), ENT_QUOTES) ?>" <?= (int)$bed['bed_id'] === (int)$bed_id ? 'selected' : '' ?> <?= $isOccupied ? 'disabled' : '' ?>>
+                            <?= htmlspecialchars($bed['bed_code'] ?: ('Bed ' . $bed['bed_number'])) ?><?= $isOccupied ? ' — Occupied' : ' — Available' ?>
                         </option>
                     <?php endforeach; endforeach; ?>
                 </select>
-                <small class="record-section-note">Only beds belonging to the selected plot are available. Occupied beds are rejected when saved.</small>
+                <small class="record-section-note" id="bed-availability-note">Choose a bed that is marked Available. Occupied beds cannot be assigned.</small>
             </div>
-            <div class="form-group transplant-hidden" id="nursery-bed-field">
-                <label for="nursery-bed-label">Nursery Bed Number</label>
-                <input id="nursery-bed-label" type="text" name="nursery_bed_label" value="<?= htmlspecialchars($nurseryBedLabel) ?>" placeholder="e.g. Nursery Bed 1">
+            <div class="form-group transplant-hidden nursery-toggle-field" id="nursery-bed-field">
+                <label for="nursery-bed-label">Selected Nursery Bed Number</label>
+                <input id="nursery-bed-label" type="text" value="<?= htmlspecialchars($nurseryBedLabel) ?>" placeholder="Choose a bed from Available Bed Number" readonly>
+                <small class="record-section-note">Choose the available N1–N20 bed above. The selected bed is saved as the crop's transplanted area location.</small>
             </div>
+            <?php endif; ?>
+
             <?php if ($harvestRecordId > 0): ?>
                 <h3 class="record-section-title">Harvest Record</h3>
                 <p class="record-section-note">Update the harvest information shown in the crop records table.</p>
@@ -1092,25 +1288,37 @@ body {
 
 <script>
 (function () {
-    const plot = document.querySelector('select[name="plot_id"]');
+    const form = document.querySelector('form.edit-modal');
+    if (!form) return;
+    const plot = form.querySelector('select[name="plot_id"]');
     const bed = document.getElementById('edit-bed-id');
-    const nurseryField = document.getElementById('nursery-bed-field');
-    if (!plot || !bed) return;
-    function filterEditBeds() {
-        const plotId = String(plot.value || '');
-        const selectedPlotText = String(plot.options[plot.selectedIndex]?.text || '').toLowerCase();
-        const isNursery = selectedPlotText.includes('nursery');
-        if (nurseryField) nurseryField.style.display = isNursery ? '' : 'none';
-        let selectedVisible = false;
-        Array.from(bed.options).forEach(function (option) {
-            const visible = option.value === '0' || option.dataset.plotId === plotId;
-            option.hidden = !visible;
-            if (visible && option.selected) selectedVisible = true;
-        });
-        if (!selectedVisible) bed.value = '0';
+    const nurseryLabel = document.getElementById('nursery-bed-label');
+    const nurseryMode = form.classList.contains('nursery-edit-modal');
+
+    function updateBedLabel() {
+        if (!bed || !nurseryLabel) return;
+        const option = bed.options[bed.selectedIndex];
+        nurseryLabel.value = option ? (option.dataset.bedCode || '') : '';
     }
-    plot.addEventListener('change', filterEditBeds);
-    filterEditBeds();
+
+    if (bed) {
+        bed.addEventListener('change', updateBedLabel);
+        updateBedLabel();
+    }
+
+    if (!nurseryMode && plot && bed) {
+        function filterEditBeds() {
+            const plotId = String(plot.value || '');
+            Array.from(bed.options).forEach(function (option) {
+                const visible = option.value === '0' || option.dataset.plotId === plotId;
+                option.hidden = !visible;
+                if (!visible && option.selected) option.selected = false;
+            });
+            if (bed.selectedOptions.length && bed.selectedOptions[0].hidden) bed.value = '0';
+        }
+        plot.addEventListener('change', filterEditBeds);
+        filterEditBeds();
+    }
 })();
 </script>
 </body>

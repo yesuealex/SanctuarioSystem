@@ -327,7 +327,7 @@ tr:hover {
 <th>DATE<br>TRANSPLANTED</th>
 <th>EXPECTED<br>HARVEST</th>
 <th>STATUS</th>
-<th>TRANSPLANTED<br>AREA</th>
+<th>BED<br>PLOT</th>
 
 <?php if ($role === 'admin'): ?>
 <th>Action</th>

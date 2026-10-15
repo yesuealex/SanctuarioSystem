@@ -803,8 +803,7 @@ if ($selectedLivestockId < 0) {
             'weight_unit' => $pig['weight_unit'] ?? 'kg',
             'purpose' => $pig['purpose'] ?? '-',
             'health_status' => $pig['health_status'] ?? 'Healthy',
-            'notes' => $pig['notes'] ?? '',
-            'for_sale' => '0'
+            'notes' => $pig['notes'] ?? ''
         ];
     }
     $stmt->close();
@@ -1408,31 +1407,17 @@ unset($_SESSION['livestock_profile_error']);
 
                             <?php
 
+                            $forSaleValue = $livestockProfile['for_sale'] ?? 0;
                             if (
-                                isset(
-                                    $livestockProfile[
-                                        'for_sale'
-                                    ]
-                                )
-                                &&
-                                (
-                                    $livestockProfile[
-                                        'for_sale'
-                                    ] === '1'
-                                    ||
-                                    strtolower(
-                                        $livestockProfile[
-                                            'for_sale'
-                                        ]
-                                    ) === 'yes'
-                                )
+                                (is_numeric($forSaleValue) && (int)$forSaleValue === 1)
+                                || in_array(strtolower(trim((string)$forSaleValue)), ['1', 'yes', 'true'], true)
                             ) {
 
                                 echo 'Yes';
 
                             } else {
 
-                                echo '-';
+                                echo 'No';
 
                             }
 

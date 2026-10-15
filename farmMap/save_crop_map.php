@@ -19,21 +19,24 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 
-$data = json_decode(
-    file_get_contents('php://input'),
-    true
-);
+// Accept both JSON requests and FormData submissions from the Farm Map editor.
+// FormData is populated in $_POST; JSON requests must be decoded from php://input.
+$data = $_POST;
 
+if (empty($data)) {
+    $rawBody = file_get_contents('php://input');
+    $decoded = json_decode($rawBody, true);
+    if (is_array($decoded)) {
+        $data = $decoded;
+    }
+}
 
-if (!is_array($data)) {
-
+if (!is_array($data) || empty($data)) {
     http_response_code(400);
-
     echo json_encode([
         'success' => false,
-        'message' => 'Invalid data'
+        'message' => 'No crop data was received. The Farm Map editor may be sending FormData.'
     ]);
-
     exit;
 }
 

@@ -10,7 +10,20 @@ $stmt->bind_param('i', $id); $stmt->execute(); $crop = $stmt->get_result()->fetc
 if (!$crop) exit('Crop not found.');
 if (!empty($crop['transferred_out'])) exit('This Nursery crop batch has already been transferred. Its original Nursery lifecycle has been preserved.');
 $currentLocation = strtoupper(trim((string)($crop['transplanted_area'] ?? 'NURSERY')));
-$isNurseryCrop = $currentLocation === 'NURSERY' || str_starts_with($currentLocation, 'NURSERY');
+// Nursery beds may be stored as N1, N2, etc. in transplanted_area, so also
+// identify Nursery crops by their active Nursery plot record.
+$isNurseryPlot = false;
+$nurseryPlotStmt = $conn->prepare("SELECT 1 FROM plots WHERE plot_id=? AND COALESCE(archived,0)=0 AND (LOWER(TRIM(plot_code))='nursery' OR UPPER(TRIM(plot_name))='NURSERY') LIMIT 1");
+if ($nurseryPlotStmt) {
+    $sourcePlotId = (int)($crop['plot_id'] ?? 0);
+    $nurseryPlotStmt->bind_param('i', $sourcePlotId);
+    $nurseryPlotStmt->execute();
+    $isNurseryPlot = $nurseryPlotStmt->get_result()->num_rows > 0;
+    $nurseryPlotStmt->close();
+}
+$isNurseryCrop = $currentLocation === 'NURSERY'
+    || str_starts_with($currentLocation, 'NURSERY')
+    || $isNurseryPlot;
 if (!$isNurseryCrop) exit('Only crops currently in the Nursery can be transferred using this form.');
 $locations = [];
 $plotResult = $conn->query("SELECT plot_id, plot_code, plot_name FROM plots WHERE COALESCE(archived,0)=0 ORDER BY plot_id ASC");

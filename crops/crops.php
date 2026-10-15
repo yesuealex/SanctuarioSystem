@@ -30,12 +30,26 @@ if (!isset($_SESSION['user_id'])) {
 $role = $_SESSION['role'] ?? 'staff';
 $selectedLocation = trim((string)($_GET['location'] ?? 'all'));
 $selectedLocationKey = strtoupper(preg_replace('/\s+/', ' ', $selectedLocation));
+$isNurseryView = in_array(str_replace('_', ' ', $selectedLocationKey), ['NURSERY', 'NURSERY BED'], true);
 $isPlotView = preg_match('/^PLOT\s+[A-Z0-9_-]+$/', $selectedLocationKey) === 1
     || in_array($selectedLocationKey, ['MNO', 'HYDRO', 'TENT HOUSE', 'TENT_HOUSE'], true);
 $plotNameMatch = $selectedLocationKey;
 $plotCodeMatch = strtolower(str_replace(' ', '_', $selectedLocationKey));
 $plotRecords = null;
 $plotRecordError = false;
+// Keep older databases compatible with the harvest columns used by the plot table.
+$harvestColumns = [
+    'harvest_count' => 'DECIMAL(10,2) NOT NULL DEFAULT 1 AFTER harvest_date',
+    'other_purposes_quantity' => 'DECIMAL(12,3) DEFAULT NULL AFTER rejected_unit',
+    'other_purposes_unit' => 'VARCHAR(30) DEFAULT NULL AFTER other_purposes_quantity'
+];
+foreach ($harvestColumns as $column => $definition) {
+    $columnEscaped = $conn->real_escape_string($column);
+    $columnCheck = $conn->query("SHOW COLUMNS FROM plot_crop_harvests LIKE '{$columnEscaped}'");
+    if ($columnCheck && $columnCheck->num_rows === 0) {
+        $conn->query("ALTER TABLE plot_crop_harvests ADD COLUMN `{$column}` {$definition}");
+    }
+}
 if ($isPlotView) {
     // Plot-specific records are read from the new production tables. Each harvest
     // event remains a separate row so historical entries are never overwritten.
@@ -46,11 +60,12 @@ if ($isPlotView) {
             COALESCE(pb.bed_code, pb2.bed_code, c.transplanted_area) AS bed_code,
             COALESCE(pcr.record_date, c.date_transplanted, c.date_sowing) AS record_date,
             pcr.fertilizer_insecticide_applied, pcr.archived AS record_archived,
-            h.harvest_id, h.harvest_date, h.total_quantity, h.total_unit,
+            h.harvest_id, h.harvest_date, h.harvest_count, h.total_quantity, h.total_unit,
             h.sales_quantity, h.sales_unit, h.sales_amount,
             h.farm_use_quantity, h.farm_use_unit, h.animal_feed_quantity,
             h.animal_feed_unit, h.rejected_quantity, h.rejected_unit,
-            (SELECT COUNT(*) FROM plot_crop_harvests hx WHERE hx.record_id=pcr.record_id) AS harvest_count
+            h.other_purposes_quantity, h.other_purposes_unit,
+            (SELECT COUNT(*) FROM plot_crop_harvests hx WHERE hx.record_id=pcr.record_id) AS harvest_event_count
         FROM plots p
         LEFT JOIN crops c ON (
             c.plot_id=p.plot_id
@@ -139,15 +154,15 @@ if ($plotsForSelector) {
 */
 
 if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
-    $cropsStmt = $conn->prepare("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 AND COALESCE(crops.transferred_out,0)=0 AND (UPPER(TRIM(crops.transplanted_area))='NURSERY' OR LOWER(TRIM(COALESCE(plots.plot_code,'')))='nursery' OR UPPER(TRIM(COALESCE(plots.plot_name,'')))='NURSERY') ORDER BY crops.crop_id DESC");
+    $cropsStmt = $conn->prepare("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label, pb.bed_code FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 LEFT JOIN plot_beds pb ON pb.bed_id=crops.bed_id WHERE COALESCE(crops.archived,0)=0 AND COALESCE(crops.transferred_out,0)=0 AND (UPPER(TRIM(crops.transplanted_area))='NURSERY' OR LOWER(TRIM(COALESCE(plots.plot_code,'')))='nursery' OR UPPER(TRIM(COALESCE(plots.plot_name,'')))='NURSERY') ORDER BY crops.crop_id DESC");
     $cropsStmt->execute();
     $cropsResult = $cropsStmt->get_result();
 } elseif (!$isPlotView && $selectedLocationKey === 'MNO') {
-    $cropsStmt = $conn->prepare("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 AND COALESCE(crops.transferred_out,0)=0 AND (UPPER(TRIM(crops.transplanted_area))='MNO' OR LOWER(TRIM(COALESCE(plots.plot_code,'')))='mno' OR UPPER(TRIM(COALESCE(plots.plot_name,'')))='MNO') ORDER BY crops.crop_id DESC");
+    $cropsStmt = $conn->prepare("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label, pb.bed_code FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 LEFT JOIN plot_beds pb ON pb.bed_id=crops.bed_id WHERE COALESCE(crops.archived,0)=0 AND COALESCE(crops.transferred_out,0)=0 AND (UPPER(TRIM(crops.transplanted_area))='MNO' OR LOWER(TRIM(COALESCE(plots.plot_code,'')))='mno' OR UPPER(TRIM(COALESCE(plots.plot_name,'')))='MNO') ORDER BY crops.crop_id DESC");
     $cropsStmt->execute();
     $cropsResult = $cropsStmt->get_result();
 } else {
-    $cropsResult = $conn->query("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(crops.archived,0)=0 AND COALESCE(crops.transferred_out,0)=0 ORDER BY crops.crop_id DESC");
+    $cropsResult = $conn->query("SELECT crops.*, plots.plot_name, plots.plot_code, nc.nursery_bed_label, pb.bed_code FROM crops LEFT JOIN plots ON crops.plot_id=plots.plot_id LEFT JOIN nursery_crops nc ON nc.crop_id=crops.crop_id AND COALESCE(nc.archived,0)=0 LEFT JOIN plot_beds pb ON pb.bed_id=crops.bed_id WHERE COALESCE(crops.archived,0)=0 AND COALESCE(crops.transferred_out,0)=0 ORDER BY crops.crop_id DESC");
 }
 
 ?>
@@ -281,7 +296,6 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                     <!-- LOCATION BUTTONS -->
 
                     <div class="crop-location-buttons" id="cropLocationButtons">
-                        <a class="crop-location-btn <?= $selectedLocationKey === 'ALL' ? 'active' : '' ?>" href="crops.php">All</a>
                         <?php foreach ($locationLabels as $locationValue => $locationLabel): ?>
                             <a class="crop-location-btn <?= $selectedLocationKey === strtoupper($locationValue) ? 'active' : '' ?>" href="crops.php?location=<?= rawurlencode($locationValue) ?>">
                                 <?= htmlspecialchars($locationLabel) ?>
@@ -395,7 +409,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                         <thead>
                             <tr>
                                 <th colspan="4" class="harvest-group-heading">TRANSPLANT</th>
-                                <th colspan="7" class="harvest-group-heading">HARVEST</th>
+                                <th colspan="8" class="harvest-group-heading">HARVEST</th>
                                 <th rowspan="3">DATE OF<br>PULL / HARVEST</th>
                                 <th rowspan="3">ACTION</th>
                             </tr>
@@ -405,6 +419,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                 <th rowspan="2">CROP</th>
                                 <th rowspan="2">NUMBER OF<br>CROPS</th>
                                 <th rowspan="2">TOTAL NUMBER<br>OF HARVEST</th>
+                                <th rowspan="2">TOTAL<br>QUANTITY</th>
                                 <th colspan="2" class="sales-group-heading">SALES</th>
                                 <th rowspan="2">FARM USE</th>
                                 <th rowspan="2">ANIMAL FEED</th>
@@ -427,13 +442,14 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                 <td><?= !empty($pr['record_date']) ? htmlspecialchars(date('M j, Y', strtotime($pr['record_date']))) : '' ?></td>
                                 <td><?= htmlspecialchars($pr['crop_name'] ?? '') ?><?php if (!empty($pr['variety'])): ?><div class="plot-record-subtext"><?= htmlspecialchars($pr['variety']) ?></div><?php endif; ?></td>
                                 <td><?= htmlspecialchars($pr['crop_count'] ?? '') ?></td>
-                                <td><?= !empty($pr['harvest_id']) ? (int)$pr['harvest_count'] : '' ?></td>
+                                <td><?= !empty($pr['harvest_id']) ? htmlspecialchars($formatQty($pr['harvest_count'] ?? 1, '') ?: '1') : '' ?></td>
+                                <td><?= $formatQty($pr['total_quantity'] ?? null, $pr['total_unit'] ?? null) ?></td>
                                 <td><?= $formatQty($pr['sales_quantity'] ?? null, $pr['sales_unit'] ?? null) ?></td>
                                 <td><?= ($pr['sales_amount'] !== null && $pr['sales_amount'] !== '') ? '₱'.number_format((float)$pr['sales_amount'],2) : '' ?></td>
                                 <td><?= $formatQty($pr['farm_use_quantity'] ?? null, $pr['farm_use_unit'] ?? null) ?></td>
                                 <td><?= $formatQty($pr['animal_feed_quantity'] ?? null, $pr['animal_feed_unit'] ?? null) ?></td>
                                 <td><?= $formatQty($pr['rejected_quantity'] ?? null, $pr['rejected_unit'] ?? null) ?></td>
-                                <td></td>
+                                <td><?= $formatQty($pr['other_purposes_quantity'] ?? null, $pr['other_purposes_unit'] ?? null) ?></td>
                                 <td><?= !empty($pr['harvest_date']) ? htmlspecialchars(date('M j, Y', strtotime($pr['harvest_date']))) : '' ?></td>
                                 <td>
                                     <div class="action-buttons">
@@ -448,7 +464,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                             </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="13" class="no-records">No active plot production records found for <?= htmlspecialchars(ucwords(strtolower($selectedLocationKey))) ?>. Make sure the SQL migration has been imported and crops have been assigned to this plot.</td></tr>
+                            <tr><td colspan="14" class="no-records">No active plot production records found for <?= htmlspecialchars(ucwords(strtolower($selectedLocationKey))) ?>. Make sure the SQL migration has been imported and crops have been assigned to this plot.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
@@ -495,13 +511,12 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                 GERMINATION<br>RATE
                             </th>
 
-                            <th>
-                                TARGET<br>TRANSPLANT DATE
-                            </th>
-
-                            <th>
-                                TARGET<br>AREA
-                            </th>
+                            <?php if ($isNurseryView): ?>
+                                <th>TARGET<br>AREA</th>
+                            <?php else: ?>
+                                <th>TARGET<br>TRANSPLANT DATE</th>
+                                <th>TARGET<br>AREA</th>
+                            <?php endif; ?>
 
                             <th>
                                 SEEDLINGS<br>RECEIVED
@@ -515,13 +530,15 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                 EXPECTED<br>HARVEST
                             </th>
 
-                            <th>
-                                STATUS
-                            </th>
+                            <?php if ($isNurseryView): ?>
+                                <th>PLOT<br>NUMBER</th>
+                            <?php endif; ?>
 
-                            <th>
-                                TRANSPLANTED<br>AREA
-                            </th>
+                            <th>STATUS</th>
+
+                            <?php if (!$isNurseryView): ?>
+                                <th>TRANSPLANTED<br>AREA</th>
+                            <?php endif; ?>
 
                             <?php if ($role === 'admin'): ?>
 
@@ -647,34 +664,13 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                 </td>
 
 
-                                <!-- TARGET TRANSPLANT -->
-
-                                <td>
-
-                                    <?= !empty(
-                                        $row['target_transplant_date']
-                                    )
-                                        ? date(
-                                            'm/d/y',
-                                            strtotime(
-                                                $row['target_transplant_date']
-                                            )
-                                        )
-                                        : ''
-                                    ?>
-
-                                </td>
-
-
-                                <!-- TARGET AREA -->
-
-                                <td>
-
-                                    <?= htmlspecialchars(
-                                        $row['target_area'] ?? ''
-                                    ) ?>
-
-                                </td>
+                                <!-- Nursery uses this column for Target Area; other views retain Target Transplant Date and Target Area. -->
+                                <?php if ($isNurseryView): ?>
+                                    <td><?= htmlspecialchars($row['target_area'] ?? '') ?></td>
+                                <?php else: ?>
+                                    <td><?= !empty($row['target_transplant_date']) ? date('m/d/y', strtotime($row['target_transplant_date'])) : '' ?></td>
+                                    <td><?= htmlspecialchars($row['target_area'] ?? '') ?></td>
+                                <?php endif; ?>
 
 
                                 <!-- SEEDLINGS RECEIVED -->
@@ -726,27 +722,49 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                 </td>
 
 
+                                <?php
+                                    $recordArea = strtoupper(trim((string)($row['transplanted_area'] ?? '')));
+                                    $recordBedCode = $recordArea === 'NURSERY'
+                                        ? trim((string)($row['nursery_bed_label'] ?? ''))
+                                        : trim((string)($row['transplanted_area'] ?? ''));
+                                    $recordBedCode = strtoupper(preg_replace('/\s+/', '', $recordBedCode));
+                                ?>
+
+                                <?php if ($isNurseryView): ?>
+                                    <!-- PLOT NUMBER / ASSIGNED NURSERY BED -->
+                                    <td><?= htmlspecialchars($recordBedCode !== '' ? $recordBedCode : ($row['bed_code'] ?? '')) ?></td>
+                                <?php endif; ?>
+
                                 <!-- STATUS -->
-
                                 <td>
-
-                                    <?= htmlspecialchars(
-                                        $row['status'] ?? ''
-                                    ) ?>
-
+                                    <?php
+                                        $displayStatus = trim((string)($row['status'] ?? ''));
+                                        if ($isNurseryView) {
+                                            $statusKey = strtolower(str_replace(['-', '_'], ' ', $displayStatus));
+                                            $statusMap = [
+                                                'planted' => 'Growing',
+                                                'growing' => 'Growing',
+                                                'soon to harvest' => 'Soon to Harvest',
+                                                'ready' => 'Ready to Harvest',
+                                                'ready for harvest' => 'Ready to Harvest',
+                                                'ready to harvest' => 'Ready to Harvest',
+                                                'ready for harvesting' => 'Ready to Harvest'
+                                            ];
+                                            $displayStatus = $statusMap[$statusKey] ?? $displayStatus;
+                                        }
+                                    ?>
+                                    <?= htmlspecialchars($displayStatus) ?>
                                 </td>
 
-
-                                <!-- TRANSPLANTED AREA -->
-
-                                <td>
-
-                                    <?= htmlspecialchars($row['transplanted_area'] ?? '') ?>
-                                    <?php if (strtoupper(trim((string)($row['transplanted_area'] ?? ''))) === 'NURSERY' && !empty($row['nursery_bed_label'])): ?>
-                                        <div class="plot-record-subtext">Bed: <?= htmlspecialchars($row['nursery_bed_label']) ?></div>
-                                    <?php endif; ?>
-
-                                </td>
+                                <?php if (!$isNurseryView): ?>
+                                    <!-- TRANSPLANTED AREA -->
+                                    <td>
+                                        <?= htmlspecialchars($row['transplanted_area'] ?? '') ?>
+                                        <?php if ($recordBedCode !== '' && preg_match('/^[A-Z]+\d+$/i', $recordBedCode)): ?>
+                                            <div class="plot-record-subtext">Bed: <?= htmlspecialchars($recordBedCode) ?></div>
+                                        <?php endif; ?>
+                                    </td>
+                                <?php endif; ?>
 
 
                                 <!-- ACTION -->
@@ -831,7 +849,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                         <tr>
 
                             <td
-                                colspan="<?= $role === 'admin' ? '16' : '15' ?>"
+                                colspan="<?= $isNurseryView ? ($role === 'admin' ? '15' : '14') : ($role === 'admin' ? '16' : '15') ?>"
                                 class="no-records"
                             >
 

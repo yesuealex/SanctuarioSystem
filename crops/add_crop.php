@@ -49,7 +49,12 @@ if (!$plotsResult) die('Failed to load plots.');
 $plotRows = [];
 while ($plotRow = $plotsResult->fetch_assoc()) $plotRows[] = $plotRow;
 $activeCropRows = [];
-if ($activeRes = $conn->query("SELECT plot_id, bed_id, transplanted_area FROM crops WHERE COALESCE(archived,0)=0")) while ($r = $activeRes->fetch_assoc()) $activeCropRows[] = $r;
+$activeRes = $conn->query("SELECT c.plot_id, c.bed_id, c.transplanted_area,
+        COALESCE(NULLIF(nc.nursery_bed_label,''), pb.bed_code) AS nursery_bed_label
+    FROM crops c LEFT JOIN nursery_crops nc ON nc.crop_id=c.crop_id AND COALESCE(nc.archived,0)=0
+    LEFT JOIN plot_beds pb ON pb.bed_id=c.bed_id AND pb.plot_id=5
+    WHERE COALESCE(c.archived,0)=0 AND COALESCE(c.transferred_out,0)=0");
+if ($activeRes) while ($r = $activeRes->fetch_assoc()) $activeCropRows[] = $r;
 
 
 /*
@@ -143,15 +148,35 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
 
-    $isNursery = $plot_id === 0 || strtoupper(trim($transplanted_area)) === 'NURSERY';
+    $isNursery = $plot_id === 0 || $plot_id === 5 || strtoupper(trim($transplanted_area)) === 'NURSERY' || preg_match('/^N\s*\d+$/i', $transplanted_area) === 1;
     if ($plot_id <= 0 && !$isNursery) {
         die("Plot location is required.");
     }
+    $nurseryBedLabel = '';
+    $bed_id = null;
     if ($isNursery) {
-        $plot_id = null;
+        // Nursery has permanent beds N1-N20 in plot_beds (plot_id 5).
+        $nurseryBedLabel = strtoupper(preg_replace('/\s+/', '', $transplanted_area));
+        if (!preg_match('/^N(?:[1-9]|1[0-9]|20)$/', $nurseryBedLabel)) {
+            die('Please select an available Nursery bed (N1-N20).');
+        }
+        $nurseryPlotId = 5;
+        $bedCheck = $conn->prepare('SELECT bed_id, bed_code FROM plot_beds WHERE plot_id=? AND UPPER(TRIM(bed_code))=? LIMIT 1');
+        $bedCheck->bind_param('is', $nurseryPlotId, $nurseryBedLabel);
+        $bedCheck->execute();
+        $nurseryBed = $bedCheck->get_result()->fetch_assoc();
+        $bedCheck->close();
+        if (!$nurseryBed) die('The selected Nursery bed does not exist in plot_beds.');
+        $bed_id = (int)$nurseryBed['bed_id'];
+        $nurseryBedLabel = (string)$nurseryBed['bed_code'];
+        $occupied = $conn->prepare("SELECT c.crop_id FROM crops c LEFT JOIN nursery_crops nc ON nc.crop_id=c.crop_id AND COALESCE(nc.archived,0)=0 WHERE COALESCE(c.archived,0)=0 AND COALESCE(c.transferred_out,0)=0 AND (c.bed_id=? OR UPPER(TRIM(COALESCE(nc.nursery_bed_label,'')))=?) LIMIT 1");
+        $occupied->bind_param('is', $bed_id, $nurseryBedLabel);
+        $occupied->execute();
+        if ($occupied->get_result()->num_rows > 0) { $occupied->close(); die('That Nursery bed is already occupied by an active crop.'); }
+        $occupied->close();
+        $plot_id = $nurseryPlotId;
         $transplanted_area = 'NURSERY';
     }
-    $bed_id = null;
     if (!$isNursery && $plot_id > 0 && preg_match('/^([A-Za-z]+)\s*([0-9]+)$/', strtoupper($transplanted_area), $bedMatch)) {
         $bedPrefix = $bedMatch[1]; $bedNumber = (int)$bedMatch[2];
         $plotStmt = $conn->prepare('SELECT plot_code FROM plots WHERE plot_id = ? LIMIT 1');
@@ -293,8 +318,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     */
 
     if ($isNursery) {
-        $stmt = $conn->prepare("INSERT INTO crops (crop_name, recipient, variety, pcs, germination_rate, transplanted_area, date_transplanted, expected_harvest, plot_id, bed_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)");
-        $stmt->bind_param("sssidsss", $crop_name, $recipient, $variety, $pcs, $germination_rate, $transplanted_area, $date_transplanted, $expected_harvest);
+        $stmt->prepare("INSERT INTO crops (crop_name, recipient, variety, pcs, germination_rate, transplanted_area, date_transplanted, expected_harvest, plot_id, bed_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssidsssii", $crop_name, $recipient, $variety, $pcs, $germination_rate, $transplanted_area, $date_transplanted, $expected_harvest, $plot_id, $bed_id);
     } else {
         $stmt->bind_param("sssidsssii", $crop_name, $recipient, $variety, $pcs, $germination_rate, $transplanted_area, $date_transplanted, $expected_harvest, $plot_id, $bed_id);
     }
@@ -327,7 +352,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($isNursery) {
         $recordSync = $conn->prepare("INSERT INTO nursery_crops (crop_id, nursery_bed_label) VALUES (?, ?)");
         if ($recordSync) {
-            $recordSync->bind_param('is', $newCropId, $transplanted_area);
+            $recordSync->bind_param('is', $newCropId, $nurseryBedLabel);
             $recordSync->execute();
             $recordSync->close();
         }
@@ -831,13 +856,23 @@ body {
 (() => {
  const plot=document.getElementById('crop-plot'), bed=document.getElementById('crop-bed');
  const active=<?= json_encode($activeCropRows, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
- const limits={plot_a:17,plot_b:15,plot_c:19};
+ const limits={plot_a:17,plot_b:15,plot_c:19,tent_house:9,hydro:16,mno:25,nursery:20};
+ const prefixes={plot_a:'A',plot_b:'B',plot_c:'C',tent_house:'T',hydro:'H',mno:'M',nursery:'N'};
  const norm=v=>String(v||'').trim().toUpperCase().replace(/\s+/g,'');
  function refresh(){
   const opt=plot.options[plot.selectedIndex], code=String(opt?.dataset.plotCode||'').toLowerCase(); bed.innerHTML='';
-  if(!code||code==='nursery'){bed.disabled=code!=='nursery';bed.required=false;bed.append(new Option(code==='nursery'?'Nursery beds are managed from the nursery board':'Select a plot first',''));return;}
-  const prefix=code.replace(/^plot_/,'').charAt(0).toUpperCase(), limit=limits[code]||20;
-  const occupied=new Set(active.filter(r=>String(r.plot_id)===String(plot.value)).map(r=>norm(r.transplanted_area)).filter(Boolean));
+  if(!code){bed.disabled=true;bed.required=false;bed.append(new Option('Select a plot first',''));return;}
+  const prefix=prefixes[code] || code.replace(/^plot_/,'').charAt(0).toUpperCase(), limit=limits[code]||20;
+  let occupied=new Set();
+  if(code==='nursery'){
+    const nurseryRows=active.filter(r=>String(r.plot_id)==='5' || norm(r.transplanted_area)==='NURSERY' || norm(r.nursery_bed_label).startsWith('N'));
+    nurseryRows.forEach(r=>{const label=norm(r.nursery_bed_label);if(/^N(?:[1-9]|1[0-9]|20)$/.test(label))occupied.add(label);});
+    // Older Nursery records may not have a saved bed label yet. Reserve the
+    // first free visual bed for each such record so the selector matches the map.
+    nurseryRows.forEach(r=>{const label=norm(r.nursery_bed_label);if(/^N(?:[1-9]|1[0-9]|20)$/.test(label))return;for(let n=1;n<=limit;n++){const c='N'+n;if(!occupied.has(c)){occupied.add(c);break;}}});
+  }else{
+    occupied=new Set(active.filter(r=>String(r.plot_id)===String(plot.value)).map(r=>norm(r.transplanted_area)).filter(Boolean));
+  }
   const available=[]; for(let n=1;n<=limit;n++){const c=prefix+n;if(!occupied.has(c))available.push(c);}
   bed.append(new Option(available.length?'Select an available bed':'No unoccupied beds available',''));
   available.forEach(c=>bed.append(new Option(c,c))); bed.disabled=!available.length; bed.required=!!available.length;

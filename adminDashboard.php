@@ -12,11 +12,6 @@ include 'map_special_plots.php';
 /* TOTAL CROPS */
 $totalCrops = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived,0) = 0")->fetch_assoc()['total'];
 
-/* READY TO HARVEST (ACTIVE, NON-TRANSFERRED CROPS) */
-$readyToHarvest = 0;
-$readyRes = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived,0)=0 AND COALESCE(transferred_out,0)=0 AND (LOWER(TRIM(COALESCE(status,'')))='ready' OR LOWER(TRIM(COALESCE(status,''))) LIKE '%ready%harvest%')");
-if ($readyRes) $readyToHarvest = (int)($readyRes->fetch_assoc()['total'] ?? 0);
-
 /* TOTAL LIVESTOCKS */
 $totalLivestock = $conn->query("SELECT COALESCE(SUM(number),0) AS total FROM livestocks WHERE COALESCE(archived,0) = 0")->fetch_assoc()['total'];
 
@@ -336,24 +331,6 @@ if ($lowStockRes) {
 
         </div>
 
-
-
-        <!-- Ready to Harvest -->
-        <div class="hero-card">
-
-            <div class="hero-icon olive">
-                <span class="material-symbols-rounded">agriculture</span>
-            </div>
-
-            <div class="hero-info">
-                <span>Ready to Harvest</span>
-                <h3><?= $readyToHarvest ?></h3>
-            </div>
-
-        </div>
-
-
-
     </div>
 
 </div>
@@ -424,8 +401,8 @@ if ($lowStockRes) {
     <!-- Hydro -->
     <image class="marker"
         href="markers/hydro.png"
-        x="850"
-        y="160"
+        x="1281"
+        y="110"
         width="35"
         height="35"
         data-plot="hydro"/>
@@ -433,8 +410,8 @@ if ($lowStockRes) {
     <!-- Tent House -->
     <image class="marker"
         href="markers/tent_house.png"
-        x="620"
-        y="160"
+        x="1142"
+        y="102"
         width="35"
         height="35"
         data-plot="tent_house"/>
@@ -545,7 +522,7 @@ document.addEventListener("DOMContentLoaded", () => {
     /* Phone starts already zoomed; desktop keeps the normal scale. */
     const isPhone = () => window.innerWidth <= 600;
     let scale = isPhone() ? 1.5 : 1.6;
-    const MIN_SCALE = 1;
+    const MIN_SCALE = isPhone() ? 1.5 : 1.6;
     const MAX_SCALE = 3.25;
 
     let translateX = 0;
@@ -741,7 +718,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const now = Date.now();
         if (now - lastTap < 280) {
             const point = getLocalPoint(e.clientX, e.clientY);
-            zoomMap(scale < 2 ? 2 : 1.5, point.x, point.y);
+            zoomMap(scale < 2 ? 2 : MIN_SCALE, point.x, point.y);
             e.preventDefault();
         }
         lastTap = now;
@@ -820,6 +797,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 const formatNumber = (value) =>
                     Number(value || 0).toLocaleString();
 
+                // Keep the summary tied to the records returned for this marker.
+                // This accepts both canonical and legacy ready-status values.
+                const readyStatuses = new Set([
+                    "ready",
+                    "ready for harvest",
+                    "ready to harvest",
+                    "ready_for_harvest",
+                    "ready-to-harvest"
+                ]);
+                const readyFromRecords = Array.isArray(data.crop_records)
+                    ? data.crop_records.filter((crop) => {
+                        if (Number(crop.archived || 0) !== 0) return false;
+                        if (Number(crop.transferred_out || 0) !== 0) return false;
+                        const status = String(crop.status || "")
+                            .trim()
+                            .toLowerCase();
+                        if (status === "harvested") return false;
+                        if (readyStatuses.has(status)) return true;
+                        if (!crop.expected_harvest) return false;
+                        const expectedHarvest = new Date(`${crop.expected_harvest}T23:59:59`);
+                        return !Number.isNaN(expectedHarvest.getTime()) && expectedHarvest <= new Date();
+                    }).length
+                    : Number(data.ready_to_harvest || 0);
+
                 let html = "";
 
                 if (data.type === "livestock") {
@@ -888,7 +889,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 </div>
                                 <div class="map-popup-detail">
                                     <span>READY TO HARVEST:</span>
-                                    <strong>${formatNumber(data.ready_to_harvest)}</strong>
+                                    <strong>${formatNumber(readyFromRecords)}</strong>
                                 </div>
                             </div>
                             <div class="map-popup-record-list">
