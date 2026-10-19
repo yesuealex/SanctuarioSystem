@@ -103,8 +103,8 @@ $nurseryRecordsRes = $conn->query("\n    SELECT c.crop_id AS record_id, c.crop_i
            COALESCE(ncBed.bed_number, cropBed.bed_number) AS bed_number
     FROM crops c
     LEFT JOIN nursery_crops nc ON nc.crop_id=c.crop_id AND COALESCE(nc.archived,0)=0
-    LEFT JOIN plot_beds ncBed ON ncBed.plot_id=5 AND UPPER(TRIM(ncBed.bed_code))=UPPER(TRIM(nc.nursery_bed_label))
-    LEFT JOIN plot_beds cropBed ON cropBed.plot_id=5 AND cropBed.bed_id=c.bed_id
+    LEFT JOIN plot_beds ncBed ON ncBed.plot_id=c.plot_id AND UPPER(TRIM(ncBed.bed_code))=UPPER(TRIM(nc.nursery_bed_label))
+    LEFT JOIN plot_beds cropBed ON cropBed.plot_id=c.plot_id AND cropBed.bed_id=c.bed_id
     WHERE COALESCE(c.archived,0)=0 AND COALESCE(c.transferred_out,0)=0
       AND (c.plot_id=5 OR UPPER(TRIM(COALESCE(c.transplanted_area,'')))='NURSERY'
            OR LOWER(TRIM(COALESCE(c.plot_name,'')))='nursery')
@@ -114,7 +114,7 @@ if ($plotRecordsRes && $nurseryRecordsRes) {
     $recordTablesAvailable = true;
     while ($row = $plotRecordsRes->fetch_assoc()) {
         $location = $normaliseCropLocation($row['plot_code'] ?? $row['transplanted_area'] ?? '', $row['plot_id'] ?? null);
-        if ($location !== '') $cropsByLocation[$location][] = $row;
+        if ($location !== '' && $location !== 'NURSERY') $cropsByLocation[$location][] = $row;
     }
     while ($row = $nurseryRecordsRes->fetch_assoc()) $cropsByLocation['NURSERY'][] = $row;
 }
@@ -2793,6 +2793,38 @@ foreach ($houseRowsByCode as $code => $h) {
     }
 }
 
+/* Keep plot editing controls beside Done Editing; preserve existing button styles. */
+.plot-title-row .plot-edit-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+.plot-title-row .plot-edit-actions #editPositionBtn,
+.plot-title-row .plot-edit-actions #deleteBedBtn,
+.plot-title-row .plot-edit-actions #editSelectedCropBtn {
+    border: none;
+    padding: 8px 13px;
+    border-radius: 9px;
+    background: #6b8e23;
+    color: white;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .2s ease;
+    min-height: 36px;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+.plot-title-row .plot-edit-actions #deleteBedBtn { background: #b84a4a; }
+.plot-title-row .plot-edit-actions #editPositionBtn:hover,
+.plot-title-row .plot-edit-actions #deleteBedBtn:hover,
+.plot-title-row .plot-edit-actions #editSelectedCropBtn:hover { transform: translateY(-1px); opacity: .9; }
+
 /* Popup content scrolls independently without moving the farm map. */
 .plot-popup, .nursery-popup, .crop-profile-popup, .livestock-profile-popup { overscroll-behavior: contain; }
 .plot-popup .plot-info, .nursery-popup { max-height: min(42vh, 520px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
@@ -3476,37 +3508,7 @@ foreach ($houseRowsByCode as $code => $h) {
                                 <h3 id="plotTitle">
                                     Plot A
                                 </h3>
-                                <button type="button" id="startEditBedsBtn" title="Edit this plot" aria-label="Edit this plot">
-                                    <i class="fa-solid fa-pen"></i>
-                                    Edit Plot
-                                </button>
-                            </div>
-
-                            <div
-                                class="plot-record-summary"
-                                id="plotRecordSummary"
-                            >
-                                <div class="plot-record-item">
-                                    <span>PLANTS PLANTED:</span>
-                                    <strong id="plotSummaryPlants">0</strong>
-                                </div>
-                                <div class="plot-record-item">
-                                    <span>BED AVAILABLE:</span>
-                                    <strong id="plotSummaryBeds">0</strong>
-                                </div>
-                            </div>
-
-                            <!-- DATABASE-DRIVEN MULTI-CROP GANTT: all crop records in this plot -->
-                            <div id="plotCropLifecycleGantt" class="plot-crop-lifecycle-gantt" aria-live="polite"></div>
-
-                              <!-- =================================================
-                                 BED EDIT CONTROLS
-                            ================================================== -->
-
-                            <div
-                                class="bed-edit-toolbar"
-                                id="bedEditToolbar"
-                            >
+                                <div class="plot-edit-actions">
 <button
                                     type="button"
                                     id="editPositionBtn"
@@ -3536,6 +3538,39 @@ foreach ($houseRowsByCode as $code => $h) {
                                 </button>
 
 
+
+                                <button type="button" id="startEditBedsBtn" title="Edit this plot" aria-label="Edit this plot">
+                                    <i class="fa-solid fa-pen"></i>
+                                    Edit Plot
+                                </button>
+                                </div>
+                            </div>
+
+                            <div
+                                class="plot-record-summary"
+                                id="plotRecordSummary"
+                            >
+                                <div class="plot-record-item">
+                                    <span>PLANTS PLANTED:</span>
+                                    <strong id="plotSummaryPlants">0</strong>
+                                </div>
+                                <div class="plot-record-item">
+                                    <span>BED AVAILABLE:</span>
+                                    <strong id="plotSummaryBeds">0</strong>
+                                </div>
+                            </div>
+
+                            <!-- DATABASE-DRIVEN MULTI-CROP GANTT: all crop records in this plot -->
+                            <div id="plotCropLifecycleGantt" class="plot-crop-lifecycle-gantt" aria-live="polite"></div>
+
+                              <!-- =================================================
+                                 BED EDIT CONTROLS
+                            ================================================== -->
+
+                            <div
+                                class="bed-edit-toolbar"
+                                id="bedEditToolbar"
+                            >
                                 <button
                                     type="button"
                                     id="saveBedsBtn"
@@ -6888,7 +6923,13 @@ function renderBedMarkers(plot) {
     const reservedNumbers = new Set(rows.map(row => {
         const code = String(row.bed_code || row.transplanted_area || "").toUpperCase().replace(/\s+/g, "");
         const match = code.match(/^[A-Z]+([0-9]+)$/);
-        return match && code.startsWith(expectedPrefix) ? Number(match[1]) : 0;
+        if (match && code.startsWith(expectedPrefix)) return Number(match[1]);
+        if (plotKey === "NURSERY" && row.bed_id != null) {
+            const linked = (Array.isArray(window.dbBeds) ? window.dbBeds : []).find(item =>
+                String(item.bed_id) === String(row.bed_id) && /^N[0-9]+$/i.test(String(item.bed_code || "")));
+            return linked ? Number(linked.bed_number) : 0;
+        }
+        return 0;
     }).filter(number => number > 0));
     const nextFreeBed = () => beds.find(bed => !usedNumbers.has(Number(bed.number)) && !reservedNumbers.has(Number(bed.number)));
     rows.forEach(row => {
@@ -6896,7 +6937,16 @@ function renderBedMarkers(plot) {
             .toUpperCase().replace(/\s+/g, "");
         const match = code.match(/^[A-Z]+([0-9]+)$/);
         let bed = null;
-        const preferredNumber = match ? Number(match[1]) : 0;
+        // Nursery records retain their selected bed through the database bed_id.
+        // Use it when a legacy Nursery row has no bed_code.
+        const linkedBed = plotKey === "NURSERY" && row.bed_id != null
+            ? (Array.isArray(window.dbBeds) ? window.dbBeds : []).find(item =>
+                String(item.bed_id) === String(row.bed_id) &&
+                /^N[0-9]+$/i.test(String(item.bed_code || "")))
+            : null;
+        const preferredNumber = match && code.startsWith(expectedPrefix)
+            ? Number(match[1])
+            : (linkedBed ? Number(linkedBed.bed_number) : 0);
         if (preferredNumber > 0 && code.startsWith(expectedPrefix) && !usedNumbers.has(preferredNumber)) {
             bed = bedByNumber.get(preferredNumber) || null;
         }
@@ -9432,11 +9482,9 @@ document.getElementById(
 
 
         if (!cropId) {
-
-            alert(
-                "This crop does not have a database ID yet."
-            );
-
+            // A new Nursery sowing does not have an ID until Save creates it.
+            // Keep the selected file in cropImageInput for the normal save request.
+            updateCropImage(e.target.result);
             return;
         }
 
