@@ -1,10 +1,5 @@
-
 {
     "require": {
-        "php": "^8.2",
-        "phpmailer/phpmailer": "^7.0"
-    },
-    "config": {
-        "platform-check": false
+        "phpmailer/phpmailer": "*"
     }
 }
