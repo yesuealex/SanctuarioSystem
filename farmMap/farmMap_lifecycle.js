@@ -139,12 +139,12 @@
         return "Bed not assigned";
     }
 
-    function stage(row, today) {
+    function stage(row, today, isNurseryPlot) {
         const status = String(row.status || "").toLowerCase();
 
-        const sow = parseDate(row.date_sowing);
+        const sow = parseDate(row.date_sowing || (isNurseryPlot ? row.date_transplanted : ""));
         const target = parseDate(row.target_transplant_date);
-        const actual = parseDate(row.date_transplanted);
+        const actual = isNurseryPlot ? null : parseDate(row.date_transplanted);
         const harvest = parseDate(row.expected_harvest);
 
         if (status === "harvested") {
@@ -178,8 +178,8 @@
         return ["No lifecycle data", "no-data"];
     }
 
-    function rowData(row, today, axisStart, axisEnd) {
-        const sow = parseDate(row.date_sowing);
+    function rowData(row, today, axisStart, axisEnd, isNurseryPlot) {
+        const sow = parseDate(row.date_sowing || (isNurseryPlot ? row.date_transplanted : ""));
         const target = parseDate(row.target_transplant_date);
         const actual = parseDate(row.date_transplanted);
         const harvest = parseDate(row.expected_harvest);
@@ -198,14 +198,9 @@
             )
             : null;
 
-        /*
-         * Build one continuous lifecycle. The previous implementation
-         * ended the sowing bar at the target date but started the growing
-         * bar at the actual transplant date. If those dates differed, or
-         * the target date was empty, the interval was displayed as a gap.
-         */
+        // The bar represents growing status only; sowing, transplant, and
+        // harvest are shown as separate milestone dots below.
         const lifecycleStart = sow || target || actual;
-        const phaseStart = actual || target || sow;
         const lifecycleEnd = harvest || (
             lifecycleStart && today > lifecycleStart
                 ? today
@@ -214,31 +209,11 @@
         const bars = [];
 
         if (lifecycleStart && lifecycleEnd && lifecycleEnd >= lifecycleStart) {
-            const transition = phaseStart && phaseStart > lifecycleStart
-                ? new Date(Math.min(phaseStart.getTime(), lifecycleEnd.getTime()))
-                : lifecycleStart;
-
-            if (transition > lifecycleStart) {
-                bars.push([
-                    "sowing",
-                    pos(lifecycleStart),
-                    Math.max(1, pos(transition) - pos(lifecycleStart))
-                ]);
-            }
-
-            if (lifecycleEnd > transition) {
-                bars.push([
-                    "growing",
-                    pos(transition),
-                    Math.max(1, pos(lifecycleEnd) - pos(transition))
-                ]);
-            } else if (!bars.length) {
-                bars.push([
-                    "growing",
-                    pos(lifecycleStart),
-                    Math.max(1, pos(lifecycleEnd) - pos(lifecycleStart))
-                ]);
-            }
+            bars.push([
+                "growing",
+                pos(lifecycleStart),
+                Math.max(1, pos(lifecycleEnd) - pos(lifecycleStart))
+            ]);
         }
 
         return {
@@ -366,16 +341,18 @@
             today >= axisStart && today <= axisEnd
                 ? `<span class="plot-gantt-today" style="left:${todayPos}%"></span>`
                 : "";
+        const isNurseryPlot = String(plot ?? "").trim().toUpperCase() === "NURSERY";
 
         const body = rows.map((row, index) => {
             const data = rowData(
                 row,
                 today,
                 axisStart,
-                axisEnd
+                axisEnd,
+                isNurseryPlot
             );
 
-            const currentStage = stage(row, today);
+            const currentStage = stage(row, today, isNurseryPlot);
 
             const name =
                 row.crop_name ||
@@ -394,10 +371,10 @@
             `).join("");
 
             const marks = [
-                ["sowing", data.sow, "Sowing"],
-                ["transplant", data.target, "Target transplant"],
-                ["actual", data.actual, "Actual transplant"],
-                ["harvest", data.harvest, "Expected harvest"]
+                ["sowing", data.sow, "Date of sowing"],
+                ["transplant", isNurseryPlot ? data.target : data.actual,
+                    isNurseryPlot ? "Target transplant date" : "Date transplanted"],
+                ["harvest", data.harvest, "Date of harvest"]
             ].map(item => {
                 if (!item[1]) return "";
 
@@ -479,7 +456,7 @@
 
                 <span>
                     <i class="transplant"></i>
-                    Date of Transplant
+                    ${isNurseryPlot ? "Target Transplant Date" : "Date Transplanted"}
                 </span>
 
                 <span>

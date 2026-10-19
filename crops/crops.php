@@ -205,7 +205,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
 
 <link
     rel="stylesheet"
-    href="crops.css"
+    href="crops.css?v=20261016-table-grid-2"
 >
 
 
@@ -408,7 +408,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                     <table id="cropTable" class="plot-harvest-table">
                         <thead>
                             <tr>
-                                <th colspan="4" class="harvest-group-heading">TRANSPLANT</th>
+                                <th colspan="4" class="transplant-group-heading">TRANSPLANT</th>
                                 <th colspan="8" class="harvest-group-heading">HARVEST</th>
                                 <th rowspan="3">DATE OF<br>PULL / HARVEST</th>
                                 <th rowspan="3">ACTION</th>
@@ -511,20 +511,16 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                 GERMINATION<br>RATE
                             </th>
 
-                            <?php if ($isNurseryView): ?>
-                                <th>TARGET<br>AREA</th>
-                            <?php else: ?>
-                                <th>TARGET<br>TRANSPLANT DATE</th>
-                                <th>TARGET<br>AREA</th>
-                            <?php endif; ?>
+                            <th>TARGET<br>TRANSPLANT DATE</th>
+                            <th>TARGET<br>AREA</th>
 
                             <th>
                                 SEEDLINGS<br>RECEIVED
                             </th>
 
-                            <th>
-                                DATE<br>TRANSPLANTED
-                            </th>
+                            <?php if (!$isNurseryView): ?>
+                                <th>DATE<br>TRANSPLANTED</th>
+                            <?php endif; ?>
 
                             <th>
                                 EXPECTED<br>HARVEST
@@ -571,6 +567,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                             <tr
                                 class="crop-row"
                                 data-sowing="<?= htmlspecialchars($row['date_sowing'] ?? '', ENT_QUOTES) ?>"
+                                data-target-transplant="<?= htmlspecialchars($row['target_transplant_date'] ?? '', ENT_QUOTES) ?>"
                                 data-transplanted="<?= htmlspecialchars($row['date_transplanted'] ?? '', ENT_QUOTES) ?>"
                                 data-harvest="<?= htmlspecialchars($row['expected_harvest'] ?? '', ENT_QUOTES) ?>"
                                 data-recipient="<?= htmlspecialchars($row['recipient'] ?? '', ENT_QUOTES) ?>"
@@ -638,17 +635,8 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
 
                                 <td>
 
-                                    <?= !empty(
-                                        $row['date_sowing']
-                                    )
-                                        ? date(
-                                            'm/d/y',
-                                            strtotime(
-                                                $row['date_sowing']
-                                            )
-                                        )
-                                        : ''
-                                    ?>
+                                    <?php $dateOfSowing = $row['date_sowing'] ?? ''; ?>
+                                    <?= !empty($dateOfSowing) ? date('m/d/y', strtotime($dateOfSowing)) : '' ?>
 
                                 </td>
 
@@ -664,13 +652,8 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                 </td>
 
 
-                                <!-- Nursery uses this column for Target Area; other views retain Target Transplant Date and Target Area. -->
-                                <?php if ($isNurseryView): ?>
-                                    <td><?= htmlspecialchars($row['target_area'] ?? '') ?></td>
-                                <?php else: ?>
-                                    <td><?= !empty($row['target_transplant_date']) ? date('m/d/y', strtotime($row['target_transplant_date'])) : '' ?></td>
-                                    <td><?= htmlspecialchars($row['target_area'] ?? '') ?></td>
-                                <?php endif; ?>
+                                <td><?= !empty($row['target_transplant_date']) ? date('m/d/y', strtotime($row['target_transplant_date'])) : '' ?></td>
+                                <td><?= htmlspecialchars($row['target_area'] ?? '') ?></td>
 
 
                                 <!-- SEEDLINGS RECEIVED -->
@@ -684,23 +667,10 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                 </td>
 
 
-                                <!-- DATE TRANSPLANTED -->
-
-                                <td>
-
-                                    <?= !empty(
-                                        $row['date_transplanted']
-                                    )
-                                        ? date(
-                                            'm/d/y',
-                                            strtotime(
-                                                $row['date_transplanted']
-                                            )
-                                        )
-                                        : ''
-                                    ?>
-
-                                </td>
+                                <?php if (!$isNurseryView): ?>
+                                    <!-- Actual transplant date is populated after transfer to a plot. -->
+                                    <td><?= !empty($row['date_transplanted']) ? date('m/d/y', strtotime($row['date_transplanted'])) : '' ?></td>
+                                <?php endif; ?>
 
 
                                 <!-- EXPECTED HARVEST -->
@@ -740,6 +710,10 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                     <?php
                                         $displayStatus = trim((string)($row['status'] ?? ''));
                                         if ($isNurseryView) {
+                                            $targetDate = $row['target_transplant_date'] ?? '';
+                                            if ($targetDate !== '' && $targetDate <= date('Y-m-d')) {
+                                                $displayStatus = 'Ready for Transplant';
+                                            }
                                             $statusKey = strtolower(str_replace(['-', '_'], ' ', $displayStatus));
                                             $statusMap = [
                                                 'planted' => 'Growing',
@@ -1209,6 +1183,7 @@ function filterCropRecords() {
 
         const rowDates = [
             row.dataset.sowing || '',
+            row.dataset.targetTransplant || '',
             row.dataset.transplanted || '',
             row.dataset.harvest || ''
         ];

@@ -1052,3 +1052,88 @@ tbody tr:last-child td {
         width: 100%;
     }
 }
+
+
+/* =========================================================
+   UNIFIED RECORD TABLE GRID
+   Clear partitions, readable typography, wrapped cells and
+   horizontal scrolling when a table is wider than the viewport.
+========================================================= */
+.crop-table-wrapper {
+    max-width: 100%;
+    overflow: auto;
+    border: 1px solid #d6e0d1;
+    scrollbar-color: #8aa27d #eef2eb;
+}
+
+.crop-table-wrapper table {
+    width: 100%;
+    min-width: 1450px;
+    margin: 0;
+    border-collapse: collapse;
+    table-layout: auto;
+    font-family: 'Poppins', sans-serif;
+}
+
+.crop-table-wrapper table.plot-harvest-table {
+    min-width: 1600px;
+}
+
+.crop-table-wrapper th,
+.crop-table-wrapper td {
+    padding: 10px 12px;
+    border: 1px solid #d6e0d1;
+    color: #344234;
+    font-family: 'Poppins', sans-serif;
+    line-height: 1.45;
+    text-align: left;
+    vertical-align: middle;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+.crop-table-wrapper th {
+    background: #e3ebdc;
+    color: #365a31;
+    font-size: 13px;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.crop-table-wrapper .plot-harvest-table th.transplant-group-heading {
+    background: #d5e2cc;
+    color: #365a31;
+}
+.crop-table-wrapper .plot-harvest-table th.harvest-group-heading {
+    background: #d5e2cc;
+    color: #365a31;
+}
+.crop-table-wrapper .plot-harvest-table th.sales-group-heading {
+    background: #d5e2cc;
+    color: #365a31;
+}
+
+.crop-table-wrapper td {
+    background: #fff;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.crop-table-wrapper tbody td,
+.crop-table-wrapper tbody tr:hover td { background: #fff !important; }
+.crop-table-wrapper .action-buttons,
+.crop-table-wrapper .action-buttons button { white-space: nowrap; }
+.crop-table-wrapper .no-records {
+    text-align: center !important;
+    background: #fff !important;
+}
+.crop-table-wrapper::-webkit-scrollbar { width: 12px; height: 12px; }
+.crop-table-wrapper::-webkit-scrollbar-track { background: #eef2eb; border-radius: 8px; }
+.crop-table-wrapper::-webkit-scrollbar-thumb {
+    background: #8aa27d;
+    border: 2px solid #eef2eb;
+    border-radius: 8px;
+}

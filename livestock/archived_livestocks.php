@@ -221,7 +221,7 @@ $selectedSection = isset($sectionOptions[$selectedSection]) ? $selectedSection :
 <title>Archived Livestocks</title>
 <link rel="stylesheet" href="../style.css">
 <link rel="stylesheet" href="../sidebar.css">
-<link rel="stylesheet" href="livestocks.css">
+<link rel="stylesheet" href="livestocks.css?v=8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -242,11 +242,13 @@ body{font-family:'Poppins',sans-serif}.layout{display:flex}.dashboard{margin-lef
 .archive-toolbar{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:15px}
 .search-box{width:340px;max-width:100%;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #ddd;border-radius:8px;padding:9px 12px}
 .search-box input{width:100%;border:0;outline:none;font: .9rem Poppins,sans-serif}.archive-count{color:#777;font-size:.85rem}
-.table-container{width:100%;overflow:auto;background:#fff;border-radius:12px;max-height:65vh}
-table{width:100%;min-width:1050px;border-collapse:collapse;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.05)}
-th,td{padding:12px 13px;border-bottom:1px solid #eee;text-align:left;font-size:.82rem;white-space:nowrap}
-th{background:#f1f5f9;font-weight:600;color:#385f30;position:sticky;top:0;z-index:2}
-tbody tr:hover{background:#f9fafb}.action-buttons{display:flex;justify-content:center;gap:8px}.action-icon{width:35px;height:35px;border:0;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.table-container{width:100%;max-width:100%;overflow:auto;background:#fff;border:1px solid #d6e0d1;border-radius:12px;max-height:65vh;-webkit-overflow-scrolling:touch;scrollbar-color:#8aa27d #eef2eb}
+table{width:100%;min-width:1100px;border-collapse:collapse;table-layout:auto;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.05);font-family:'Poppins',sans-serif}
+th,td{padding:10px 12px;border:1px solid #d6e0d1;text-align:left;line-height:1.45;white-space:normal;overflow-wrap:anywhere;word-break:normal;vertical-align:middle}
+th{background:#e3ebdc;font-size:13px;font-weight:600;color:#365a31;position:sticky;top:0;z-index:2}
+td{background:#fff;color:#344234;font-size:14px;font-weight:400}
+#archiveTable tbody > tr > td,#archiveTable tbody > tr:hover > td{background:#fff!important;background-color:#fff!important;background-image:none!important}
+.action-buttons{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;min-width:112px}.action-buttons form{margin:0;flex:0 0 auto}.action-icon{width:35px;height:35px;border:0;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 .restore-icon{background:#e8f5e9;color:#2f6b2f}.delete-icon{background:#fdecec;color:#d32f2f}.no-records{text-align:center;color:#888;padding:35px}
 .archive-message{margin-bottom:15px;padding:11px 14px;border-radius:8px;background:#e8f5e9;color:#2f6b2f;font-size:.88rem}.archive-message.error{background:#fdecec;color:#b91c1c}
 .monitoring-note{padding:14px 16px;background:#f7faf5;border-radius:9px;color:#60735b;font-size:.84rem;margin-bottom:12px}

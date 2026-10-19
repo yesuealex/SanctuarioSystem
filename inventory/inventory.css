@@ -2230,3 +2230,116 @@ button {
 @media (max-width: 700px) {
     .archived-inventory-table { min-width: 1120px; }
 }
+
+
+/* ================================================================
+   UNIFIED INVENTORY TABLE GRID
+   Clear partitions, consistent typography, wrapped cell content,
+   and horizontal scrolling instead of overlapping columns.
+================================================================ */
+.inventory-table-wrapper {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-color: #8aa27d #eef2eb;
+}
+
+.inventory-table-wrapper::-webkit-scrollbar,
+.archived-table-wrapper::-webkit-scrollbar,
+.archived-box::-webkit-scrollbar { height: 12px; }
+.inventory-table-wrapper::-webkit-scrollbar-track,
+.archived-table-wrapper::-webkit-scrollbar-track,
+.archived-box::-webkit-scrollbar-track {
+    background: #eef2eb;
+    border-radius: 8px;
+}
+.inventory-table-wrapper::-webkit-scrollbar-thumb,
+.archived-table-wrapper::-webkit-scrollbar-thumb,
+.archived-box::-webkit-scrollbar-thumb {
+    background: #8aa27d;
+    border: 2px solid #eef2eb;
+    border-radius: 8px;
+}
+
+.inventory-table {
+    width: 100%;
+    min-width: 1120px;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-family: 'Poppins', sans-serif;
+}
+
+.inventory-table th,
+.inventory-table td {
+    padding: 10px 12px;
+    border: 1px solid #d6e0d1;
+    color: #344234;
+    font-family: 'Poppins', sans-serif;
+    line-height: 1.45;
+    text-align: center;
+    vertical-align: middle;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    text-overflow: clip;
+}
+
+.inventory-table th {
+    height: auto;
+    background: #e3ebdc;
+    color: #365a31;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.inventory-table td {
+    height: auto;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.inventory-table tbody td,
+.inventory-table tbody tr:hover td { background: #fff !important; }
+.inventory-table td.item-name {
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.inventory-table.has-actions th:last-child,
+.inventory-table.has-actions td:last-child,
+.inventory-table .table-actions,
+.inventory-table .archived-actions {
+    min-width: 112px;
+    white-space: nowrap;
+}
+.inventory-table .table-actions,
+.inventory-table .archived-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.inventory-table th:last-child,
+.inventory-table td:last-child { border-right: 1px solid #d6e0d1; }
+.archived-box {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-color: #8aa27d #eef2eb;
+}
+.archived-box .inventory-table { min-width: 1120px; }
+
+/* Keep the same table palette on every Inventory page variation. */
+.inventory-page .inventory-table th,
+.inventory-layout-single .inventory-table th,
+.archived-page .inventory-table th,
+.archived-box .inventory-table th {
+    background: #e3ebdc;
+    color: #365a31;
+}
+.inventory-layout-single .inventory-table th,
+.inventory-layout-single .inventory-table td { border-color: #d6e0d1; }

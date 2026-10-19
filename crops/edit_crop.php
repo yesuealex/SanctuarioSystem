@@ -339,6 +339,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $bed_id = intval($_POST['bed_id'] ?? 0);
     $nurseryBedLabel = trim((string)($_POST['nursery_bed_label'] ?? ''));
     $isNurseryPost = ($plot_id === 5);
+    if ($isNurseryPost) {
+        // The actual transplant date belongs to the destination-plot record.
+        $date_transplanted = null;
+    }
     $selectedBed = null;
     if ($bed_id > 0) {
         $bedCheck = $conn->prepare("SELECT bed_id, bed_code FROM plot_beds WHERE bed_id=? AND plot_id=? LIMIT 1");
@@ -868,6 +872,11 @@ body {
                 </div>
 
                 <div class="form-group nursery-toggle-field">
+                    <label>Target Transplant Date</label>
+                    <input type="date" name="target_transplant_date" value="<?= htmlspecialchars($data['target_transplant_date'] ?? '') ?>">
+                </div>
+
+                <div class="form-group nursery-toggle-field">
                     <label>Germination Rate (%)</label>
                     <input type="number" name="germination_rate" min="0" max="100" step="0.01" value="<?= htmlspecialchars($data['germination_rate'] ?? 0) ?>">
                 </div>
@@ -880,11 +889,6 @@ body {
                 <div class="form-group nursery-toggle-field">
                     <label>Seedlings Received</label>
                     <input type="number" name="seedlings_received" min="0" value="<?= htmlspecialchars($data['seedlings_received'] ?? 0) ?>">
-                </div>
-
-                <div class="form-group">
-                    <label>Date Transplanted</label>
-                    <input type="date" name="date_transplanted" value="<?= htmlspecialchars($data['date_transplanted'] ?? '') ?>">
                 </div>
 
                 <div class="form-group nursery-toggle-field">

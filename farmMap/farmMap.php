@@ -257,7 +257,7 @@ foreach ($houseRowsByCode as $code => $h) {
     <!-- CROP LIFECYCLE GANTT (ADD-ON) -->
     <link
         rel="stylesheet"
-        href="<?= $basePath ?>farmMap/farmMap_lifecycle.css?v=20261015-continuous-lifecycle"
+        href="<?= $basePath ?>farmMap/farmMap_lifecycle.css?v=20261016-lifecycle-milestones"
     >
 
 
@@ -4579,11 +4579,22 @@ foreach ($houseRowsByCode as $code => $h) {
 
                                 <div class="crop-profile-field">
 
-                                    <span>
+                                    <span id="profileCropDateLabel">
                                         Planted Date
                                     </span>
 
                                     <strong id="profileCropPlantedDate">
+                                        --
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="crop-profile-field">
+
+                                    <span id="profileCropLifecycleDateLabel">Target Transplant Date</span>
+
+                                    <strong id="profileCropTargetTransplantDate">
                                         --
                                     </strong>
 
@@ -4667,7 +4678,7 @@ foreach ($houseRowsByCode as $code => $h) {
                                     </div>
 
 
-                                    <div class="crop-time-stat">
+                                    <div class="crop-time-stat" id="profileCropHarvestStat">
 
                                         <span>
                                             Expected Harvest
@@ -5165,13 +5176,27 @@ foreach ($houseRowsByCode as $code => $h) {
 
                                     <div class="crop-input-group">
 
-                                        <label>
+                                        <label id="editCropDateLabel">
                                             Planted Date
                                         </label>
 
                                         <input
                                             type="date"
                                             id="editCropPlantedDate"
+                                        >
+
+                                    </div>
+
+
+                                    <div class="crop-input-group" id="editCropTargetTransplantGroup">
+
+                                        <label>
+                                            Target Transplant Date
+                                        </label>
+
+                                        <input
+                                            type="date"
+                                            id="editCropTargetTransplantDate"
                                         >
 
                                     </div>
@@ -7667,6 +7692,10 @@ function statusLabelToDb(label) {
 }
 
 function dbCropToProfile(row) {
+    const isNurseryRow =
+        String(row.transplanted_area || "").trim().toUpperCase() === "NURSERY" ||
+        String(row.plot_name || "").trim().toUpperCase() === "NURSERY" ||
+        String(row.plot_code || "").trim().toLowerCase() === "nursery";
 
     return {
     cropId: row.crop_id,
@@ -7713,8 +7742,8 @@ function dbCropToProfile(row) {
         (currentPlot || ""),
 
     plantedDate:
-        row.date_transplanted ||
-        row.date_sowing ||
+        (isNurseryRow ? row.date_sowing : row.date_transplanted) ||
+        (isNurseryRow ? "" : row.date_sowing) ||
         getTodayDate(),
 
     harvest:
@@ -8023,6 +8052,24 @@ function openCropProfile(bedNumber, cropId = null) {
 
 function renderCropProfile(crop) {
 
+    const isNurseryProfile = String(currentPlot || "").toUpperCase() === "NURSERY";
+
+    const profileDateLabel = document.getElementById("profileCropDateLabel");
+    if (profileDateLabel) {
+        profileDateLabel.textContent =
+            isNurseryProfile
+                ? "Date of Sowing"
+                : "Date Transplanted";
+    }
+
+    const lifecycleDateLabel = document.getElementById("profileCropLifecycleDateLabel");
+    if (lifecycleDateLabel) {
+        lifecycleDateLabel.textContent =
+            isNurseryProfile ? "Target Transplant Date" : "Expected Harvest";
+    }
+    const harvestStat = document.getElementById("profileCropHarvestStat");
+    if (harvestStat) harvestStat.style.display = isNurseryProfile ? "" : "none";
+
     const days =
         calculateDaysPlanted(
             crop.plantedDate
@@ -8072,6 +8119,9 @@ function renderCropProfile(crop) {
         formatDate(
             crop.plantedDate
         );
+
+    document.getElementById("profileCropTargetTransplantDate").textContent =
+        formatDate(isNurseryProfile ? crop.targetTransplantDate : crop.harvest);
 
 
     document.getElementById(
@@ -8422,6 +8472,26 @@ function startCropProfileEditing() {
     ).value =
         crop.plantedDate ||
         getTodayDate();
+
+    const editDateLabel = document.getElementById("editCropDateLabel");
+    if (editDateLabel) {
+        editDateLabel.textContent =
+            String(currentPlot || "").toUpperCase() === "NURSERY"
+                ? "Date of Sowing"
+                : "Date Transplanted";
+    }
+
+    document.getElementById("editCropTargetTransplantDate").value =
+        crop.targetTransplantDate || "";
+
+    const isNurseryEditor = String(currentPlot || "").toUpperCase() === "NURSERY";
+    document.getElementById("editCropTargetTransplantGroup").style.display =
+        isNurseryEditor ? "" : "none";
+
+    const requireNurseryDates =
+        cropEditingEmptySlot && isNurseryEditor;
+    document.getElementById("editCropTargetTransplantDate").required = requireNurseryDates;
+    document.getElementById("editCropHarvest").required = requireNurseryDates;
 
 
 
@@ -8785,6 +8855,17 @@ function saveCropProfile() {
             currentCropBed,
             currentCropId
         );
+
+    const isNurseryCrop = String(currentPlot).toUpperCase() === "NURSERY";
+    if (cropEditingEmptySlot && isNurseryCrop) {
+        const name = document.getElementById("editCropName").value.trim();
+        const targetDate = document.getElementById("editCropTargetTransplantDate").value;
+        const harvestDate = document.getElementById("editCropHarvest").value;
+        if (!name || !targetDate || !harvestDate) {
+            alert("Enter the crop name, target transplant date, and expected harvest date before saving.");
+            return;
+        }
+    }
 /*
  * SAVE CROP MARKER ICON
  */
@@ -8887,6 +8968,12 @@ if (cropMarker) {
         existing.cropId || ""
     );
 
+    // An empty Nursery bed has no crop_id yet; explicitly request creation so
+    // the server can validate its real plot/bed and insert the linked records.
+    if (cropEditingEmptySlot && String(currentPlot).toUpperCase() === "NURSERY") {
+        formData.append("create_crop", "1");
+    }
+
 
     formData.append(
         "plot_letter",
@@ -8934,7 +9021,9 @@ if (cropMarker) {
 
     formData.append(
         "date_sowing",
-        existing.dateSowing || ""
+        isNurseryCrop
+            ? (finalPlantedDate || getTodayDate())
+            : (existing.dateSowing || "")
     );
 
 
@@ -8950,7 +9039,9 @@ if (cropMarker) {
 
     formData.append(
         "target_transplant_date",
-        existing.targetTransplantDate || ""
+        isNurseryCrop
+            ? (document.getElementById("editCropTargetTransplantDate").value || "")
+            : (existing.targetTransplantDate || "")
     );
 
 
@@ -8968,16 +9059,17 @@ if (cropMarker) {
 
     formData.append(
         "transplanted_area",
-        document.getElementById(
-            "editCropArea"
-        ).value.trim() ||
-        `${currentPlot}${currentCropBed}`
+        cropEditingEmptySlot && String(currentPlot).toUpperCase() === "NURSERY"
+            ? `N${Number(currentCropBed)}`
+            : (document.getElementById(
+                "editCropArea"
+            ).value.trim() || `${currentPlot}${currentCropBed}`)
     );
 
 
     formData.append(
         "date_transplanted",
-        finalPlantedDate || ""
+        isNurseryCrop ? "" : (finalPlantedDate || "")
     );
 
 
@@ -13276,7 +13368,7 @@ updateBedEditUI();
 </script>
 
 <!-- DATABASE-DRIVEN CROP LIFECYCLE GANTT (ADD-ON) -->
-<script src="<?= $basePath ?>farmMap/farmMap_lifecycle.js?v=20261013-bed-code-match"></script>
+<script src="<?= $basePath ?>farmMap/farmMap_lifecycle.js?v=20261016-nursery-target-transplant"></script>
 
 <div id="farmMapToast" class="farm-map-toast" role="status" aria-live="polite"></div>
 </body>

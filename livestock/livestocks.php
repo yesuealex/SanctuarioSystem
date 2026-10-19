@@ -893,7 +893,7 @@ unset($_SESSION['livestock_profile_error']);
 
 <link
     rel="stylesheet"
-    href="livestocks.css?v=4"
+    href="livestocks.css?v=8"
 >
 
 
@@ -945,11 +945,18 @@ unset($_SESSION['livestock_profile_error']);
 .monitoring-panel-title{padding:16px 18px;border-bottom:1px solid #edf1eb;display:flex;align-items:center;justify-content:space-between}
 .monitoring-panel-title h3{margin:0;color:#2f6b2f;font-size:1.02rem}
 .monitoring-panel-title span{display:block;margin-top:3px;color:#888;font-size:.78rem}
-.monitoring-scroll{width:100%;overflow-x:auto}
-.monitoring-table{width:100%;border-collapse:collapse;min-width:700px;font-family:Poppins,sans-serif}
-.monitoring-table.wide{min-width:1450px}
-.monitoring-table th{background:#f4f7f2;color:#4b6246;font-size:.78rem;font-weight:700;padding:12px 13px;text-align:left;white-space:nowrap}
-.monitoring-table td{padding:12px 13px;border-top:1px solid #eef1ed;color:#555;font-size:.76rem;vertical-align:top}
+.monitoring-scroll{width:100%;max-width:100%;overflow:auto;border:1px solid #d6e0d1;border-radius:8px;-webkit-overflow-scrolling:touch;scrollbar-color:#8aa27d #eef2eb}
+.monitoring-table{width:100%;border-collapse:collapse;min-width:900px;table-layout:auto;font-family:Poppins,sans-serif}
+.monitoring-table.wide{min-width:1650px}
+.monitoring-table th,.monitoring-table td{padding:10px 12px;border:1px solid #d6e0d1;line-height:1.45;vertical-align:middle;white-space:normal;overflow-wrap:anywhere;word-break:normal}
+.monitoring-table th{background:#e3ebdc;color:#365a31;font-size:13px;font-weight:600;text-align:left;position:sticky;top:0;z-index:2}
+.monitoring-table td{background:#fff;color:#344234;font-size:14px;font-weight:400}
+.monitoring-table tbody > tr > td,
+.monitoring-table tbody > tr:hover > td {
+    background: #fff !important;
+    background-color: #fff !important;
+    background-image: none !important;
+}
 .monitoring-number{width:54px;text-align:center!important;font-weight:700;color:#496442!important}
 .monitoring-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;background:#fbfcfa;border-bottom:1px solid #edf1eb}
 .monitoring-search-wrap{position:relative;flex:1;min-width:220px}
@@ -958,7 +965,7 @@ unset($_SESSION['livestock_profile_error']);
 .monitoring-month{border:1px solid #d8e2d3;border-radius:9px;padding:10px 34px 10px 12px;font-family:Poppins,sans-serif;font-size:.78rem;background:#fff;color:#4b6246;min-width:165px;outline:none}
 .monitoring-count{font-size:.76rem;font-weight:600;color:#64705f;white-space:nowrap}
 .monitor-actions{display:flex;gap:6px;align-items:center}
-.monitor-action-cell{white-space:nowrap}.monitor-action-cell .monitor-action{margin-right:4px}.monitor-action-cell .monitor-action:last-child{margin-right:0}
+.monitor-action-cell{white-space:nowrap;min-width:96px}.monitor-action-cell .monitor-action{margin-right:4px}.monitor-action-cell .monitor-action:last-child{margin-right:0}
 .monitor-action{width:34px;height:34px;border:0;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-family:Poppins,sans-serif;transition:.15s}
 .monitor-action .material-symbols-rounded{font-size:19px}
 .monitor-action.edit{background:#eef3ff;color:#4669a8}.monitor-action.delete{background:#fff0f0;color:#b44848}

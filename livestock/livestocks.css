@@ -875,3 +875,56 @@
 .livestock-table-container { scrollbar-width: auto; }
 .row-number-col, .row-number { text-align: center !important; width: 52px; min-width: 52px; font-weight: 600; }
 .row-number { color: #6b7d66 !important; background: #fafcf8; }
+
+
+/* =========================================================
+   UNIFIED LIVESTOCK TABLE GRID
+========================================================= */
+.livestock-table-container {
+    max-width: 100%;
+    overflow: auto;
+    border: 1px solid #d6e0d1;
+    scrollbar-color: #8aa27d #eef2eb;
+}
+
+.livestock-table-container table {
+    width: 100%;
+    min-width: 1000px;
+    border-collapse: collapse;
+    table-layout: auto;
+    font-family: 'Poppins', sans-serif;
+}
+
+.livestock-table-container th,
+.livestock-table-container td {
+    padding: 10px 12px;
+    border: 1px solid #d6e0d1;
+    color: #344234;
+    font-family: 'Poppins', sans-serif;
+    line-height: 1.45;
+    vertical-align: middle;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+.livestock-table-container th {
+    background: #e3ebdc;
+    color: #365a31;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.livestock-table-container td {
+    background: #fff;
+    font-size: 14px;
+}
+
+.livestock-table-container tbody > tr > td,
+.livestock-table-container tbody > tr:hover > td {
+    background: #fff !important;
+    background-color: #fff !important;
+    background-image: none !important;
+}
+.livestock-table-container .action-buttons,
+.livestock-table-container .action-buttons button { white-space: nowrap; }

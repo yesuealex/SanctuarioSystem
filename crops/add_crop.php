@@ -101,6 +101,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $_POST['transplanted_area'] ?? ''
     );
 
+    $date_sowing = !empty($_POST['date_sowing']) ? $_POST['date_sowing'] : null;
+    $target_transplant_date = !empty($_POST['target_transplant_date']) ? $_POST['target_transplant_date'] : null;
 
     $date_transplanted =
         !empty($_POST['date_transplanted'])
@@ -149,6 +151,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
     $isNursery = $plot_id === 0 || $plot_id === 5 || strtoupper(trim($transplanted_area)) === 'NURSERY' || preg_match('/^N\s*\d+$/i', $transplanted_area) === 1;
+    if ($isNursery) {
+        $date_sowing = $date_sowing ?: date('Y-m-d');
+        // The actual date is set by the transfer flow after moving to a plot.
+        $date_transplanted = null;
+        if (!$target_transplant_date || !$expected_harvest) {
+            die('Target transplant date and expected harvest are required for Nursery crops.');
+        }
+    }
+    $isValidDate = static function ($value) {
+        if ($value === null || $value === '') return true;
+        $date = DateTime::createFromFormat('!Y-m-d', (string)$value);
+        return $date !== false && $date->format('Y-m-d') === $value;
+    };
+    if (!$isValidDate($date_sowing) || !$isValidDate($target_transplant_date)
+        || !$isValidDate($date_transplanted) || !$isValidDate($expected_harvest)) {
+        die('Dates must be valid calendar dates.');
+    }
     if ($plot_id <= 0 && !$isNursery) {
         die("Plot location is required.");
     }
@@ -253,76 +272,31 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     |--------------------------------------------------------------------------
     */
 
-    $stmt = $conn->prepare("
-        INSERT INTO crops
-        (
-            crop_name,
-            recipient,
-            variety,
-            pcs,
-            germination_rate,
-            transplanted_area,
-            date_transplanted,
-            expected_harvest,
-            plot_id,
-            bed_id
-        )
-        VALUES
-        (
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?
-        )
-    ");
-
+    $stmt = $conn->prepare("INSERT INTO crops
+        (crop_name, recipient, variety, pcs, germination_rate, date_sowing,
+         target_transplant_date, transplanted_area, date_transplanted,
+         expected_harvest, plot_id, bed_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
     if (!$stmt) {
-
-        die(
-            "Prepare failed: " .
-            $conn->error
-        );
-
+        die("Prepare failed: " . $conn->error);
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | BIND PARAMETERS
-    |--------------------------------------------------------------------------
-    |
-    | s = string
-    | i = integer
-    | d = decimal/double
-    |
-    | 9 values:
-    |
-    | 1. crop_name              s
-    | 2. recipient              s
-    | 3. variety                s
-    | 4. pcs                    i
-    | 5. germination_rate       d
-    | 6. transplanted_area      s
-    | 7. date_transplanted      s
-    | 8. expected_harvest       s
-    | 9. plot_id                i
-    |
-    |--------------------------------------------------------------------------
-    */
-
-    if ($isNursery) {
-        $stmt->prepare("INSERT INTO crops (crop_name, recipient, variety, pcs, germination_rate, transplanted_area, date_transplanted, expected_harvest, plot_id, bed_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssidsssii", $crop_name, $recipient, $variety, $pcs, $germination_rate, $transplanted_area, $date_transplanted, $expected_harvest, $plot_id, $bed_id);
-    } else {
-        $stmt->bind_param("sssidsssii", $crop_name, $recipient, $variety, $pcs, $germination_rate, $transplanted_area, $date_transplanted, $expected_harvest, $plot_id, $bed_id);
-    }
+    $stmt->bind_param(
+        "sssidsssssii",
+        $crop_name,
+        $recipient,
+        $variety,
+        $pcs,
+        $germination_rate,
+        $date_sowing,
+        $target_transplant_date,
+        $transplanted_area,
+        $date_transplanted,
+        $expected_harvest,
+        $plot_id,
+        $bed_id
+    );
 
 
     /*
@@ -794,21 +768,19 @@ body {
                 </select>
                 <small>Only unoccupied beds for the selected plot are shown.</small>
             </div>
-            <!-- =====================================================
-                 DATE TRANSPLANTED
-                 ===================================================== -->
-
             <div class="form-group">
+                <label for="crop-date-sowing">Date of Sowing</label>
+                <input id="crop-date-sowing" type="date" name="date_sowing" value="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES) ?>" required>
+            </div>
 
-                <label>
-                    Date Transplanted
-                </label>
+            <div class="form-group" id="crop-target-date-group" hidden>
+                <label for="crop-target-transplant-date">Target Transplant Date</label>
+                <input id="crop-target-transplant-date" type="date" name="target_transplant_date">
+            </div>
 
-                <input
-                    type="date"
-                    name="date_transplanted"
-                >
-
+            <div class="form-group" id="crop-actual-transplant-group">
+                <label for="crop-date-transplanted">Date Transplanted</label>
+                <input id="crop-date-transplanted" type="date" name="date_transplanted">
             </div>
 
 
@@ -822,10 +794,7 @@ body {
                     Expected Harvest
                 </label>
 
-                <input
-                    type="date"
-                    name="expected_harvest"
-                >
+                <input id="crop-expected-harvest" type="date" name="expected_harvest">
 
             </div>
 
@@ -855,12 +824,21 @@ body {
 <script>
 (() => {
  const plot=document.getElementById('crop-plot'), bed=document.getElementById('crop-bed');
+ const targetDateGroup=document.getElementById('crop-target-date-group');
+ const actualTransplantGroup=document.getElementById('crop-actual-transplant-group');
+ const targetDateInput=document.getElementById('crop-target-transplant-date');
+ const expectedHarvestInput=document.getElementById('crop-expected-harvest');
  const active=<?= json_encode($activeCropRows, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
  const limits={plot_a:17,plot_b:15,plot_c:19,tent_house:9,hydro:16,mno:25,nursery:20};
  const prefixes={plot_a:'A',plot_b:'B',plot_c:'C',tent_house:'T',hydro:'H',mno:'M',nursery:'N'};
  const norm=v=>String(v||'').trim().toUpperCase().replace(/\s+/g,'');
  function refresh(){
   const opt=plot.options[plot.selectedIndex], code=String(opt?.dataset.plotCode||'').toLowerCase(); bed.innerHTML='';
+  const isNursery=code==='nursery';
+  targetDateGroup.hidden=!isNursery;
+  actualTransplantGroup.hidden=isNursery;
+  targetDateInput.required=isNursery;
+  expectedHarvestInput.required=isNursery;
   if(!code){bed.disabled=true;bed.required=false;bed.append(new Option('Select a plot first',''));return;}
   const prefix=prefixes[code] || code.replace(/^plot_/,'').charAt(0).toUpperCase(), limit=limits[code]||20;
   let occupied=new Set();

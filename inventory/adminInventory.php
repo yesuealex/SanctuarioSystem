@@ -758,7 +758,7 @@ $modalEditMode = ($editItem !== null);
     <!-- Inventory CSS -->
     <link
         rel="stylesheet"
-        href="inventory.css"
+        href="inventory.css?v=20261016-table-grid"
     >
 
     <style>
