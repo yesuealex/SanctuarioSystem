@@ -1,4 +1,7 @@
 <?php
+require_once __DIR__ . '/../staff_access.php';
+sanctuario_staff_guard('crops');
+
 
 /*
  * Central crop-location helper.

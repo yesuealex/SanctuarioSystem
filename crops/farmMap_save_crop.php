@@ -1,6 +1,8 @@
 <?php
+require_once __DIR__ . '/../staff_access.php';
+sanctuario_staff_guard('crops');
 
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 
 include '../db.php';
 
@@ -24,6 +26,38 @@ if (!isset($_SESSION['user_id'])) {
 $data = $_POST;
 if (empty($data)) {
     $data = json_decode(file_get_contents('php://input'), true);
+}
+
+// Save a validated uploaded crop image and return its relative database path.
+function farmMapStoreCropImage($cropId) {
+    if (!isset($_FILES['crop_image']) || ($_FILES['crop_image']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) return null;
+    $file = $_FILES['crop_image'];
+    if ($file['error'] !== UPLOAD_ERR_OK) throw new RuntimeException('Image upload failed (PHP error ' . $file['error'] . ').');
+    if ($file['size'] > 5 * 1024 * 1024) throw new RuntimeException('Crop image must be 5 MB or smaller.');
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+    $extensions = ['image/jpeg'=>'jpg', 'image/png'=>'png', 'image/webp'=>'webp', 'image/gif'=>'gif'];
+    if (!isset($extensions[$mime])) throw new RuntimeException('Use a JPG, PNG, WebP, or GIF crop image.');
+    $dir = __DIR__ . '/uploads/crop_images';
+    if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) throw new RuntimeException('Unable to create crop image directory.');
+    $name = 'farmmap_' . (int)$cropId . '_' . bin2hex(random_bytes(8)) . '.' . $extensions[$mime];
+    if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $name)) throw new RuntimeException('Unable to save crop image to server.');
+    return 'crops/uploads/crop_images/' . $name;
+}
+
+// Image-only requests from the existing crop profile editor.
+if (($_POST['image_only'] ?? '') === '1') {
+    $id = (int)($_POST['crop_id'] ?? 0);
+    if ($id <= 0) { http_response_code(400); echo json_encode(['success'=>false,'message'=>'Save the crop before uploading its image.']); exit; }
+    try {
+        $path = farmMapStoreCropImage($id);
+        if (!$path) throw new RuntimeException('No image was selected.');
+        $stmt = $conn->prepare('UPDATE crops SET image=? WHERE crop_id=? AND COALESCE(archived,0)=0');
+        $stmt->bind_param('si', $path, $id);
+        if (!$stmt->execute() || !$stmt->affected_rows) throw new RuntimeException('Crop not found.');
+        $stmt->close();
+        echo json_encode(['success'=>true,'image'=>$path]);
+    } catch (Throwable $e) { http_response_code(400); echo json_encode(['success'=>false,'message'=>$e->getMessage()]); }
+    exit;
 }
 
 if (!is_array($data) || empty($data)) {
@@ -242,7 +276,21 @@ if ($cropId <= 0) {
 			exit;
 		}
 		$nurseryInsert->close();
-		$conn->commit();
+        try {
+            $imagePath = farmMapStoreCropImage($newCropId);
+            if ($imagePath !== null) {
+                $imageStmt = $conn->prepare('UPDATE crops SET image=? WHERE crop_id=?');
+                $imageStmt->bind_param('si', $imagePath, $newCropId);
+                if (!$imageStmt->execute()) throw new RuntimeException('Unable to link uploaded crop image.');
+                $imageStmt->close();
+            }
+            $conn->commit();
+        } catch (Throwable $e) {
+            $conn->rollback();
+            http_response_code(400);
+            echo json_encode(['success'=>false,'message'=>$e->getMessage()]);
+            exit;
+        }
 
 		echo json_encode(['success' => true, 'message' => 'Crop saved successfully.', 'crop_id' => $newCropId]);
 		exit;
@@ -369,7 +417,19 @@ if ($recordSync) {
 }
 
 $stmt->close();
-
+try {
+    $imagePath = farmMapStoreCropImage($cropId);
+    if ($imagePath !== null) {
+        $imageStmt = $conn->prepare('UPDATE crops SET image=? WHERE crop_id=?');
+        $imageStmt->bind_param('si', $imagePath, $cropId);
+        if (!$imageStmt->execute()) throw new RuntimeException('Unable to link crop image.');
+        $imageStmt->close();
+    }
+} catch (Throwable $e) {
+    http_response_code(400);
+    echo json_encode(['success'=>false,'message'=>$e->getMessage()]);
+    exit;
+}
 
 echo json_encode([
     'success' => true,

@@ -1,5 +1,11 @@
 <?php
-session_start();
+require_once __DIR__ . "/../staff_access.php";
+if (in_array(sanctuario_staff_role(), ["crops staff","livestock staff"], true)) { http_response_code(403); exit("Access denied."); }
+?>
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../login.php');

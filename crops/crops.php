@@ -1,6 +1,8 @@
 <?php
+require_once __DIR__ . '/../staff_access.php';
+sanctuario_staff_guard('crops');
 
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 
 include '../db.php';
 include '../map_special_plots.php';
@@ -350,7 +352,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                 <div class="crop-actions">
 
 
-                    <?php if ($role === 'admin'): ?>
+                    <?php if (in_array($role, ['admin','super admin','crops staff'], true)): ?>
 
 
                         <!-- ADD CROP -->
@@ -536,7 +538,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                                 <th>TRANSPLANTED<br>AREA</th>
                             <?php endif; ?>
 
-                            <?php if ($role === 'admin'): ?>
+                            <?php if (in_array($role, ['admin','super admin','crops staff'], true)): ?>
 
                                 <th>
                                     ACTION
@@ -743,7 +745,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
 
                                 <!-- ACTION -->
 
-                                <?php if ($role === 'admin'): ?>
+                                <?php if (in_array($role, ['admin','super admin','crops staff'], true)): ?>
 
 
                                     <td>
@@ -823,7 +825,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                         <tr>
 
                             <td
-                                colspan="<?= $isNurseryView ? ($role === 'admin' ? '15' : '14') : ($role === 'admin' ? '16' : '15') ?>"
+                                colspan="<?= $isNurseryView ? (in_array($role, ['admin','super admin','crops staff'], true) ? '15' : '14') : (in_array($role, ['admin','super admin','crops staff'], true) ? '16' : '15') ?>"
                                 class="no-records"
                             >
 

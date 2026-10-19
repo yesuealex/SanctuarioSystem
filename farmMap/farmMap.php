@@ -1,6 +1,12 @@
 <?php
+require_once __DIR__ . "/../staff_access.php";
+if (in_array(sanctuario_staff_role(), ["crops staff","livestock staff"], true)) { http_response_code(403); exit("Access denied."); }
+?>
+<?php
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../login.php");
@@ -97,7 +103,7 @@ $nurseryRecordsRes = $conn->query("\n    SELECT c.crop_id AS record_id, c.crop_i
            c.date_transplanted, COALESCE((SELECT MAX(h.harvest_date) FROM plot_crop_harvests h INNER JOIN plot_crop_records hr ON hr.record_id=h.record_id WHERE hr.crop_id=c.crop_id), c.expected_harvest) AS expected_harvest, c.target_transplant_date, c.target_area,
            c.seedlings_received, c.image, 'NURSERY' AS transplanted_area, c.status,
            'nursery' AS plot_code, 'Nursery' AS plot_name,
-           COALESCE(NULLIF(TRIM(nc.nursery_bed_label),''), cropBed.bed_code, ncBed.bed_code,
+           COALESCE(cropBed.bed_code, ncBed.bed_code, NULLIF(TRIM(nc.nursery_bed_label),''),
                     CASE WHEN UPPER(REPLACE(TRIM(COALESCE(c.transplanted_area,'')),' ','')) REGEXP '^N(URSERY)?[0-9]+$'
                          THEN UPPER(REPLACE(TRIM(c.transplanted_area),' ','')) ELSE NULL END) AS bed_code,
            COALESCE(ncBed.bed_number, cropBed.bed_number) AS bed_number
@@ -106,7 +112,7 @@ $nurseryRecordsRes = $conn->query("\n    SELECT c.crop_id AS record_id, c.crop_i
     LEFT JOIN plot_beds ncBed ON ncBed.plot_id=c.plot_id AND UPPER(TRIM(ncBed.bed_code))=UPPER(TRIM(nc.nursery_bed_label))
     LEFT JOIN plot_beds cropBed ON cropBed.plot_id=c.plot_id AND cropBed.bed_id=c.bed_id
     WHERE COALESCE(c.archived,0)=0 AND COALESCE(c.transferred_out,0)=0
-      AND (c.plot_id=5 OR UPPER(TRIM(COALESCE(c.transplanted_area,'')))='NURSERY'
+      AND (c.plot_id IN (SELECT plot_id FROM plots WHERE LOWER(TRIM(plot_code))='nursery') OR UPPER(TRIM(COALESCE(c.transplanted_area,'')))='NURSERY'
            OR LOWER(TRIM(COALESCE(c.plot_name,'')))='nursery')
     ORDER BY c.crop_id ASC
 ");
@@ -4509,6 +4515,7 @@ foreach ($houseRowsByCode as $code => $h) {
                                 <div
                                     class="crop-image-actions"
                                     id="cropImageActions"
+                                    style="display:none;"
                                 >
 
                                     <button
@@ -6947,7 +6954,7 @@ function renderBedMarkers(plot) {
         const preferredNumber = match && code.startsWith(expectedPrefix)
             ? Number(match[1])
             : (linkedBed ? Number(linkedBed.bed_number) : 0);
-        if (preferredNumber > 0 && code.startsWith(expectedPrefix) && !usedNumbers.has(preferredNumber)) {
+        if (preferredNumber > 0 && !usedNumbers.has(preferredNumber)) {
             bed = bedByNumber.get(preferredNumber) || null;
         }
         if (!bed) bed = nextFreeBed();
@@ -7802,7 +7809,7 @@ function dbCropToProfile(row) {
     status:
         statusDbToLabel(row.status),
 
-    image: ""
+    image: row.image || ""
 };
 }
 
@@ -7832,7 +7839,7 @@ function getCropProfile(bedNumber, cropId = null) {
 
     if (row) {
         const profile = dbCropToProfile(row);
-        profile.image = storedImage;
+        profile.image = row.image || storedImage;
         return profile;
     }
 
@@ -8271,41 +8278,34 @@ function renderCropProfile(crop) {
 ========================================================= */
 
 function updateCropImage(image) {
-
-    const img =
-        document.getElementById(
-            "cropProfileImage"
-        );
-
-    const placeholder =
-        document.getElementById(
-            "cropImagePlaceholder"
-        );
-
-    if (image) {
-
-        img.src =
-            "<?= $basePath ?>" + image;
-
-        img.style.display =
-            "block";
-
-        placeholder.style.display =
-            "none";
-
-    } else {
-
-        img.src =
-            "";
-
-        img.style.display =
-            "none";
-
-        placeholder.style.display =
-            "flex";
-
+    const img = document.getElementById("cropProfileImage");
+    const placeholder = document.getElementById("cropImagePlaceholder");
+    if (!img || !placeholder) return;
+    const raw = String(image || "").trim();
+    if (!raw) {
+        img.removeAttribute("src");
+        img.style.display = "none";
+        placeholder.style.display = "flex";
+        return;
     }
-
+    let imageUrl = raw;
+    if (!/^(?:data:|blob:|https?:\/\/|\/)/i.test(raw)) {
+        let relativePath = raw.replace(/^\.\//, "");
+        if (relativePath.startsWith("uploads/crop_images/")) {
+            relativePath = "crops/" + relativePath;
+        }
+        imageUrl = "<?= $basePath ?>" + relativePath;
+    }
+    img.onload = function () {
+        img.style.display = "block";
+        placeholder.style.display = "none";
+    };
+    img.onerror = function () {
+        img.style.display = "none";
+        placeholder.style.display = "flex";
+        console.error("Crop image could not be loaded:", imageUrl);
+    };
+    img.src = imageUrl;
 }
 
 
@@ -8790,6 +8790,11 @@ function updateCurrentCropMarkerPosition() {
 
 function setCropProfileEditButtons(editing) {
 
+    const cropImageActions = document.getElementById("cropImageActions");
+    if (cropImageActions) {
+        cropImageActions.style.display = editing ? "flex" : "none";
+    }
+
     document.getElementById(
         "editCropProfileBtn"
     ).style.display =
@@ -9015,7 +9020,7 @@ if (cropMarker) {
 
     formData.append(
         "crop_id",
-        existing.cropId || ""
+        cropEditingEmptySlot ? "" : (existing.cropId || "")
     );
 
     // An empty Nursery bed has no crop_id yet; explicitly request creation so
@@ -9558,6 +9563,7 @@ document.getElementById(
 
                 crop.image =
                     result.image;
+                event.target.value = "";
 
 
                 const stored =

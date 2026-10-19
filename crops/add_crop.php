@@ -1,7 +1,9 @@
 
 <?php
+require_once __DIR__ . '/../staff_access.php';
+sanctuario_staff_guard('crops');
 
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 
 include '../db.php';
 include '../logfunc.php';

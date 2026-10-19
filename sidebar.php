@@ -167,7 +167,7 @@ $accountSettingsActive = (
                  DASHBOARD
             ================================================== -->
 
-            <?php if ($role === 'admin'): ?>
+            <?php if (in_array($role, ['admin','super admin'], true)): ?>
 
                 <li
                     class="<?= $page === 'adminDashboard.php' ? 'active' : '' ?>"
@@ -188,7 +188,7 @@ $accountSettingsActive = (
 
                 <li
                     class="<?= $page === 'staffDashboard.php' ? 'active' : '' ?>"
-                    onclick="location.href='<?= $basePath ?>staffDashboard.php'"
+                    onclick="location.href='<?= $basePath ?>staff/staffDashboard.php'"
                 >
 
                     <span class="material-symbols-rounded">
@@ -248,9 +248,9 @@ $accountSettingsActive = (
                          CROPS
                     ========================================== -->
 
-                    <li
+                    <?php if ($role !== 'livestock staff'): ?><li
                         class="<?= $cropsActive ? 'sub-active' : '' ?>"
-                        onclick="location.href='<?= $basePath ?>crops/crops.php'"
+                        onclick="location.href='<?= $basePath ?><?= in_array($role, ['crops staff','livestock staff'], true) ? 'staff/crops/index.php' : 'crops/crops.php' ?>'"
                     >
 
                         <span class="material-symbols-rounded">
@@ -264,13 +264,14 @@ $accountSettingsActive = (
                     </li>
 
 
+                    <?php endif; ?>
                     <!-- =========================================
                          LIVESTOCK
                     ========================================== -->
 
-                    <li
+                    <?php if ($role !== 'crops staff'): ?><li
                         class="<?= $livestockActive ? 'sub-active' : '' ?>"
-                        onclick="location.href='<?= $basePath ?>livestock/livestocks.php'"
+                        onclick="location.href='<?= $basePath ?><?= in_array($role, ['crops staff','livestock staff'], true) ? 'staff/livestock/index.php' : 'livestock/livestocks.php' ?>'"
                     >
 
                         <span class="material-symbols-rounded">
@@ -284,6 +285,7 @@ $accountSettingsActive = (
                     </li>
 
 
+                    <?php endif; ?>
                 </ul>
 
             </li>
@@ -293,7 +295,7 @@ $accountSettingsActive = (
                  FARM MAP
             ================================================== -->
 
-            <?php if ($role === 'admin'): ?>
+            <?php if (in_array($role, ['admin','super admin'], true)): ?>
 
                 <li
                     class="<?= $page === 'farmMap.php' ? 'active' : '' ?>"
@@ -312,10 +314,18 @@ $accountSettingsActive = (
 
             <?php endif; ?>
 
+            <?php if (in_array($role, ['crops staff','livestock staff'], true)): ?>
+                <li class="<?= $page === 'farmMap.php' && strpos($currentPath, '/staff/') !== false ? 'active' : '' ?>"
+                    onclick="location.href='<?= $basePath ?>staff/farmMap.php'">
+                    <span class="material-symbols-rounded">map</span>
+                    <span class="menu-text">Farm Map</span>
+                </li>
+            <?php endif; ?>
 
             <!-- =================================================
                  INVENTORY
             ================================================== -->
+            <?php if (in_array($role, ['admin','super admin'], true)): ?>
 
             <li
                 class="menu-dropdown <?= $inventoryActive ? 'active-parent open' : '' ?>"
@@ -398,6 +408,7 @@ $accountSettingsActive = (
             </li>
 
 
+            <?php endif; ?>
             <!-- =================================================
                  ACCOUNT SETTINGS
             ================================================== -->

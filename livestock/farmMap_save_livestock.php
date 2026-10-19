@@ -1,6 +1,10 @@
 <?php
+require_once __DIR__ . '/../staff_access.php';
+sanctuario_staff_guard('livestock');
+
 header('Content-Type: application/json');
-session_start();
+
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 
 if (!isset($_SESSION['user_id'])) {
     echo json_encode([

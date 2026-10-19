@@ -34,7 +34,7 @@ try {
         }
         header('Location: login.php?error=invalid_credentials'); exit;
     }
-    if (!in_array($user['role'], ['admin','super admin','staff','maintenance'], true)) {
+    if (!in_array($user['role'], ['admin','super admin','staff','crops staff','livestock staff','maintenance'], true)) {
         header('Location: login.php?error=role_not_found'); exit;
     }
     $stmt = $conn->prepare('UPDATE users SET failed_login_attempts = 0, account_locked = 0, locked_at = NULL WHERE user_id = ?');
@@ -52,7 +52,7 @@ try {
     $_SESSION['authenticated_at'] = time();
     $_SESSION['last_activity'] = time();
     unset($_SESSION['csrf_token']);
-    $dest = in_array($user['role'], ['admin','super admin'], true) ? 'adminDashboard.php' : ($user['role'] === 'staff' ? 'staffDashboard.php' : 'maintenanceDashboard.php');
+    $dest = in_array($user['role'], ['admin','super admin'], true) ? 'adminDashboard.php' : (in_array($user['role'], ['crops staff','livestock staff'], true) ? 'staff/staffDashboard.php' : ($user['role'] === 'staff' ? 'staff_role_pending.php' : 'maintenanceDashboard.php'));
     header('Location: ' . $dest); exit;
 } catch (Throwable $e) {
     error_log('Login error: ' . $e->getMessage());

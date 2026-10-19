@@ -1,5 +1,8 @@
 <?php
-session_start();
+require_once __DIR__ . '/../staff_access.php';
+sanctuario_staff_guard('livestock');
+
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 include '../db.php';
 require_once '../archive/archive_functions.php';
 

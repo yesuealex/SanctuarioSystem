@@ -1,5 +1,8 @@
 <?php
-session_start();
+require_once __DIR__ . '/../staff_access.php';
+sanctuario_staff_guard('crops');
+
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 include '../db.php';
 require_once '../archive/archive_functions.php';
 
@@ -8,7 +11,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-if (($_SESSION['role'] ?? '') !== 'admin') {
+if (!in_array(($_SESSION['role'] ?? ''), ['admin','super admin','crops staff'], true)) {
     header('Location: ../records.php?type=crops');
     exit();
 }

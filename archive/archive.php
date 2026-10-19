@@ -163,4 +163,4 @@ function restoreLivestockRelated(mysqli $conn,string $source,int $livestockId): 
     $res->free();$stmt->close();
     $del=$conn->prepare("DELETE FROM `{$archive}` WHERE `livestock_id`=?"); if(!$del) throw new Exception('Could not clean restored archive records.');$del->bind_param('i',$livestockId);$del->execute();$del->close();
 }
-?>
+?>s

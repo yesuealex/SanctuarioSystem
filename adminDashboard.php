@@ -1,5 +1,9 @@
+<?php
+require_once __DIR__ . "/staff_access.php";
+if (!sanctuario_staff_is_admin()) { http_response_code(403); exit("Access denied."); }
+?>
 <?php 
-session_start();
+// Session is already initialized by staff_access.php.
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");

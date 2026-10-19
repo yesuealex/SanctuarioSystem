@@ -4,7 +4,7 @@ secure_session_start();
 
 if (isset($_SESSION['user_id'])) {
     $role = $_SESSION['role'] ?? '';
-    $dest = in_array($role, ['admin', 'super admin'], true) ? 'adminDashboard.php' : ($role === 'staff' ? 'staffDashboard.php' : 'maintenanceDashboard.php');
+    $dest = in_array($role, ['admin', 'super admin'], true) ? 'adminDashboard.php' : (in_array($role, ['crops staff','livestock staff'], true) ? 'staff/staffDashboard.php' : ($role === 'staff' ? 'staff_role_pending.php' : 'maintenanceDashboard.php'));
     header('Location: ' . $dest);
     exit();
 }
