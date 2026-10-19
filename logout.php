@@ -1,21 +1,11 @@
 <?php
-session_start();
-
-// 1. Unset all session variables
-$_SESSION = array();
-
-// 2. If it's desired to kill the session, also delete the session cookie.
-if (ini_get("session.use_cookies")) {
-    $params = session_get_cookie_params();
-    setcookie(session_name(), '', time() - 42000,
-        $params["path"], $params["domain"],
-        $params["secure"], $params["httponly"]
-    );
+require_once __DIR__ . '/security.php';
+secure_session_start();
+$_SESSION = [];
+if (ini_get('session.use_cookies')) {
+    $p = session_get_cookie_params();
+    setcookie(session_name(), '', ['expires'=>time()-3600,'path'=>$p['path'],'domain'=>$p['domain'],'secure'=>$p['secure'],'httponly'=>true,'samesite'=>'Lax']);
 }
-
-// 3. Finally, destroy the session.
 session_destroy();
-
-// 4. Redirect to login page
-header("Location: adminDashboard.php");
-exit();
+header('Location: login.php');
+exit;

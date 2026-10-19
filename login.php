@@ -1,8 +1,11 @@
 <?php
-session_start();
+require_once __DIR__ . '/security.php';
+secure_session_start();
 
 if (isset($_SESSION['user_id'])) {
-    header("Location: adminDashboard.php");
+    $role = $_SESSION['role'] ?? '';
+    $dest = in_array($role, ['admin', 'super admin'], true) ? 'adminDashboard.php' : ($role === 'staff' ? 'staffDashboard.php' : 'maintenanceDashboard.php');
+    header('Location: ' . $dest);
     exit();
 }
 
@@ -11,15 +14,18 @@ $remaining = isset($_GET['remaining']) ? (int) $_GET['remaining'] : 0;
 
 $errorMessages = [
     'empty_fields' => 'Please enter your username/email and password.',
-    'user_not_found' => 'Wrong username or email.',
-    'wrong_password' => 'Wrong credential.',
-    'account_locked' => 'This account is temporarily locked. An administrator must unlock it before you can log in again.',
+    'invalid_credentials' => 'Invalid username/email or password. Please try again.',
+    'invalid_request' => 'Your session expired. Refresh and try again.',
+    'user_not_found' => 'Invalid username/email or password. Please try again.',
+    'wrong_password' => 'Invalid username/email or password. Please try again.',
+    'account_locked' => 'Invalid username/email or password. Please try again.',
     'role_not_found' => 'Your account role is not configured correctly. Please contact an administrator.',
     'system_error' => 'Unable to process your login right now. Please try again.',
 ];
 
 $errorText = $errorMessages[$error] ?? '';
-if ($error === 'wrong_password' && $remaining > 0) {
+$successText = isset($_GET['password_changed']) ? 'Password updated. Please sign in again.' : '';
+if (false && $error === 'wrong_password' && $remaining > 0) {
     $errorText .= " You have {$remaining} attempt" . ($remaining === 1 ? '' : 's') . " remaining before the account is locked.";
 }
 ?>
@@ -181,6 +187,7 @@ if ($error === 'wrong_password' && $remaining > 0) {
         <h1>Welcome back</h1>
         <p>Sign in to access the Sanctuario farm monitoring system.</p>
 
+        <?php if ($successText !== ''): ?><p role="status" style="color:#2e5129;font-weight:700"><?= htmlspecialchars($successText, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
         <?php if ($errorText !== ''): ?>
             <div class="error-box" role="alert">
                 <span class="error-icon">!</span>
@@ -189,6 +196,7 @@ if ($error === 'wrong_password' && $remaining > 0) {
         <?php endif; ?>
 
         <form action="login_process.php" method="POST" autocomplete="on">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
             <div class="form-group">
                 <label for="username">Username or email</label>
                 <input
@@ -231,6 +239,7 @@ if ($error === 'wrong_password' && $remaining > 0) {
             <button class="btn" type="submit">Sign In</button>
         </form>
 
+        <p style="margin-top:14px"><a href="forgot_password.php" style="color:#2e5129;font-weight:700">Forgot password?</a></p>
         <a class="back-link" href="SanctuarioWebsite/SanctuarioWebsite/index.php">&larr; Back to Home</a>
     </main>
 
