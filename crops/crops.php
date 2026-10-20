@@ -406,7 +406,7 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
 
 
 
-                        <div class="snf-download-actions"><a href="../export_records.php?report=crops&amp;format=xlsx" title="Download Excel">Download Excel</a><a href="../export_records.php?report=crops&amp;format=pdf" title="Download PDF">Download PDF</a></div>
+                        <div class="snf-download-actions"><a href="../export_records.php?report=crops&amp;format=xlsx" title="Download Excel">Download Excel</a><a href="../export_records.php?report=crops&amp;format=pdf&amp;location=<?= rawurlencode($selectedLocationKey) ?>" title="Download PDF">Download PDF</a></div>
                         <!-- ADD CROP -->
 
                         <button

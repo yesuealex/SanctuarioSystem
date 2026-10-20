@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['monitoring_action']))
             $stmt->close();
         }
 
-        header("Location: livestocks.php?type=" . urlencode($_POST['return_type'] ?? '') . "&livestock_id=" . $livestockId);
+        header("Location: livestocks.php?type=" . urlencode($_POST['return_type'] ?? '') . "&livestock_id=" . $livestockId . "&tab=" . urlencode($recordType));
         exit();
     }
 
@@ -113,12 +113,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['monitoring_action']))
                 'section' => $archiveConfig['section'],
                 'archived_record' => 1
             ]);
-            header('Location: ' . $archiveUrl);
+            header('Location: livestocks.php?' . http_build_query([
+                'type' => $_POST['return_type'] ?? $archiveConfig['type'],
+                'livestock_id' => $livestockId,
+                'tab' => $recordType
+            ]));
             exit();
         }
 
         $returnType = trim((string)($_POST['return_type'] ?? ''));
-        header('Location: livestocks.php?type=' . urlencode($returnType) . '&livestock_id=' . $livestockId);
+        header('Location: livestocks.php?type=' . urlencode($returnType) . '&livestock_id=' . $livestockId . '&tab=' . urlencode($recordType));
         exit();
     }
 
@@ -186,7 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['monitoring_action']))
             }
         }
 
-        header("Location: livestocks.php?type=" . urlencode($_POST['return_type'] ?? '') . "&livestock_id=" . $livestockId);
+        header("Location: livestocks.php?type=" . urlencode($_POST['return_type'] ?? '') . "&livestock_id=" . $livestockId . "&tab=" . urlencode($recordType));
         exit();
     }
 
@@ -225,7 +229,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['monitoring_action']))
             $stmt->close();
         }
 
-        header("Location: livestocks.php?type=" . urlencode($_POST['return_type'] ?? '') . "&livestock_id=" . $livestockId);
+        header("Location: livestocks.php?type=" . urlencode($_POST['return_type'] ?? '') . "&livestock_id=" . $livestockId . "&tab=" . urlencode($recordType));
         exit();
     }
 }
@@ -726,35 +730,6 @@ if ($selectedType !== '') {
 
 
 // =========================================================
-// AUTOMATICALLY SELECT FIRST LIVESTOCK
-// =========================================================
-
-if (
-    $selectedLivestockId === 0
-    &&
-    $nameResult
-    &&
-    $nameResult->num_rows > 0
-) {
-
-    $firstLivestock =
-        $nameResult->fetch_assoc();
-
-
-    // Use page_id because Pig records do not have a livestocks.livestock_id.
-    // Pig page IDs are negative; regular livestock IDs remain positive.
-    $selectedLivestockId =
-        intval(
-            $firstLivestock['page_id']
-        );
-
-
-    $nameResult->data_seek(0);
-
-}
-
-
-// =========================================================
 // GET SELECTED LIVESTOCK PROFILE
 // =========================================================
 
@@ -1160,6 +1135,8 @@ unset($_SESSION['livestock_profile_error']);
                 onchange="changeLivestock(this.value)"
             >
 
+                <option value="" <?= $selectedLivestockId === 0 ? 'selected' : '' ?>>-</option>
+
                 <?php if (
                     $nameResult
                     &&
@@ -1264,9 +1241,7 @@ unset($_SESSION['livestock_profile_error']);
             <div class="livestock-profile-feedback success">Livestock profile updated successfully.</div>
         <?php endif; ?>
 
-        <?php if ($livestockProfile): ?>
-
-            <div class="livestock-profile-card">
+        <div class="livestock-profile-card">
 
 
                 <!-- PROFILE HEADER -->
@@ -1286,6 +1261,7 @@ unset($_SESSION['livestock_profile_error']);
                                 Add Livestock
                             </button>
 
+                            <?php if ($livestockProfile): ?>
                             <button type="button" class="edit-profile-btn" onclick='openEditLivestockModal(<?= json_encode([
                                 'page_id' => (int)$livestockProfile['livestock_id'],
                                 'pig_id' => (int)($livestockProfile['pig_id'] ?? 0),
@@ -1308,6 +1284,7 @@ unset($_SESSION['livestock_profile_error']);
                                 <span class="material-symbols-rounded">edit</span>
                                 Edit Profile
                             </button>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
 
@@ -1474,8 +1451,10 @@ unset($_SESSION['livestock_profile_error']);
 
                             <?php
 
-                            $forSaleValue = $livestockProfile['for_sale'] ?? 0;
-                            if (
+                            $forSaleValue = $livestockProfile['for_sale'] ?? null;
+                            if (!$livestockProfile) {
+                                echo '-';
+                            } elseif (
                                 (is_numeric($forSaleValue) && (int)$forSaleValue === 1)
                                 || in_array(strtolower(trim((string)$forSaleValue)), ['1', 'yes', 'true'], true)
                             ) {
@@ -1498,25 +1477,6 @@ unset($_SESSION['livestock_profile_error']);
                 </div>
 
             </div>
-
-
-        <?php else: ?>
-
-
-            <div class="empty-profile">
-
-                <span class="material-symbols-rounded">
-                    pets
-                </span>
-
-                <p>
-                    No livestock profile available.
-                </p>
-
-            </div>
-
-
-        <?php endif; ?>
 
 
         <!-- =================================================
@@ -2210,6 +2170,10 @@ function switchMonitoringTab(tabKey){
     document.querySelectorAll('.monitoring-panel').forEach(function(panel){
         panel.classList.toggle('active', panel.dataset.monitoringPanel === tabKey);
     });
+    const tabToRecord={weight:'chicken_weight',eggs:'chicken_eggs',mortality:'chicken_mortality',feed:'chicken_feed',water:'chicken_water',feeding:'chicken_feeding',daily:'goat_daily',forage:'goat_forage'};
+    const url=new URL(window.location.href);
+    url.searchParams.set('tab',tabToRecord[tabKey]||tabKey);
+    window.history.replaceState(null,'',url.pathname+url.search+url.hash);
     const activePanel=document.querySelector('.monitoring-panel.active');
     if(activePanel){
         const input=activePanel.querySelector('.monitoring-search');
@@ -2543,7 +2507,11 @@ document.addEventListener('click',function(e){
 
 document.addEventListener('DOMContentLoaded', function(){
     initializeMonitoringFilters();
-    const first=document.querySelector('.monitoring-tab.active');
+    const saved=new URLSearchParams(window.location.search).get('tab');
+    const tabFromRecord={chicken_weight:'weight',chicken_eggs:'eggs',chicken_mortality:'mortality',chicken_feed:'feed',chicken_water:'water',chicken_feeding:'feeding',goat_daily:'daily',goat_forage:'forage'};
+    const restored=tabFromRecord[saved]||saved;
+    const matching=Array.from(document.querySelectorAll('.monitoring-tab')).find(el=>el.dataset.monitoringTab===restored);
+    const first=matching||document.querySelector('.monitoring-tab.active');
     if(first) switchMonitoringTab(first.dataset.monitoringTab);
 });
 </script>

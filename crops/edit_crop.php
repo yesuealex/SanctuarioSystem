@@ -114,13 +114,21 @@ if ($nurseryBedStmt) {
     $nurseryBedLabel = (string)($nurseryBedStmt->get_result()->fetch_assoc()['nursery_bed_label'] ?? '');
     $nurseryBedStmt->close();
 }
+// Ensure optional harvest purpose fields exist on older installations.
+foreach (['other_purposes_quantity' => 'DECIMAL(12,3) DEFAULT NULL', 'other_purposes_unit' => 'VARCHAR(30) DEFAULT NULL'] as $column => $definition) {
+    $check = $conn->query("SHOW COLUMNS FROM plot_crop_harvests LIKE '" . $conn->real_escape_string($column) . "'");
+    if ($check && $check->num_rows === 0) {
+        $conn->query("ALTER TABLE plot_crop_harvests ADD COLUMN `$column` $definition");
+    }
+}
 $harvestData = [];
 $harvestRecordId = 0;
 $requestedHarvestId = intval($_GET['harvest_id'] ?? 0);
 $harvestFilter = $requestedHarvestId > 0 ? ' AND h.harvest_id=' . $requestedHarvestId : '';
 $harvestStmt = $conn->prepare("SELECT pcr.record_id, h.harvest_id, h.harvest_date, h.total_quantity, h.total_unit,
         h.sales_quantity, h.sales_unit, h.sales_amount, h.farm_use_quantity, h.farm_use_unit,
-        h.animal_feed_quantity, h.animal_feed_unit, h.rejected_quantity, h.rejected_unit
+        h.animal_feed_quantity, h.animal_feed_unit, h.rejected_quantity, h.rejected_unit,
+        h.other_purposes_quantity, h.other_purposes_unit
     FROM plot_crop_records pcr
     LEFT JOIN plot_crop_harvests h ON h.record_id=pcr.record_id
     WHERE pcr.crop_id=? AND COALESCE(pcr.archived,0)=0" . $harvestFilter . "
@@ -298,11 +306,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $farm_use_quantity = $nullableNumber('farm_use_quantity');
     $animal_feed_quantity = $nullableNumber('animal_feed_quantity');
     $rejected_quantity = $nullableNumber('rejected_quantity');
+    $other_purposes_quantity = $nullableNumber('other_purposes_quantity');
     $total_unit = trim($_POST['total_unit'] ?? '');
     $sales_unit = trim($_POST['sales_unit'] ?? '');
     $farm_use_unit = trim($_POST['farm_use_unit'] ?? '');
     $animal_feed_unit = trim($_POST['animal_feed_unit'] ?? '');
     $rejected_unit = trim($_POST['rejected_unit'] ?? '');
+    $other_purposes_unit = trim($_POST['other_purposes_unit'] ?? '');
 
 
     /*
@@ -368,7 +378,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } elseif ($isNurseryPost) {
         die("Please choose an available nursery bed number.");
     }
-    if (in_array(false, [$total_quantity, $sales_quantity, $sales_amount, $farm_use_quantity, $animal_feed_quantity, $rejected_quantity], true)) {
+    if (in_array(false, [$total_quantity, $sales_quantity, $sales_amount, $farm_use_quantity, $animal_feed_quantity, $rejected_quantity, $other_purposes_quantity], true)) {
         die("Harvest quantities and sales amount must be valid non-negative numbers.");
     }
 
@@ -524,15 +534,33 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $nurserySync->close();
     }
     if ($harvest_record_id > 0 && $harvest_date !== '') {
+        // Check harvest ownership so updates target the correct crop and harvest event.
+        $ownerStmt = $conn->prepare("SELECT record_id FROM plot_crop_records WHERE record_id=? AND crop_id=? AND COALESCE(archived,0)=0 LIMIT 1");
+        $ownerStmt->bind_param('ii', $harvest_record_id, $id);
+        $ownerStmt->execute();
+        $validOwner = $ownerStmt->get_result()->num_rows > 0;
+        $ownerStmt->close();
+        if (!$validOwner) die('Invalid harvest record for this crop.');
+
         if ($harvest_id > 0) {
-            $harvestUpdate = $conn->prepare("UPDATE plot_crop_harvests SET harvest_date=?, total_quantity=?, total_unit=?, sales_quantity=?, sales_unit=?, sales_amount=?, farm_use_quantity=?, farm_use_unit=?, animal_feed_quantity=?, animal_feed_unit=?, rejected_quantity=?, rejected_unit=? WHERE harvest_id=? AND record_id=?");
-            $harvestUpdate->bind_param("sdsdsdsdsdsdii", $harvest_date, $total_quantity, $total_unit, $sales_quantity, $sales_unit, $sales_amount, $farm_use_quantity, $farm_use_unit, $animal_feed_quantity, $animal_feed_unit, $rejected_quantity, $rejected_unit, $harvest_id, $harvest_record_id);
-            if (!$harvestUpdate->execute()) die("Harvest update failed: " . $harvestUpdate->error);
+            $harvestUpdate = $conn->prepare("UPDATE plot_crop_harvests SET harvest_date=?, total_quantity=?, total_unit=?, sales_quantity=?, sales_unit=?, sales_amount=?, farm_use_quantity=?, farm_use_unit=?, animal_feed_quantity=?, animal_feed_unit=?, rejected_quantity=?, rejected_unit=?, other_purposes_quantity=?, other_purposes_unit=? WHERE harvest_id=? AND record_id=?");
+            if (!$harvestUpdate) die('Harvest update preparation failed: ' . $conn->error);
+            $harvestUpdate->bind_param('sdsdsddsdsdsdsii', $harvest_date, $total_quantity, $total_unit, $sales_quantity, $sales_unit, $sales_amount, $farm_use_quantity, $farm_use_unit, $animal_feed_quantity, $animal_feed_unit, $rejected_quantity, $rejected_unit, $other_purposes_quantity, $other_purposes_unit, $harvest_id, $harvest_record_id);
+            if (!$harvestUpdate->execute()) die('Harvest update failed: ' . $harvestUpdate->error);
+            if ($harvestUpdate->affected_rows === 0) {
+                $exists = $conn->prepare('SELECT harvest_id FROM plot_crop_harvests WHERE harvest_id=? AND record_id=?');
+                $exists->bind_param('ii', $harvest_id, $harvest_record_id);
+                $exists->execute();
+                $found = $exists->get_result()->num_rows > 0;
+                $exists->close();
+                if (!$found) die('Harvest event no longer exists. Please reload the page.');
+            }
             $harvestUpdate->close();
         } else {
-            $harvestInsert = $conn->prepare("INSERT INTO plot_crop_harvests (record_id, harvest_date, total_quantity, total_unit, sales_quantity, sales_unit, sales_amount, farm_use_quantity, farm_use_unit, animal_feed_quantity, animal_feed_unit, rejected_quantity, rejected_unit) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)");
-            $harvestInsert->bind_param("isdsdsdsdsdsd", $harvest_record_id, $harvest_date, $total_quantity, $total_unit, $sales_quantity, $sales_unit, $sales_amount, $farm_use_quantity, $farm_use_unit, $animal_feed_quantity, $animal_feed_unit, $rejected_quantity, $rejected_unit);
-            if (!$harvestInsert->execute()) die("Harvest save failed: " . $harvestInsert->error);
+            $harvestInsert = $conn->prepare("INSERT INTO plot_crop_harvests (record_id, harvest_date, total_quantity, total_unit, sales_quantity, sales_unit, sales_amount, farm_use_quantity, farm_use_unit, animal_feed_quantity, animal_feed_unit, rejected_quantity, rejected_unit, other_purposes_quantity, other_purposes_unit) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+            if (!$harvestInsert) die('Harvest insert preparation failed: ' . $conn->error);
+            $harvestInsert->bind_param('isdsdsddsdsdsds', $harvest_record_id, $harvest_date, $total_quantity, $total_unit, $sales_quantity, $sales_unit, $sales_amount, $farm_use_quantity, $farm_use_unit, $animal_feed_quantity, $animal_feed_unit, $rejected_quantity, $rejected_unit, $other_purposes_quantity, $other_purposes_unit);
+            if (!$harvestInsert->execute()) die('Harvest save failed: ' . $harvestInsert->error);
             $harvestInsert->close();
         }
     }
@@ -827,6 +855,12 @@ body {
 
 }
 
+
+/* Quantity and unit share one row; existing field names and saving stay intact. */
+.harvest-quantity-row { display:flex; gap:10px; align-items:stretch; }
+.harvest-quantity-row input { flex:1; min-width:0; }
+.harvest-quantity-row select { flex:0 0 112px; width:112px; }
+@media(max-width:380px) { .harvest-quantity-row select { flex-basis:90px; width:90px; } }
 </style>
 
 <style id="sanctuario-responsive-refinement">
@@ -936,7 +970,16 @@ body {
 
                 <div class="form-group nursery-toggle-field">
                     <label>Target Area</label>
-                    <input type="text" name="target_area" value="<?= htmlspecialchars($data['target_area'] ?? '') ?>" placeholder="e.g. Plot A" >
+                    <?php $nurseryTargetArea = trim((string)($data['target_area'] ?? '')); ?>
+                    <select name="target_area" required>
+                        <option value="" <?= $nurseryTargetArea === '' ? 'selected' : '' ?> disabled>Select target area</option>
+                        <?php foreach (['Plot A', 'Plot B', 'Plot C', 'MNO', 'Hydro', 'Tent House'] as $targetOption): ?>
+                            <option value="<?= htmlspecialchars($targetOption, ENT_QUOTES) ?>" <?= strcasecmp($nurseryTargetArea, $targetOption) === 0 ? 'selected' : '' ?>><?= htmlspecialchars($targetOption) ?></option>
+                        <?php endforeach; ?>
+                        <?php if ($nurseryTargetArea !== '' && !in_array(strtolower($nurseryTargetArea), ['plot a', 'plot b', 'plot c', 'mno', 'hydro', 'tent house'], true)): ?>
+                            <option value="<?= htmlspecialchars($nurseryTargetArea, ENT_QUOTES) ?>" selected><?= htmlspecialchars($nurseryTargetArea) ?> (Current)</option>
+                        <?php endif; ?>
+                    </select>
                 </div>
 
                 <div class="form-group nursery-toggle-field">
@@ -1269,60 +1312,82 @@ body {
                     <label>Date of Pull / Harvest</label>
                     <input type="date" name="harvest_date" value="<?= htmlspecialchars($harvestData['harvest_date'] ?? '') ?>">
                 </div>
-
                 <div class="form-group">
                     <label>Total Harvest Quantity</label>
-                    <input type="number" min="0" step="0.001" name="total_quantity" value="<?= htmlspecialchars($harvestData['total_quantity'] ?? '') ?>">
+                    <div class="harvest-quantity-row">
+                        <input type="number" min="0" step="0.001" name="total_quantity" value="<?= htmlspecialchars($harvestData['total_quantity'] ?? '') ?>">
+                        <select name="total_unit" aria-label="Total Harvest Unit">
+                            <?php $savedUnit = trim((string)($harvestData['total_unit'] ?? '')); ?>
+                            <?php foreach (array_unique(array_merge(['kg','g','pcs','trays','L','mL'], $savedUnit !== '' ? [$savedUnit] : [])) as $unitOption): ?>
+                                <option value="<?= htmlspecialchars($unitOption, ENT_QUOTES) ?>" <?= $savedUnit === $unitOption ? 'selected' : '' ?>><?= htmlspecialchars($unitOption) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
-
-                <div class="form-group">
-                    <label>Total Harvest Unit</label>
-                    <input type="text" name="total_unit" placeholder="kg, g, pcs" value="<?= htmlspecialchars($harvestData['total_unit'] ?? '') ?>">
-                </div>
-
                 <div class="form-group">
                     <label>Sales Quantity</label>
-                    <input type="number" min="0" step="0.001" name="sales_quantity" value="<?= htmlspecialchars($harvestData['sales_quantity'] ?? '') ?>">
-                </div>
-
-                <div class="form-group">
-                    <label>Sales Unit</label>
-                    <input type="text" name="sales_unit" placeholder="kg, g, pcs" value="<?= htmlspecialchars($harvestData['sales_unit'] ?? '') ?>">
+                    <div class="harvest-quantity-row">
+                        <input type="number" min="0" step="0.001" name="sales_quantity" value="<?= htmlspecialchars($harvestData['sales_quantity'] ?? '') ?>">
+                        <select name="sales_unit" aria-label="Sales Unit">
+                            <?php $savedUnit = trim((string)($harvestData['sales_unit'] ?? '')); ?>
+                            <?php foreach (array_unique(array_merge(['kg','g','pcs','trays','L','mL'], $savedUnit !== '' ? [$savedUnit] : [])) as $unitOption): ?>
+                                <option value="<?= htmlspecialchars($unitOption, ENT_QUOTES) ?>" <?= $savedUnit === $unitOption ? 'selected' : '' ?>><?= htmlspecialchars($unitOption) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label>Sales Amount (PHP)</label>
                     <input type="number" min="0" step="0.01" name="sales_amount" value="<?= htmlspecialchars($harvestData['sales_amount'] ?? '') ?>">
                 </div>
-
                 <div class="form-group">
                     <label>Farm Use Quantity</label>
-                    <input type="number" min="0" step="0.001" name="farm_use_quantity" value="<?= htmlspecialchars($harvestData['farm_use_quantity'] ?? '') ?>">
+                    <div class="harvest-quantity-row">
+                        <input type="number" min="0" step="0.001" name="farm_use_quantity" value="<?= htmlspecialchars($harvestData['farm_use_quantity'] ?? '') ?>">
+                        <select name="farm_use_unit" aria-label="Farm Use Unit">
+                            <?php $savedUnit = trim((string)($harvestData['farm_use_unit'] ?? '')); ?>
+                            <?php foreach (array_unique(array_merge(['kg','g','pcs','trays','L','mL'], $savedUnit !== '' ? [$savedUnit] : [])) as $unitOption): ?>
+                                <option value="<?= htmlspecialchars($unitOption, ENT_QUOTES) ?>" <?= $savedUnit === $unitOption ? 'selected' : '' ?>><?= htmlspecialchars($unitOption) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
-
-                <div class="form-group">
-                    <label>Farm Use Unit</label>
-                    <input type="text" name="farm_use_unit" placeholder="kg, g, pcs" value="<?= htmlspecialchars($harvestData['farm_use_unit'] ?? '') ?>">
-                </div>
-
                 <div class="form-group">
                     <label>Animal Feed Quantity</label>
-                    <input type="number" min="0" step="0.001" name="animal_feed_quantity" value="<?= htmlspecialchars($harvestData['animal_feed_quantity'] ?? '') ?>">
+                    <div class="harvest-quantity-row">
+                        <input type="number" min="0" step="0.001" name="animal_feed_quantity" value="<?= htmlspecialchars($harvestData['animal_feed_quantity'] ?? '') ?>">
+                        <select name="animal_feed_unit" aria-label="Animal Feed Unit">
+                            <?php $savedUnit = trim((string)($harvestData['animal_feed_unit'] ?? '')); ?>
+                            <?php foreach (array_unique(array_merge(['kg','g','pcs','trays','L','mL'], $savedUnit !== '' ? [$savedUnit] : [])) as $unitOption): ?>
+                                <option value="<?= htmlspecialchars($unitOption, ENT_QUOTES) ?>" <?= $savedUnit === $unitOption ? 'selected' : '' ?>><?= htmlspecialchars($unitOption) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
-
-                <div class="form-group">
-                    <label>Animal Feed Unit</label>
-                    <input type="text" name="animal_feed_unit" placeholder="kg, g, pcs" value="<?= htmlspecialchars($harvestData['animal_feed_unit'] ?? '') ?>">
-                </div>
-
                 <div class="form-group">
                     <label>Reject Quantity</label>
-                    <input type="number" min="0" step="0.001" name="rejected_quantity" value="<?= htmlspecialchars($harvestData['rejected_quantity'] ?? '') ?>">
+                    <div class="harvest-quantity-row">
+                        <input type="number" min="0" step="0.001" name="rejected_quantity" value="<?= htmlspecialchars($harvestData['rejected_quantity'] ?? '') ?>">
+                        <select name="rejected_unit" aria-label="Reject Unit">
+                            <?php $savedUnit = trim((string)($harvestData['rejected_unit'] ?? '')); ?>
+                            <?php foreach (array_unique(array_merge(['kg','g','pcs','trays','L','mL'], $savedUnit !== '' ? [$savedUnit] : [])) as $unitOption): ?>
+                                <option value="<?= htmlspecialchars($unitOption, ENT_QUOTES) ?>" <?= $savedUnit === $unitOption ? 'selected' : '' ?>><?= htmlspecialchars($unitOption) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
-
                 <div class="form-group">
-                    <label>Reject Unit</label>
-                    <input type="text" name="rejected_unit" placeholder="kg, g, pcs" value="<?= htmlspecialchars($harvestData['rejected_unit'] ?? '') ?>">
+                    <label>Other Purposes Quantity</label>
+                    <div class="harvest-quantity-row">
+                        <input type="number" min="0" step="0.001" name="other_purposes_quantity" value="<?= htmlspecialchars($harvestData['other_purposes_quantity'] ?? '') ?>">
+                        <select name="other_purposes_unit" aria-label="Other Purposes Unit">
+                            <?php $savedUnit = trim((string)($harvestData['other_purposes_unit'] ?? '')); ?>
+                            <?php foreach (array_unique(array_merge(['kg','g','pcs','trays','L','mL'], $savedUnit !== '' ? [$savedUnit] : [])) as $unitOption): ?>
+                                <option value="<?= htmlspecialchars($unitOption, ENT_QUOTES) ?>" <?= $savedUnit === $unitOption ? 'selected' : '' ?>><?= htmlspecialchars($unitOption) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
             <?php endif; ?>
 

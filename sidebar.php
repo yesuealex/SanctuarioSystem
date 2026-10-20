@@ -315,8 +315,8 @@ $accountSettingsActive = (
             <?php endif; ?>
 
             <?php if (in_array($role, ['crops staff','livestock staff'], true)): ?>
-                <li class="<?= $page === 'farmMap.php' && strpos($currentPath, '/staff/') !== false ? 'active' : '' ?>"
-                    onclick="location.href='<?= $basePath ?>staff/farmMap.php'">
+                <li class="<?= $page === 'farmMap.php' ? 'active' : '' ?>"
+                    onclick="location.href='<?= $basePath ?>farmMap/farmMap.php'">
                     <span class="material-symbols-rounded">map</span>
                     <span class="menu-text">Farm Map</span>
                 </li>
@@ -438,7 +438,7 @@ $accountSettingsActive = (
             <a class="sidebar-bottom-link website-management-menu-item <?= $page === 'websiteManagement.php' ? 'active' : '' ?>"
                href="<?= $basePath ?>websiteManagement.php">
                 <span class="material-symbols-rounded">language</span>
-                <span class="menu-text">Website Management</span>
+                <span class="menu-text">Page Management</span>
             </a>
             <?php endif; ?>
             <a class="sidebar-bottom-link logout-menu-item" href="<?= $basePath ?>logout.php">

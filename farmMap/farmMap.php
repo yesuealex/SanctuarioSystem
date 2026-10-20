@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . "/../staff_access.php";
-if (in_array(sanctuario_staff_role(), ["crops staff","livestock staff"], true)) { http_response_code(403); exit("Access denied."); }
+if (empty($_SESSION["user_id"]) || !in_array(sanctuario_staff_role(), ["admin", "super admin", "crops staff", "livestock staff"], true)) { http_response_code(403); exit("Access denied."); }
+$mapCanEditCrops = sanctuario_staff_can_access('crops');
+$mapCanEditLivestock = sanctuario_staff_can_access('livestock');
+$mapCanEditAll = sanctuario_staff_is_admin();
 ?>
 <?php
 
@@ -2048,6 +2051,21 @@ foreach ($houseRowsByCode as $code => $h) {
    LIVESTOCK HOUSE POPUP
 ========================================================= */
 
+.livestock-house-map .house-image-empty-message {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    color: #687562;
+    font-size: 13px;
+    background: #edf2e9;
+}
+.livestock-house-map.house-image-unavailable .house-image-empty-message { display: flex; }
+.livestock-house-map.house-image-unavailable #livestockHouseImage { display: none; }
+
 .livestock-overlay {
     position: fixed;
     inset: 0;
@@ -2912,6 +2930,20 @@ foreach ($houseRowsByCode as $code => $h) {
   .map-card { width: 100%; }
 }
 
+</style>
+<style id="sanctuario-farm-map-permissions">
+<?php if (!$mapCanEditAll): ?>
+#editMapBtn, #mapEditControls { display:none !important; }
+<?php endif; ?>
+<?php if (!$mapCanEditCrops): ?>
+#startEditBedsBtn, #bedEditToolbar, #editPositionBtn, #deleteBedBtn, #editSelectedCropBtn,
+#editCropProfileBtn, #saveCropProfileBtn, #harvestCropBtn, #transplantCropBtn,
+#saveCropHarvestBtn, .bed-plus-marker, .crop-image-actions { display:none !important; }
+<?php endif; ?>
+<?php if (!$mapCanEditLivestock): ?>
+#livestockHouseToolbar, #editLivestockProfileBtn, #saveLivestockProfileBtn,
+.livestock-image-actions { display:none !important; }
+<?php endif; ?>
 </style>
 </head>
 
@@ -3872,6 +3904,7 @@ foreach ($houseRowsByCode as $code => $h) {
         ========================== -->
 
         <div class="livestock-house-map">
+            <div class="house-image-empty-message">House image is not available. Check the saved image file or path.</div>
 
             <img
                 id="livestockHouseImage"
@@ -3996,7 +4029,7 @@ foreach ($houseRowsByCode as $code => $h) {
 
                 </div>
 
-                <div class="livestock-image-actions">
+                <div class="livestock-image-actions" id="livestockImageActions" style="display:none;">
 
                     <button
                         type="button"
@@ -4070,11 +4103,6 @@ foreach ($houseRowsByCode as $code => $h) {
                 <div class="livestock-profile-field">
                     <span>Estimated Weight</span>
                     <strong id="profileLivestockWeight">-</strong>
-                </div>
-
-                <div class="livestock-profile-field">
-                    <span>Number</span>
-                    <strong id="profileLivestockNumber">-</strong>
                 </div>
 
                 <div class="livestock-profile-field">
@@ -4695,6 +4723,11 @@ foreach ($houseRowsByCode as $code => $h) {
                                 </div>
 
 
+                                <div class="crop-profile-field" id="profileCropTargetAreaGroup" style="display:none;">
+                                    <span>Target Transplant Area</span>
+                                    <strong id="profileCropTargetArea">--</strong>
+                                </div>
+
                                 <div class="crop-profile-field">
 
                                     <span id="profileCropDateLabel">
@@ -5306,6 +5339,19 @@ foreach ($houseRowsByCode as $code => $h) {
                                     </div>
 
 
+                                    <div class="crop-input-group" id="editCropTargetAreaGroup" style="display:none;">
+                                        <label for="editCropTargetArea">Target Transplant Area</label>
+                                        <select id="editCropTargetArea">
+                                            <option value="">Select target area</option>
+                                            <option value="Plot A">Plot A</option>
+                                            <option value="Plot B">Plot B</option>
+                                            <option value="Plot C">Plot C</option>
+                                            <option value="MNO">MNO</option>
+                                            <option value="Hydro">Hydro</option>
+                                            <option value="Tent House">Tent House</option>
+                                        </select>
+                                    </div>
+
                                     <div class="crop-input-group" id="editCropTargetTransplantGroup">
 
                                         <label>
@@ -5461,6 +5507,9 @@ foreach ($houseRowsByCode as $code => $h) {
 
 
 <script>
+const MAP_CAN_EDIT_CROPS = <?= $mapCanEditCrops ? "true" : "false" ?>;
+const MAP_CAN_EDIT_LIVESTOCK = <?= $mapCanEditLivestock ? "true" : "false" ?>;
+const MAP_CAN_EDIT_ALL = <?= $mapCanEditAll ? "true" : "false" ?>;
 
 /* =========================================================
    SANCTUARIO FARM MAP
@@ -7413,6 +7462,7 @@ function restoreBedSnapshot() {
 ========================================================= */
 
 function startBedEditing() {
+    if (!MAP_CAN_EDIT_CROPS) return;
 
     if (!currentPlot) return;
 
@@ -7435,6 +7485,7 @@ function startBedEditing() {
 }
 
 function toggleBedPositionEditing() {
+    if (!MAP_CAN_EDIT_CROPS) return;
     if (!bedEditMode) return;
 
     bedPositionEditMode = !bedPositionEditMode;
@@ -7526,6 +7577,7 @@ function selectBed(marker) {
 }
 
 function editSelectedCrop() {
+    if (!MAP_CAN_EDIT_CROPS) return;
     if (!bedEditMode || !selectedBed) {
         showFarmMapToast("Select a crop marker first");
         return;
@@ -7624,16 +7676,19 @@ document.addEventListener(
 ========================================================= */
 
 function addBedAtSlot(slot) {
+    if (!MAP_CAN_EDIT_CROPS) return;
     /* Kept as a compatibility function for older calls.
        New slots are crop profile slots, not new beds. */
     openCropEditorForEmptySlot(slot);
 }
 
 function addBed() {
+    if (!MAP_CAN_EDIT_CROPS) return;
     showFarmMapToast("Bed slots are fixed for this plot");
 }
 
 function deleteSelectedBed() {
+    if (!MAP_CAN_EDIT_CROPS) return;
 
     if (!bedEditMode || !selectedBed) {
         showFarmMapToast("Select a crop marker first");
@@ -7696,6 +7751,7 @@ function deleteSelectedBed() {
 ========================================================= */
 
 function saveBeds() {
+    if (!MAP_CAN_EDIT_CROPS) return;
     finishBedEditing();
 }
 
@@ -8187,6 +8243,11 @@ function renderCropProfile(crop) {
 
     const isNurseryProfile = String(currentPlot || "").toUpperCase() === "NURSERY";
 
+    const targetAreaGroup = document.getElementById("profileCropTargetAreaGroup");
+    if (targetAreaGroup) targetAreaGroup.style.display = isNurseryProfile ? "" : "none";
+    const targetAreaValue = document.getElementById("profileCropTargetArea");
+    if (targetAreaValue) targetAreaValue.textContent = crop.targetArea || "--";
+
     const profileDateLabel = document.getElementById("profileCropDateLabel");
     if (profileDateLabel) {
         profileDateLabel.textContent =
@@ -8431,6 +8492,7 @@ function openCropHarvestForm() {
     document.getElementById("cropHarvestForm").classList.add("show");
 }
 function saveCropHarvest() {
+    if (!MAP_CAN_EDIT_CROPS) return;
     const crop = getCropProfile(currentCropBed);
     if (!crop || !crop.cropId) return;
     const date = document.getElementById("harvestDate").value;
@@ -8467,6 +8529,7 @@ function saveCropHarvest() {
 ========================================================= */
 
 function openCropEditorForEmptySlot(slot) {
+    if (!MAP_CAN_EDIT_CROPS) return;
 
     if (!currentPlot || !slot) return;
 
@@ -8509,6 +8572,7 @@ function openCropEditorForEmptySlot(slot) {
 }
 
 function startCropProfileEditing() {
+    if (!MAP_CAN_EDIT_CROPS) return;
 
     const crop =
         getCropProfile(
@@ -8609,6 +8673,16 @@ function startCropProfileEditing() {
 
     document.getElementById("editCropTargetTransplantDate").value =
         crop.targetTransplantDate || "";
+
+    const targetAreaEditGroup = document.getElementById("editCropTargetAreaGroup");
+    const targetAreaSelect = document.getElementById("editCropTargetArea");
+    const nurseryTargetEditor = String(currentPlot || "").toUpperCase() === "NURSERY";
+    if (targetAreaEditGroup) targetAreaEditGroup.style.display = nurseryTargetEditor ? "" : "none";
+    if (targetAreaSelect) {
+        const savedTarget = String(crop.targetArea || "").trim();
+        const match = Array.from(targetAreaSelect.options).find(o => o.value.toLowerCase() === savedTarget.toLowerCase());
+        targetAreaSelect.value = match ? match.value : "";
+    }
 
     const isNurseryEditor = String(currentPlot || "").toUpperCase() === "NURSERY";
     document.getElementById("editCropTargetTransplantGroup").style.display =
@@ -8902,6 +8976,7 @@ function setCropProfileEditButtons(editing) {
 ========================================================= */
 
 function saveCropProfile() {
+    if (!MAP_CAN_EDIT_CROPS) return;
 
     if (!currentPlot || !currentCropBed) {
         return;
@@ -9167,6 +9242,13 @@ if (cropMarker) {
         ) || 0
     );
 
+
+    formData.append(
+        "target_area",
+        isNurseryCrop
+            ? (document.getElementById("editCropTargetArea").value || "")
+            : (existing.targetArea || "")
+    );
 
     formData.append(
         "target_transplant_date",
@@ -9710,6 +9792,8 @@ const removeLivestockImageBtn =
 const livestockImageInput =
     document.getElementById("livestockImageInput");
 
+let livestockImageRemovalRequested = false;
+
 
 /* ================================
    UPLOAD / CHANGE LIVESTOCK IMAGE
@@ -9737,6 +9821,7 @@ if (livestockImageInput) {
         const file = this.files[0];
 
         if (!file) return;
+        livestockImageRemovalRequested = false;
 
         if (!file.type.startsWith("image/")) {
 
@@ -9787,6 +9872,7 @@ if (livestockImageInput) {
 if (removeLivestockImageBtn) {
 
     removeLivestockImageBtn.addEventListener("click", function () {
+        livestockImageRemovalRequested = true;
 
         const image =
             document.getElementById("livestockProfileImage");
@@ -10139,6 +10225,21 @@ function dbLivestockToAnimal(row, index, total) {
     };
 }
 
+// Normalize paths saved as relative URLs, /SanctuarioSystem/... URLs,
+// or absolute local-server URLs without duplicating the application folder.
+function resolveFarmMapImagePath(value) {
+    const raw = String(value || "").trim().replace(/\\/g, "/");
+    if (!raw) return "";
+    if (/^(?:data:image\/|blob:)/i.test(raw)) return raw;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    const appRoot = basePath.replace(/\/+$/, "") + "/";
+    const clean = raw.replace(/^\.\//, "");
+    if (clean.startsWith(appRoot)) return clean;
+    if (clean.startsWith("/")) return clean;
+    if (/^SanctuarioSystem\//i.test(clean)) return "/" + clean;
+    return appRoot + clean;
+}
+
 function getLivestockHouseData(houseId) {
 
     const entry = dbLivestockHouses[houseId];
@@ -10151,9 +10252,18 @@ function getLivestockHouseData(houseId) {
         (row, index) => dbLivestockToAnimal(row, index, total)
     );
 
+    // Goat House 2 shares the same photo as the original Goat House.
+    // Prefer the first goat house's saved image; otherwise use goat_house.jpg.
+    let houseImage = entry.house.image || "";
+    if (/^goat house\s*2$/i.test(String(entry.house.house_name || "").trim())) {
+        const originalGoatHouse = Object.values(dbLivestockHouses).find(item =>
+            /^goat house$/i.test(String(item.house.house_name || "").trim())
+        );
+        houseImage = (originalGoatHouse && originalGoatHouse.house.image) || "goat_house.jpg";
+    }
     return {
         title: entry.house.house_name,
-        image: entry.house.image ? `${basePath}${entry.house.image}` : "",
+        image: resolveFarmMapImagePath(houseImage),
         description: entry.house.description || "",
         animals
     };
@@ -10393,6 +10503,7 @@ function updateLivestockHouseEditUI() {
 }
 
 function toggleLivestockHouseEditing() {
+    if (!MAP_CAN_EDIT_LIVESTOCK) return;
     livestockHouseEditMode = !livestockHouseEditMode;
     livestockPositionEditMode = false;
     selectedLivestockMarker = null;
@@ -10401,6 +10512,7 @@ function toggleLivestockHouseEditing() {
 }
 
 function toggleLivestockPositionEditing() {
+    if (!MAP_CAN_EDIT_LIVESTOCK) return;
     if (!livestockHouseEditMode) return;
     livestockPositionEditMode = !livestockPositionEditMode;
     document.querySelectorAll("#livestockMarkersContainer .livestock-house-marker").forEach(marker => marker.classList.toggle("position-editing", livestockPositionEditMode));
@@ -10408,6 +10520,7 @@ function toggleLivestockPositionEditing() {
 }
 
 function deleteSelectedLivestock() {
+    if (!MAP_CAN_EDIT_LIVESTOCK) return;
     if (!livestockHouseEditMode || !selectedLivestockMarker) {
         showFarmMapToast("Select a livestock marker first");
         return;
@@ -10426,6 +10539,7 @@ function deleteSelectedLivestock() {
 }
 
 function editSelectedLivestock() {
+    if (!MAP_CAN_EDIT_LIVESTOCK) return;
     if (!livestockHouseEditMode || !selectedLivestockMarker) {
         showFarmMapToast("Select a livestock marker first");
         return;
@@ -10570,7 +10684,20 @@ function openLivestock(houseId) {
     draggingLivestock = null;
     updateLivestockHouseEditUI();
 
-    document.getElementById("livestockHouseImage").src = house.image;
+    const houseImage = document.getElementById("livestockHouseImage");
+    const houseImageArea = houseImage.closest(".livestock-house-map");
+    houseImageArea.classList.remove("house-image-unavailable");
+    houseImage.alt = house.title || "Livestock House";
+    houseImage.onerror = function () {
+        this.removeAttribute("src");
+        houseImageArea.classList.add("house-image-unavailable");
+    };
+    if (house.image) {
+        houseImage.src = house.image;
+    } else {
+        houseImage.removeAttribute("src");
+        houseImageArea.classList.add("house-image-unavailable");
+    }
     document.getElementById("livestockHouseTitle").textContent = house.title;
     document.getElementById("livestockHouseDescription").textContent = house.description;
 
@@ -10654,8 +10781,7 @@ function renderLivestockProfile(animal) {
             ? `${animal.weight} kg`
             : "--";
 
-    document.getElementById("profileLivestockNumber").textContent =
-        animal.number ?? "--";
+
 
     document.getElementById("profileLivestockForSale").textContent =
         animal.forSale ? "Yes" : "No";
@@ -10690,6 +10816,8 @@ function openLivestockProfile(animalId) {
 
 function closeLivestockProfile() {
 
+    livestockImageRemovalRequested = false;
+    if (livestockImageInput) livestockImageInput.value = "";
     restoreLivestockTypeAndIconChooser();
 
     document.getElementById("livestockProfileOverlay").classList.remove("show");
@@ -10702,6 +10830,8 @@ function closeLivestockProfile() {
 }
 
 function setLivestockProfileEditButtons(editing) {
+    const imageActions = document.getElementById("livestockImageActions");
+    if (imageActions) imageActions.style.display = editing ? "flex" : "none";
 
     document.getElementById("editLivestockProfileBtn").style.display =
         editing ? "none" : "inline-flex";
@@ -10714,7 +10844,10 @@ function setLivestockProfileEditButtons(editing) {
 }
 
 function startLivestockProfileEditing() {
+    if (!MAP_CAN_EDIT_LIVESTOCK) return;
 
+    livestockImageRemovalRequested = false;
+    if (livestockImageInput) livestockImageInput.value = "";
     restoreLivestockTypeAndIconChooser();
 
     const animal =
@@ -11157,6 +11290,7 @@ document.getElementById("cancelLivestockProfileBtn").addEventListener(
 );
 
 function saveLivestockProfile() {
+    if (!MAP_CAN_EDIT_LIVESTOCK) return;
 
     const animal = getCurrentLivestock();
 
@@ -11334,6 +11468,8 @@ if (markerKey) {
     const imageInput =
         document.getElementById("livestockImageInput");
 
+    formData.append("remove_livestock_image", livestockImageRemovalRequested ? "1" : "0");
+
     if (
         imageInput &&
         imageInput.files &&
@@ -11447,6 +11583,8 @@ if (markerKey) {
 }
 
 function cancelLivestockProfileEditing() {
+    livestockImageRemovalRequested = false;
+    if (livestockImageInput) livestockImageInput.value = "";
 
     if (livestockAddMode) {
         livestockAddMode = false;
@@ -11815,6 +11953,7 @@ function createEditSnapshot() {
 ========================================================= */
 
 function toggleMapEditMode() {
+    if (!MAP_CAN_EDIT_ALL) return;
 
     mapEditMode
         ? leaveMapEditMode()
@@ -11824,6 +11963,7 @@ function toggleMapEditMode() {
 
 
 function enterMapEditMode() {
+    if (!MAP_CAN_EDIT_ALL) return;
 
     mapEditMode =
         true;
@@ -11932,6 +12072,7 @@ function leaveMapEditMode() {
 ========================================================= */
 
 function setMapEditTool(tool) {
+    if (!MAP_CAN_EDIT_ALL) return;
 
     if (!mapEditMode) {
         return;
@@ -12038,6 +12179,7 @@ function getMapPosition(event) {
 ========================================================= */
 
 function addNewPlot(event) {
+    if (!MAP_CAN_EDIT_ALL) return;
 
     const position =
         getMapPosition(
@@ -12202,6 +12344,7 @@ function addNewPlot(event) {
 ========================================================= */
 
 function addNewMarker(event) {
+    if (!MAP_CAN_EDIT_ALL) return;
 
     const position =
         getMapPosition(
@@ -12370,6 +12513,7 @@ function escapeHTML(value) {
 ========================================================= */
 
 function enableEditableMarkers() {
+    if (!MAP_CAN_EDIT_ALL) return;
 
     document.querySelectorAll(
         ".editable-marker"
@@ -12539,6 +12683,7 @@ function getStoredMapData() {
 
 
 function saveAllMapData() {
+    if (!MAP_CAN_EDIT_ALL) return;
 
     const mapData =
         [
@@ -12702,6 +12847,7 @@ function restoreEditSnapshot() {
 ========================================================= */
 
 function saveEditableMap() {
+    if (!MAP_CAN_EDIT_ALL) return;
 
     saveAllMapData();
 
@@ -13051,11 +13197,13 @@ function showFarmMapToast(message) {
 }
 
 function autoSaveBedBoard() {
+    if (!MAP_CAN_EDIT_CROPS) return;
     saveCurrentBedState();
 }
 
 
 function finishBedEditing() {
+    if (!MAP_CAN_EDIT_CROPS) return;
     if (!bedEditMode) return;
 
     autoSaveBedBoard();

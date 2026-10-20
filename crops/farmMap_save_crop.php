@@ -113,6 +113,10 @@ $area =
         $data['transplanted_area'] ?? ''
     );
 
+// These values are submitted by the Nursery Farm Map edit form.
+$targetArea = trim((string)($data['target_area'] ?? ''));
+$seedlingsReceived = max(0, (int)($data['seedlings_received'] ?? 0));
+
 $dateTransplanted =
     !empty($data['date_transplanted'])
         ? $data['date_transplanted']
@@ -241,14 +245,14 @@ if ($cropId <= 0) {
 		}
 
 		$conn->begin_transaction();
-		$insert = $conn->prepare("INSERT INTO crops (crop_name, recipient, variety, pcs, germination_rate, date_sowing, target_transplant_date, transplanted_area, date_transplanted, expected_harvest, plot_id, bed_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'NURSERY', ?, ?, ?, ?, ?)");
+		$insert = $conn->prepare("INSERT INTO crops (crop_name, recipient, variety, pcs, germination_rate, date_sowing, target_transplant_date, target_area, seedlings_received, transplanted_area, date_transplanted, expected_harvest, plot_id, bed_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'NURSERY', ?, ?, ?, ?, ?)");
 		if (!$insert) {
 			$conn->rollback();
 			http_response_code(500);
 			echo json_encode(['success' => false, 'message' => 'Unable to prepare the crop record.']);
 			exit;
 		}
-		$insert->bind_param('sssidssssiis', $cropName, $recipient, $variety, $pcs, $germination, $dateSowing, $targetTransplantDate, $dateTransplanted, $expectedHarvest, $nurseryPlotId, $bedId, $status);
+		$insert->bind_param('sssidsssissiis', $cropName, $recipient, $variety, $pcs, $germination, $dateSowing, $targetTransplantDate, $targetArea, $seedlingsReceived, $dateTransplanted, $expectedHarvest, $nurseryPlotId, $bedId, $status);
 		if (!$insert->execute()) {
 			$message = $insert->error;
 			$insert->close();
@@ -307,90 +311,40 @@ if ($cropId <= 0) {
 }
 
 
-// The current Farm Map FormData does not submit bed_id. Do not overwrite
-// an existing bed assignment with 0 when that field is absent.
-if (array_key_exists('bed_id', $data)) {
-    $stmt = $conn->prepare("
-        UPDATE crops
-        SET
-            bed_id = ?,
-            crop_name = ?,
-            variety = ?,
-            recipient = ?,
-            pcs = ?,
-            germination_rate = ?,
-            date_sowing = ?,
-            target_transplant_date = ?,
-            transplanted_area = ?,
-            date_transplanted = ?,
-            expected_harvest = ?,
-            status = ?
-        WHERE crop_id = ?
-    ");
+// Verify the crop exists before reporting success. MySQL can successfully
+// execute UPDATE even when zero records match its WHERE clause.
+$check = $conn->prepare('SELECT crop_id FROM crops WHERE crop_id=? AND COALESCE(archived,0)=0 LIMIT 1');
+if (!$check) { http_response_code(500); echo json_encode(['success'=>false,'message'=>'Unable to validate crop record.']); exit; }
+$check->bind_param('i', $cropId);
+$check->execute();
+$exists = $check->get_result()->fetch_assoc();
+$check->close();
+if (!$exists) { http_response_code(404); echo json_encode(['success'=>false,'message'=>'Crop record not found. Refresh Farm Map and try again.']); exit; }
 
-    $stmt->bind_param(
-        "isssidssssssi",
-        $bedId,
-        $cropName,
-        $variety,
-        $recipient,
-        $pcs,
-        $germination,
-        $dateSowing,
-        $targetTransplantDate,
-        $area,
-        $dateTransplanted,
-        $expectedHarvest,
-        $status,
-        $cropId
-    );
-} else {
-    $stmt = $conn->prepare("
-        UPDATE crops
-        SET
-            crop_name = ?,
-            variety = ?,
-            recipient = ?,
-            pcs = ?,
-            germination_rate = ?,
-            date_sowing = ?,
-            target_transplant_date = ?,
-            transplanted_area = ?,
-            date_transplanted = ?,
-            expected_harvest = ?,
-            status = ?
-        WHERE crop_id = ?
-    ");
-
-    $stmt->bind_param(
-        "sssidssssssi",
-        $cropName,
-        $variety,
-        $recipient,
-        $pcs,
-        $germination,
-        $dateSowing,
-        $targetTransplantDate,
-        $area,
-        $dateTransplanted,
-        $expectedHarvest,
-        $status,
-        $cropId
-    );
-}
-
-
+// The Farm Map editor does not always send bed_id. Preserve the current bed
+// and preserve optional columns for older clients that do not send them.
+$hasBed = array_key_exists('bed_id', $data) && $bedId > 0;
+$hasTargetArea = array_key_exists('target_area', $data);
+$hasSeedlings = array_key_exists('seedlings_received', $data);
+$sql = 'UPDATE crops SET crop_name=?, variety=?, recipient=?, pcs=?, germination_rate=?, date_sowing=?, target_transplant_date=?, transplanted_area=?, date_transplanted=?, expected_harvest=?, status=?';
+$types = 'sssidssssss';
+$params = [$cropName, $variety, $recipient, $pcs, $germination, $dateSowing, $targetTransplantDate, $area, $dateTransplanted, $expectedHarvest, $status];
+if ($hasTargetArea) { $sql .= ', target_area=?'; $types .= 's'; $params[] = $targetArea; }
+if ($hasSeedlings) { $sql .= ', seedlings_received=?'; $types .= 'i'; $params[] = $seedlingsReceived; }
+if ($hasBed) { $sql .= ', bed_id=?'; $types .= 'i'; $params[] = $bedId; }
+$sql .= ' WHERE crop_id=? AND COALESCE(archived,0)=0';
+$types .= 'i';
+$params[] = $cropId;
+$stmt = $conn->prepare($sql);
+if (!$stmt) { http_response_code(500); echo json_encode(['success'=>false,'message'=>'Unable to prepare crop update: '.$conn->error]); exit; }
+$stmt->bind_param($types, ...$params);
 if (!$stmt->execute()) {
-
     http_response_code(500);
-
-    echo json_encode([
-        'success' => false,
-        'message' => $stmt->error
-    ]);
-
+    echo json_encode(['success'=>false,'message'=>'Crop update failed: '.$stmt->error]);
+    $stmt->close();
     exit;
 }
+$stmt->close();
 
 // farmMap.php reads the current name, variety, dates, and germination value
 // from plot_crop_records when an active record exists. Keep that read model in
@@ -416,7 +370,6 @@ if ($recordSync) {
     $recordSync->close();
 }
 
-$stmt->close();
 try {
     $imagePath = farmMapStoreCropImage($cropId);
     if ($imagePath !== null) {

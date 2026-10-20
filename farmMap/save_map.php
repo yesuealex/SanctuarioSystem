@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . "/../staff_access.php";
-if (in_array(sanctuario_staff_role(), ["crops staff","livestock staff"], true)) { http_response_code(403); exit("Access denied."); }
+if (empty($_SESSION['user_id']) || (!sanctuario_staff_can_access('crops') && !sanctuario_staff_can_access('livestock'))) { http_response_code(403); exit('Access denied.'); }
 ?>
 <?php
 
@@ -41,6 +41,8 @@ if (!is_array($data)) {
 }
 
 
+if (!sanctuario_staff_can_access('crops') && !empty($data['plots'])) { http_response_code(403); echo json_encode(['success'=>false,'message'=>'Crop map editing is restricted.']); exit; }
+if (!sanctuario_staff_can_access('livestock') && !empty($data['houses'])) { http_response_code(403); echo json_encode(['success'=>false,'message'=>'Livestock house editing is restricted.']); exit; }
 $conn->begin_transaction();
 
 try {

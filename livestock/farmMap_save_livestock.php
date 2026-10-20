@@ -139,6 +139,11 @@ if ($livestockId > 0) {
     $imageQuery->close();
 
     $newImage = $currentImage;
+    $removeImage = (($_POST['remove_livestock_image'] ?? '0') === '1');
+    $uploadedImagePath = null;
+    if ($removeImage) {
+        $newImage = '';
+    }
 
     /* ---------------------------------------------------------
        IMAGE UPLOAD FOR UPDATE
@@ -155,7 +160,8 @@ if ($livestockId > 0) {
             'image/gif'
         ];
 
-        if (!in_array($file['type'], $allowedTypes, true)) {
+        $detectedType = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+        if (!in_array($detectedType, $allowedTypes, true)) {
             echo json_encode([
                 'success' => false,
                 'message' => 'Invalid image format. Please use JPG, PNG, WEBP, or GIF.'
@@ -180,8 +186,9 @@ if ($livestockId > 0) {
             exit;
         }
 
-        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $fileName = 'livestock_' . $livestockId . '_' . time() . '.' . $extension;
+        $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+        $extension = $extensions[$detectedType];
+        $fileName = 'livestock_' . $livestockId . '_' . bin2hex(random_bytes(8)) . '.' . $extension;
         $targetPath = $uploadDirectory . $fileName;
 
         if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
@@ -193,6 +200,7 @@ if ($livestockId > 0) {
         }
 
         $newImage = 'livestock/uploads/' . $fileName;
+        $uploadedImagePath = $targetPath;
     }
 
     $sql = "
@@ -216,6 +224,7 @@ if ($livestockId > 0) {
 
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
+        if ($uploadedImagePath) @unlink($uploadedImagePath);
         echo json_encode([
             'success' => false,
             'message' => 'Database preparation failed: ' . $conn->error
@@ -241,6 +250,7 @@ if ($livestockId > 0) {
     );
 
     if (!$stmt->execute()) {
+        if ($uploadedImagePath) @unlink($uploadedImagePath);
         echo json_encode([
             'success' => false,
             'message' => 'Failed to update livestock record: ' . $stmt->error
@@ -250,6 +260,13 @@ if ($livestockId > 0) {
     }
 
     $stmt->close();
+
+    // Delete only images stored in this application's livestock upload folder.
+    if ($currentImage !== '' && $currentImage !== $newImage &&
+        preg_match('~^livestock/uploads/[A-Za-z0-9_.-]+$~', $currentImage)) {
+        $oldPath = dirname(__DIR__) . '/' . $currentImage;
+        if (is_file($oldPath)) @unlink($oldPath);
+    }
 
     echo json_encode([
         'success' => true,
