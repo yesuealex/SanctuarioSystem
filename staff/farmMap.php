@@ -2841,6 +2841,82 @@ foreach ($houseRowsByCode as $code => $h) {
 @media (max-width: 700px) { .plot-popup .plot-info, .nursery-popup { max-height: 48vh; } }
 </style>
 
+<style id="sanctuario-responsive-refinement">
+/* Sanctuario responsive refinement — layout geometry only, no feature changes. */
+@media (max-width: 1199px) {
+  html { -webkit-text-size-adjust: 100%; }
+  body { min-width: 0; }
+  .dashboard, .farm-map-page, .main-content, .page-content, .dashboard-content,
+  .content-wrapper, .inventory-page, .records-page, .settings-page {
+    min-width: 0; max-width: 100%; box-sizing: border-box;
+  }
+  .dashboard, .farm-map-page { padding-left: clamp(12px, 2vw, 24px); padding-right: clamp(12px, 2vw, 24px); }
+  .hero-container, .farm-summary { padding: clamp(12px, 2vw, 26px); }
+  .hero-cards, .top-grid, .bottom-grid, .summary-cards, .farm-map-layout,
+  [class*="-grid"], [class*="_grid"] { min-width: 0; }
+  .hero-cards > *, .summary-cards > *, .farm-map-layout > *,
+  [class*="-grid"] > *, [class*="_grid"] > * { min-width: 0; }
+  h1 { font-size: clamp(1.4rem, 2.6vw, 2.15rem); }
+  h2 { font-size: clamp(1.2rem, 2.25vw, 1.9rem); }
+  h3 { font-size: clamp(1.05rem, 1.8vw, 1.5rem); }
+  img, video, canvas, svg { max-width: 100%; }
+  input, select, textarea { max-width: 100%; min-width: 0; }
+  .modal-content, .popup-content, [class*="modal-content"], [class*="popup-content"] {
+    box-sizing: border-box; max-width: min(94vw, 100%); max-height: 90dvh;
+  }
+  .table-wrapper, .table-container, .table-responsive, [class*="table-wrap"],
+  [class*="table-container"] { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+@media (min-width: 701px) and (max-width: 1199px) {
+  .dashboard, .farm-map-page { padding-top: 14px; padding-bottom: 16px; }
+  .hero-container, .farm-summary { margin-bottom: 12px; }
+  .hero-cards, .summary-cards, .top-grid, .bottom-grid { gap: clamp(9px, 1.4vw, 18px); }
+}
+@media (max-width: 900px) {
+  :root { --sidebar-width: 0px; }
+  .dashboard, .farm-map-page { margin-left: 0; width: 100%; }
+}
+@media (max-width: 700px) {
+  .dashboard, .farm-map-page { padding: 68px 12px 16px; }
+  .hero-container, .farm-summary { padding: 12px; border-radius: 12px; }
+  .hero-text h2 { font-size: clamp(1.35rem, 5vw, 1.85rem); }
+  .hero-text p, .farm-map-title-area p { font-size: clamp(.75rem, 3vw, .95rem); }
+  .hero-cards { gap: 9px; }
+  .modal-content, .popup-content, [class*="modal-content"], [class*="popup-content"] {
+    max-width: calc(100vw - 20px); max-height: calc(100dvh - 20px);
+  }
+}
+@media (max-width: 380px) {
+  .dashboard, .farm-map-page { padding-left: 8px; padding-right: 8px; }
+  .hero-container, .farm-summary { padding: 10px; }
+}
+
+/* Farm map: fill tablet width; preserve map interaction, proportions and icon circles. */
+@media (min-width: 601px) and (max-width: 1199px) {
+  .farm-map-layout { grid-template-columns: minmax(0, 1fr) !important; gap: 12px; }
+  .farm-map-page { padding-top: 12px; }
+  .farm-summary { margin-bottom: 12px; }
+  .summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px; }
+  .summary-card { padding: 10px 14px; min-height: 84px; }
+  .summary-icon { width: clamp(42px, 5vw, 58px); height: clamp(42px, 5vw, 58px); min-width: clamp(42px, 5vw, 58px); flex: 0 0 auto; aspect-ratio: 1; }
+  .summary-label { font-size: clamp(12px, 1.45vw, 15px); }
+  .summary-number { font-size: clamp(25px, 3vw, 36px); }
+  .map-card { width: 100%; }
+  .map-container#mapContainer { width: 100% !important; }
+}
+@media (max-width: 600px) {
+  .summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  .summary-card { min-width: 0; padding: 10px 8px; display: flex; flex-direction: column; justify-content: center; text-align: center; gap: 4px; }
+  .summary-icon { width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px; max-width: 38px; max-height: 38px; flex: 0 0 38px; aspect-ratio: 1 / 1; border-radius: 50%; margin: 0 auto 4px; line-height: 1; }
+  .summary-icon i { display: inline-flex; align-items: center; justify-content: center; width: 1em; height: 1em; line-height: 1; font-size: 20px; transform: none; flex-shrink: 0; }
+  .summary-label { display: block; font-size: clamp(10px, 2.7vw, 13px); line-height: 1.2; overflow-wrap: anywhere; }
+  .summary-number { display: block; font-size: clamp(23px, 6vw, 30px); }
+  .farm-map-layout { grid-template-columns: minmax(0, 1fr) !important; gap: 10px; }
+  .farm-summary { margin-bottom: 12px; }
+  .map-card { width: 100%; }
+}
+
+</style>
 </head>
 
 

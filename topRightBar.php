@@ -577,6 +577,27 @@ $trb_badgeText =
 
 $trb_appRoot = trb_app_root_url();
 $trb_notificationFeedUrl = $trb_appRoot . '/notification_feed.php';
+$trb_pageFile = strtolower(basename(parse_url($_SERVER['SCRIPT_NAME'] ?? '', PHP_URL_PATH) ?: ''));
+$trb_pageTitles = [
+    'admindashboard.php' => 'Dashboard',
+    'staffdashboard.php' => 'Dashboard',
+    'farmmap.php' => 'Farm Map',
+    'accountsettings.php' => 'Account Settings',
+    'inventory.php' => 'Inventory',
+    'crops.php' => 'Crops',
+    'livestocks.php' => 'Livestock',
+    'livestock.php' => 'Livestock',
+    'records.php' => 'Farm Records',
+    'reports.php' => 'Reports',
+];
+$trb_pageTitle = $trb_pageTitles[$trb_pageFile] ?? ucwords(str_replace(['-', '_'], ' ', preg_replace('/\.php$/i', '', $trb_pageFile)));
+$trb_isDashboard = $trb_pageTitle === 'Dashboard';
+$trb_breadcrumbRole = stripos((string)($trb_loggedInUser['role'] ?? ''), 'admin') !== false ? 'Admin' : 'Staff';
+$trb_dashboardUrl = $trb_appRoot . '/adminDashboard.php';
+if (stripos((string)($trb_loggedInUser['role'] ?? ''), 'staff') !== false) {
+    $trb_dashboardUrl = $trb_appRoot . '/staffDashboard.php';
+}
+
 
 ?>
 
@@ -612,6 +633,62 @@ $trb_notificationFeedUrl = $trb_appRoot . '/notification_feed.php';
 /* =========================================================
    NOTIFICATION
    ========================================================= */
+
+/* Breadcrumb stays in the existing content topbar; it never uses
+   fixed/absolute positioning that could cover the sidebar. */
+.dashboard-topbar {
+    box-sizing: border-box;
+    min-width: 0;
+}
+.trb-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-right: auto;
+    font-size: clamp(17px, 1vw, 14px);
+    white-space: nowrap;
+    overflow: hidden;
+}
+.trb-breadcrumb a {
+    color: #68766b;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+.trb-breadcrumb a:hover { color: #2d5a30; }
+.trb-breadcrumb .trb-current {
+    color: #244d29;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.trb-breadcrumb .material-symbols-rounded {
+    color: #9ba69c;
+    font-size: 19px;
+    flex-shrink: 0;
+}
+.topbar-notification, .topbar-profile { flex-shrink: 0; }
+@media (max-width: 900px) {
+    .dashboard-topbar { gap: 10px; }
+    .trb-breadcrumb { gap: 5px; }
+}
+@media (max-width: 700px) {
+    .trb-breadcrumb { font-size: 12px; gap: 3px; }
+    .trb-breadcrumb .material-symbols-rounded { font-size: 16px; }
+    .trb-breadcrumb a { display: inline; }
+    .trb-breadcrumb .material-symbols-rounded { display: inline-flex; }
+    .trb-breadcrumb { min-width: 0; overflow: hidden; }
+    .trb-breadcrumb .trb-current { min-width: 0; }
+}
+@media (max-width: 370px) {
+    .trb-breadcrumb { font-size: 10px; gap: 2px; }
+    .trb-breadcrumb .material-symbols-rounded { font-size: 13px; }
+    .dashboard-topbar { gap: 5px; padding-left: 60px; padding-right: 8px; }
+    .dashboard-topbar .notification-btn { width: 40px; height: 44px; }
+    .dashboard-topbar .profile-btn { width: 44px; min-width: 44px; height: 44px; }
+    .dashboard-topbar .profile-avatar, .dashboard-topbar .topbar-profile-image { width: 36px; height: 36px; }
+}
 
 .topbar-notification,
 .topbar-profile {
@@ -1407,6 +1484,11 @@ $trb_notificationFeedUrl = $trb_appRoot . '/notification_feed.php';
      ========================================================= -->
 
 <div class="dashboard-topbar">
+    <nav class="trb-breadcrumb" aria-label="Breadcrumb">
+        <a href="<?= trb_escape($trb_dashboardUrl) ?>"><?= trb_escape($trb_breadcrumbRole) ?></a>
+        <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+        <span class="trb-current" aria-current="page"><?= trb_escape($trb_pageTitle) ?></span>
+    </nav>
 
 
     <!-- =====================================================

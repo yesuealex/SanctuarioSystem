@@ -429,27 +429,23 @@ $accountSettingsActive = (
             </li>
 
 
-            <!-- =================================================
-                 LOGOUT
-            ================================================== -->
-
-            <li
-                class="logout-menu-item"
-                onclick="location.href='<?= $basePath ?>logout.php'"
-            >
-
-                <span class="material-symbols-rounded">
-                    logout
-                </span>
-
-                <span class="menu-text">
-                    Logout
-                </span>
-
-            </li>
-
-
         </ul>
+
+        <!-- Bottom navigation stays pinned below the scrollable menu. -->
+        <div class="sidebar-bottom-navigation">
+            <div class="sidebar-bottom-divider" aria-hidden="true"></div>
+            <?php if (in_array($role, ['admin', 'super admin'], true)): ?>
+            <a class="sidebar-bottom-link website-management-menu-item <?= $page === 'websiteManagement.php' ? 'active' : '' ?>"
+               href="<?= $basePath ?>websiteManagement.php">
+                <span class="material-symbols-rounded">language</span>
+                <span class="menu-text">Website Management</span>
+            </a>
+            <?php endif; ?>
+            <a class="sidebar-bottom-link logout-menu-item" href="<?= $basePath ?>logout.php">
+                <span class="material-symbols-rounded">logout</span>
+                <span class="menu-text">Logout</span>
+            </a>
+        </div>
 
     </div>
 

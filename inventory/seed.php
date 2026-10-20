@@ -84,7 +84,7 @@ if (empty($_SESSION['inventory_csrf'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST'
-    && in_array($_POST['action'] ?? '', ['update_item', 'archive_item'], true)) {
+    && in_array($_POST['action'] ?? '', ['add_item', 'update_item', 'archive_item'], true)) {
 
     $postAction = $_POST['action'];
     $returnMonth = (int)($_POST['month'] ?? 0);
@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
 
     try {
         if (!$isAdmin) {
-            throw new Exception('Only admins can edit or archive inventory items.');
+            throw new Exception('Only admins can add, edit, or archive inventory items.');
         }
 
         if (!hash_equals($_SESSION['inventory_csrf'], (string)($_POST['csrf_token'] ?? ''))) {
@@ -102,11 +102,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
         }
 
         $inventoryId = (int)($_POST['inventory_id'] ?? 0);
-        if ($inventoryId <= 0) {
+        if ($postAction !== 'add_item' && $inventoryId <= 0) {
             throw new Exception('Invalid inventory item.');
         }
 
-        if ($postAction === 'update_item') {
+        if ($postAction === 'add_item') {
+            $dateReceived = trim((string)($_POST['date_received'] ?? ''));
+            $category = trim((string)($_POST['category'] ?? ''));
+            $itemName = trim((string)($_POST['item_name'] ?? ''));
+            $variety = trim((string)($_POST['variety'] ?? ''));
+            $brand = trim((string)($_POST['brand'] ?? ''));
+            $pieces = trim((string)($_POST['pieces'] ?? ''));
+            $quantity = trim((string)($_POST['quantity'] ?? ''));
+            $priceInput = trim((string)($_POST['price'] ?? '0'));
+            $status = trim((string)($_POST['status'] ?? 'In Stock'));
+            $date = DateTimeImmutable::createFromFormat('!Y-m-d', $dateReceived);
+            if (!$date || $date->format('Y-m-d') !== $dateReceived) {
+                throw new Exception('Please enter a valid date received.');
+            }
+            if (!in_array($category, ['Seeds'], true)) {
+                throw new Exception('Please select a valid category.');
+            }
+            if ($itemName === '' || mb_strlen($itemName) > 150) {
+                throw new Exception('Item name is required (maximum 150 characters).');
+            }
+            foreach (['Variety' => $variety, 'Brand' => $brand] as $label => $value) {
+                if (mb_strlen($value) > 150) throw new Exception($label . ' is too long.');
+            }
+            foreach (['Pieces' => $pieces, 'Quantity' => $quantity] as $label => $value) {
+                if (mb_strlen($value) > 100) throw new Exception($label . ' is too long.');
+            }
+            if (!in_array($status, ['In Stock', 'Low Stock', 'No Stock'], true)) {
+                throw new Exception('Please select a valid stock status.');
+            }
+            if ($priceInput === '' || !is_numeric($priceInput) || (float)$priceInput < 0 || (float)$priceInput > 99999999.99) {
+                throw new Exception('Please enter a valid non-negative price.');
+            }
+            $price = (float)$priceInput;
+            $stmt = $conn->prepare(
+                "INSERT INTO inventory_items (date_received, category, item_name, variety, brand, pieces, quantity, price, status, is_archived)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
+            );
+            if (!$stmt) throw new Exception('Could not prepare the new inventory record.');
+            $stmt->bind_param('sssssssds', $dateReceived, $category, $itemName, $variety, $brand, $pieces, $quantity, $price, $status);
+            if (!$stmt->execute()) throw new Exception('Could not save the inventory record.');
+            $stmt->close();
+            $_SESSION['inventory_flash'] = ['type' => 'success', 'text' => 'Inventory item added successfully.'];
+        } else if ($postAction === 'update_item') {
             $category = trim($_POST['category'] ?? '');
             $itemName = trim($_POST['item_name'] ?? '');
             $variety = trim($_POST['variety'] ?? '');
@@ -315,6 +357,57 @@ try {
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="inventory.css">
+<style id="sanctuario-responsive-refinement">
+/* Sanctuario responsive refinement — layout geometry only, no feature changes. */
+@media (max-width: 1199px) {
+  html { -webkit-text-size-adjust: 100%; }
+  body { min-width: 0; }
+  .dashboard, .farm-map-page, .main-content, .page-content, .dashboard-content,
+  .content-wrapper, .inventory-page, .records-page, .settings-page {
+    min-width: 0; max-width: 100%; box-sizing: border-box;
+  }
+  .dashboard, .farm-map-page { padding-left: clamp(12px, 2vw, 24px); padding-right: clamp(12px, 2vw, 24px); }
+  .hero-container, .farm-summary { padding: clamp(12px, 2vw, 26px); }
+  .hero-cards, .top-grid, .bottom-grid, .summary-cards, .farm-map-layout,
+  [class*="-grid"], [class*="_grid"] { min-width: 0; }
+  .hero-cards > *, .summary-cards > *, .farm-map-layout > *,
+  [class*="-grid"] > *, [class*="_grid"] > * { min-width: 0; }
+  h1 { font-size: clamp(1.4rem, 2.6vw, 2.15rem); }
+  h2 { font-size: clamp(1.2rem, 2.25vw, 1.9rem); }
+  h3 { font-size: clamp(1.05rem, 1.8vw, 1.5rem); }
+  img, video, canvas, svg { max-width: 100%; }
+  input, select, textarea { max-width: 100%; min-width: 0; }
+  .modal-content, .popup-content, [class*="modal-content"], [class*="popup-content"] {
+    box-sizing: border-box; max-width: min(94vw, 100%); max-height: 90dvh;
+  }
+  .table-wrapper, .table-container, .table-responsive, [class*="table-wrap"],
+  [class*="table-container"] { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+@media (min-width: 701px) and (max-width: 1199px) {
+  .dashboard, .farm-map-page { padding-top: 14px; padding-bottom: 16px; }
+  .hero-container, .farm-summary { margin-bottom: 12px; }
+  .hero-cards, .summary-cards, .top-grid, .bottom-grid { gap: clamp(9px, 1.4vw, 18px); }
+}
+@media (max-width: 900px) {
+  :root { --sidebar-width: 0px; }
+  .dashboard, .farm-map-page { margin-left: 0; width: 100%; }
+}
+@media (max-width: 700px) {
+  .dashboard, .farm-map-page { padding: 68px 12px 16px; }
+  .hero-container, .farm-summary { padding: 12px; border-radius: 12px; }
+  .hero-text h2 { font-size: clamp(1.35rem, 5vw, 1.85rem); }
+  .hero-text p, .farm-map-title-area p { font-size: clamp(.75rem, 3vw, .95rem); }
+  .hero-cards { gap: 9px; }
+  .modal-content, .popup-content, [class*="modal-content"], [class*="popup-content"] {
+    max-width: calc(100vw - 20px); max-height: calc(100dvh - 20px);
+  }
+}
+@media (max-width: 380px) {
+  .dashboard, .farm-map-page { padding-left: 8px; padding-right: 8px; }
+  .hero-container, .farm-summary { padding: 10px; }
+}
+
+</style>
 </head>
 <body>
 <?php include '../sidebar.php'; ?>
@@ -372,8 +465,15 @@ try {
                     </select>
                 </div>
                 <div class="toolbar-space"></div>
+                <div class="inventory-export-actions">
+                    <a class="inventory-export-button" href="export_inventory.php?type=seeds&amp;format=excel&amp;month=<?= (int)$selectedMonth ?>"><i class="fa-solid fa-file-excel"></i> Download Excel</a>
+                    <a class="inventory-export-button" href="export_inventory.php?type=seeds&amp;format=pdf&amp;month=<?= (int)$selectedMonth ?>"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
+                </div>
+
                 <?php if ($isAdmin): ?>
+                    <button type="button" class="add-item-button" id="openAddInventory"><i class="fa-solid fa-plus"></i> Add Seed</button>
                     <a class="archive-items-button" href="seedsArchived.php">View Archived Items <i class="fa-solid fa-chevron-right"></i></a>
+                    
                 <?php endif; ?>
             </div>
 
@@ -423,6 +523,32 @@ try {
 </main>
 
 <?php if ($isAdmin): ?>
+<!-- Add inventory modal -->
+<div class="inventory-modal-overlay" id="addInventoryModal" role="dialog" aria-modal="true" aria-labelledby="addInventoryTitle">
+    <div class="inventory-modal">
+        <div class="modal-header">
+            <h2 id="addInventoryTitle">Add Seed Inventory</h2>
+            <button type="button" class="modal-close" data-close-add aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post">
+            <input type="hidden" name="action" value="add_item">
+            <input type="hidden" name="csrf_token" value="<?= e($_SESSION['inventory_csrf']) ?>">
+            <input type="hidden" name="month" value="0">
+            <div class="modal-form-grid">
+                <div class="form-group"><label for="addDate">Date Received</label><input id="addDate" type="date" name="date_received" value="<?= date('Y-m-d') ?>" required></div>
+                <input type="hidden" name="category" value="Seeds">
+                <div class="form-group"><label for="addName">Item Name</label><input id="addName" name="item_name" maxlength="150" required></div>
+                <div class="form-group"><label for="addVariety">Variety</label><input id="addVariety" name="variety" maxlength="150"></div>
+                <div class="form-group"><label for="addBrand">Brand</label><input id="addBrand" name="brand" maxlength="150"></div>
+                <div class="form-group"><label for="addPieces">Pieces</label><input id="addPieces" name="pieces" maxlength="100" placeholder="e.g. 2 Packs"></div>
+                <div class="form-group"><label for="addQuantity">Quantity / No. of Seeds</label><input id="addQuantity" name="quantity" maxlength="100" placeholder="e.g. 10 Grams"></div>
+                <div class="form-group"><label for="addPrice">Price</label><input id="addPrice" type="number" name="price" min="0" max="99999999.99" step="0.01" value="0.00" required></div>
+                <div class="form-group"><label for="addStatus">Status</label><select id="addStatus" name="status"><option>In Stock</option><option>Low Stock</option><option>No Stock</option></select></div>
+            </div>
+            <div class="modal-actions"><button type="button" class="modal-cancel" data-close-add>Cancel</button><button type="submit" class="modal-save">Save Inventory</button></div>
+        </form>
+    </div>
+</div>
 <!-- Edit item modal (opens on this page) -->
 <div class="inventory-modal-overlay" id="inventoryModal">
     <div class="inventory-modal">
@@ -532,6 +658,16 @@ inventorySearch.addEventListener('input', applyInventoryFilters);
 filterSelects.forEach(select => select.addEventListener('change', applyInventoryFilters));
 applyInventoryFilters();
 
+/* Add inventory modal */
+const addInventoryModal = document.getElementById('addInventoryModal');
+const addInventoryButton = document.getElementById('openAddInventory');
+if (addInventoryModal && addInventoryButton) {
+    const closeAddInventory = () => addInventoryModal.classList.remove('show');
+    addInventoryButton.addEventListener('click', () => { addInventoryModal.classList.add('show'); document.getElementById('addName').focus(); });
+    document.querySelectorAll('[data-close-add]').forEach(button => button.addEventListener('click', closeAddInventory));
+    addInventoryModal.addEventListener('click', event => { if (event.target === addInventoryModal) closeAddInventory(); });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') closeAddInventory(); });
+}
 /* Admin only: edit modal + delete (archive). Elements exist only for admins. */
 const inventoryModal = document.getElementById('inventoryModal');
 if (inventoryModal) {

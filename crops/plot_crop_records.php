@@ -94,7 +94,58 @@ if (!$selected && $crops) $selected = $crops[0];
 ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title><?= h($plotName) ?> | Crop Production Records</title><link rel="stylesheet" href="../style.css"><style>
 :root{--green:#2f6b2f;--line:#dfe7db;--muted:#718071}*{box-sizing:border-box}body{margin:0;background:#f6f8f4;color:#344236;font-family:Poppins,Arial,sans-serif}.page{max-width:1600px;margin:auto;padding:24px}.heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}.heading h1{margin:0;color:var(--green);font-size:clamp(20px,3vw,28px)}.heading p{margin:5px 0 0;color:var(--muted);font-size:13px}.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:18px;box-shadow:0 3px 12px #1b321108}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:100%;min-width:1250px;font-size:12px}th,td{border:1px solid #cfd8cc;padding:10px;vertical-align:top;text-align:left}th{background:#edf3e9;color:#334a32;font-weight:700;white-space:normal}td{line-height:1.6}td em{font-style:italic}.app-row{display:flex;gap:7px;align-items:flex-start;margin-bottom:6px}.app-row form{margin:0}.tiny{font-size:11px;color:var(--muted)}.btn{display:inline-block;border:0;border-radius:7px;padding:9px 13px;font:600 12px Poppins,Arial,sans-serif;cursor:pointer;text-decoration:none}.primary{background:var(--green);color:white}.soft{background:#edf2e9;color:#38513a}.danger{background:#f9e8e5;color:#923c31}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.field label{display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#536353}.field input,.field select,.field textarea{width:100%;border:1px solid #d7e0d2;border-radius:7px;padding:10px;font:13px Poppins,Arial,sans-serif;background:#fff}.field textarea{min-height:82px;resize:vertical}.field.full{grid-column:1/-1}.section-title{margin:0 0 12px;color:var(--green);font-size:16px}.form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.application-form{display:grid;grid-template-columns:1fr 180px 1.2fr auto;gap:8px;margin-top:10px}.application-form input{min-width:0;border:1px solid #d7e0d2;border-radius:7px;padding:9px;font:12px Poppins,Arial,sans-serif}.crop-select{width:100%;max-width:360px;border:1px solid #d7e0d2;border-radius:7px;padding:10px;font:13px Poppins,Arial,sans-serif;margin-bottom:14px}.empty{padding:22px;text-align:center;color:var(--muted)}@media(max-width:760px){.page{padding:12px}.card{padding:12px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.application-form{grid-template-columns:1fr}.heading .btn{width:100%;text-align:center}}
-</style></head><body><main class="page">
+</style><style id="sanctuario-responsive-refinement">
+/* Sanctuario responsive refinement — layout geometry only, no feature changes. */
+@media (max-width: 1199px) {
+  html { -webkit-text-size-adjust: 100%; }
+  body { min-width: 0; }
+  .dashboard, .farm-map-page, .main-content, .page-content, .dashboard-content,
+  .content-wrapper, .inventory-page, .records-page, .settings-page {
+    min-width: 0; max-width: 100%; box-sizing: border-box;
+  }
+  .dashboard, .farm-map-page { padding-left: clamp(12px, 2vw, 24px); padding-right: clamp(12px, 2vw, 24px); }
+  .hero-container, .farm-summary { padding: clamp(12px, 2vw, 26px); }
+  .hero-cards, .top-grid, .bottom-grid, .summary-cards, .farm-map-layout,
+  [class*="-grid"], [class*="_grid"] { min-width: 0; }
+  .hero-cards > *, .summary-cards > *, .farm-map-layout > *,
+  [class*="-grid"] > *, [class*="_grid"] > * { min-width: 0; }
+  h1 { font-size: clamp(1.4rem, 2.6vw, 2.15rem); }
+  h2 { font-size: clamp(1.2rem, 2.25vw, 1.9rem); }
+  h3 { font-size: clamp(1.05rem, 1.8vw, 1.5rem); }
+  img, video, canvas, svg { max-width: 100%; }
+  input, select, textarea { max-width: 100%; min-width: 0; }
+  .modal-content, .popup-content, [class*="modal-content"], [class*="popup-content"] {
+    box-sizing: border-box; max-width: min(94vw, 100%); max-height: 90dvh;
+  }
+  .table-wrapper, .table-container, .table-responsive, [class*="table-wrap"],
+  [class*="table-container"] { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+@media (min-width: 701px) and (max-width: 1199px) {
+  .dashboard, .farm-map-page { padding-top: 14px; padding-bottom: 16px; }
+  .hero-container, .farm-summary { margin-bottom: 12px; }
+  .hero-cards, .summary-cards, .top-grid, .bottom-grid { gap: clamp(9px, 1.4vw, 18px); }
+}
+@media (max-width: 900px) {
+  :root { --sidebar-width: 0px; }
+  .dashboard, .farm-map-page { margin-left: 0; width: 100%; }
+}
+@media (max-width: 700px) {
+  .dashboard, .farm-map-page { padding: 68px 12px 16px; }
+  .hero-container, .farm-summary { padding: 12px; border-radius: 12px; }
+  .hero-text h2 { font-size: clamp(1.35rem, 5vw, 1.85rem); }
+  .hero-text p, .farm-map-title-area p { font-size: clamp(.75rem, 3vw, .95rem); }
+  .hero-cards { gap: 9px; }
+  .modal-content, .popup-content, [class*="modal-content"], [class*="popup-content"] {
+    max-width: calc(100vw - 20px); max-height: calc(100dvh - 20px);
+  }
+}
+@media (max-width: 380px) {
+  .dashboard, .farm-map-page { padding-left: 8px; padding-right: 8px; }
+  .hero-container, .farm-summary { padding: 10px; }
+}
+
+</style>
+</head><body><main class="page">
 <div class="heading"><a class="btn soft" href="crops.php">Back to Crop Records</a></div>
 <section class="card"><h2 class="section-title">Plot production table</h2><?php if (!$crops): ?><div class="empty">No crop records are currently assigned to this plot. Transfer a crop from the Nursery first.</div><?php else: ?><div class="table-wrap"><table><thead><tr><th>Crop</th><th>Variety</th><th>Date of transplant</th><th>Concoction / Vermicast applied & date of application</th><th>Total number of harvest</th><th>Total income</th><th>Problems encountered</th><th>Action taken to solve the problem</th><th>Remarks (solution effectiveness)</th><th>Date of pull out</th><th>Action</th></tr></thead><tbody>
 <?php foreach ($crops as $c): $cid=(int)$c['crop_id']; ?><tr><td><em><?= h($c['crop_name']) ?></em><div class="tiny">Crop ID: <?= $cid ?><?= $c['bed_code'] ? ' · Bed '.h($c['bed_code']) : '' ?></div></td><td><em><?= h($c['variety'] ?: '—') ?></em></td><td><em><?= h($c['date_transplanted'] ?: '—') ?></em></td><td><?php if (!empty($applications[$cid])): foreach ($applications[$cid] as $a): ?><div class="app-row"><span><em><?= h($a['application_name']) ?>, <?= h($a['application_date']) ?></em><?php if ($a['notes']): ?><div class="tiny"><?= h($a['notes']) ?></div><?php endif; ?></span><form method="post" onsubmit="return confirm('Delete this application entry?')"><input type="hidden" name="action" value="delete_application"><input type="hidden" name="crop_id" value="<?= $cid ?>"><input type="hidden" name="application_id" value="<?= (int)$a['application_id'] ?>"><button class="btn danger" type="submit">×</button></form></div><?php endforeach; else: ?><span class="tiny">No applications recorded</span><?php endif; ?></td><td><em><?= h($c['total_harvest'] ?: '—') ?></em></td><td><em><?= $c['total_income'] !== null ? 'PHP '.number_format((float)$c['total_income'],2) : '—' ?></em></td><td><em><?= nl2br(h($c['problems_encountered'] ?: '—')) ?></em></td><td><em><?= nl2br(h($c['action_taken'] ?: '—')) ?></em></td><td><em><?= nl2br(h($c['remarks'] ?: '—')) ?></em></td><td><em><?= h($c['date_pull_out'] ?: '—') ?></em></td><td><a class="btn soft" href="plot_crop_records.php?plot_id=<?= $plotId ?>&crop_id=<?= $cid ?>#record-form">Edit record</a> <a class="btn soft" href="edit_crop.php?id=<?= $cid ?>">Edit bed</a></td></tr><?php endforeach; ?></tbody></table></div><?php endif; ?></section>
