@@ -435,8 +435,8 @@ $accountSettingsActive = (
         <div class="sidebar-bottom-navigation">
             <div class="sidebar-bottom-divider" aria-hidden="true"></div>
             <?php if (in_array($role, ['admin', 'super admin'], true)): ?>
-            <a class="sidebar-bottom-link website-management-menu-item <?= $page === 'websiteManagement.php' ? 'active' : '' ?>"
-               href="<?= $basePath ?>websiteManagement.php">
+            <a class="sidebar-bottom-link website-management-menu-item <?= $page === 'SanctuarioWebsitePublic/websiteSettings.php' ? 'active' : '' ?>"
+               href="<?= $basePath ?>SanctuarioWebsitePublic/websiteSettings.php">
                 <span class="material-symbols-rounded">language</span>
                 <span class="menu-text">Page Management</span>
             </a>

@@ -1,0 +1,982 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+/* ==========================================
+   GLOBAL
+========================================== */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #f4f7f3;
+    color: #273d2d;
+    font-family: 'Poppins', Arial, sans-serif;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+/* ==========================================
+   MAIN SETTINGS PAGE
+========================================== */
+
+.cms-main {
+    margin-left: 250px;
+    padding: 24px;
+    min-width: 0;
+}
+
+.settings-banner {
+    margin-bottom: 18px;
+}
+
+.settings-banner h1 {
+    margin: 0;
+    font-size: 25px;
+}
+
+.settings-banner p {
+    margin: 4px 0;
+    color: #667566;
+    font-size: 13px;
+}
+
+/* ==========================================
+   CMS WORKSPACE
+========================================== */
+
+.cms-workspace {
+    background: #ffffff;
+    border: 1px solid #e0e8df;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.cms-toolbar,
+.cms-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.cms-toolbar {
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e0e8df;
+}
+
+.cms-divider {
+    height: 24px;
+    border-left: 1px solid #dae2d9;
+}
+
+/* ==========================================
+   BUTTONS
+========================================== */
+
+button {
+    font-family: inherit;
+    border: 1px solid #c9d8c8;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #305638;
+    padding: 9px 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.cms-publish {
+    background: #2f653b;
+    color: #ffffff;
+    border-color: #2f653b;
+}
+
+.cms-save {
+    background: #eef5ed;
+}
+
+/* ==========================================
+   STATUS MESSAGE
+========================================== */
+
+.cms-message {
+    padding: 0 16px;
+    font-size: 13px;
+}
+
+.cms-message:empty {
+    display: none;
+}
+
+/* ==========================================
+   WEBSITE PREVIEW
+========================================== */
+
+.cms-preview-notice {
+    padding: 10px 16px;
+    background: #f0f5ec;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+}
+
+.cms-editor iframe {
+    display: block;
+    width: 100%;
+    height: 70vh;
+    min-height: 510px;
+    border: 0;
+    background: #ffffff;
+}
+
+/* ==========================================
+   MODAL OVERLAY
+========================================== */
+
+.cms-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+
+    display: grid;
+    place-items: center;
+
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+/* ==========================================
+   MODAL DIALOG
+========================================== */
+
+.cms-dialog {
+    width: min(560px, 100%);
+    max-height: 85vh;
+
+    padding: 22px;
+
+    background: #ffffff;
+    border: 1px solid #e1e9e0;
+    border-radius: 16px;
+
+    box-shadow: 0 20px 55px rgba(0, 0, 0, 0.2);
+
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    scrollbar-width: thin;
+    scrollbar-color: #b9c7b7 transparent;
+}
+
+.cms-slides-dialog {
+    width: min(500px, 100%);
+    max-height: 85vh;
+}
+
+.cms-dialog::-webkit-scrollbar {
+    width: 7px;
+}
+
+.cms-dialog::-webkit-scrollbar-track {
+    background: transparent;
+    margin-top: 16px;
+    margin-bottom: 16px;
+}
+
+.cms-dialog::-webkit-scrollbar-thumb {
+    background: #b9c7b7;
+    border-radius: 20px;
+}
+
+/* ==========================================
+   MODAL HEADER
+========================================== */
+
+.cms-dialog-header {
+    margin-bottom: 16px;
+}
+
+.cms-dialog-header h2 {
+    margin: 0;
+    color: #273d2d;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.cms-dialog-header p {
+    margin: 5px 0 0;
+    color: #69766b;
+    font-size: 13px;
+}
+
+/* ==========================================
+   SLIDESHOW TITLE
+========================================== */
+
+#slidesModal .cms-dialog-header {
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e8eee7;
+}
+
+#slidesModal .cms-dialog-header h2 {
+    font-size: 19px;
+    font-weight: 600;
+}
+
+#slidesModal .cms-dialog-header p {
+    display: none !important;
+}
+
+#slidesModal .cms-wizard-page h3 {
+    margin: 0 0 15px;
+    color: #315b36;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+/* ==========================================
+   FORM CONTAINERS
+========================================== */
+
+#editFields,
+#slidesFields,
+.cms-wizard-pages,
+.cms-wizard-page,
+.cms-field {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+#editFields > div,
+#slidesFields > div {
+    margin-bottom: 12px;
+}
+
+.cms-field {
+    margin-bottom: 14px;
+}
+
+#editFields .cms-field > label:first-child,
+#slidesFields .cms-field > label:first-child {
+    display: block;
+    margin: 0 0 6px;
+    color: #315b36;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+}
+
+.cms-wizard-page h3 {
+    margin: 0 0 14px;
+    color: #315b36;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+/* ==========================================
+   UNIFORM TEXT INPUTS
+========================================== */
+
+#editFields .cms-field input[type="text"],
+#slidesFields .cms-field input[type="text"],
+#editFields .cms-field textarea,
+#slidesFields .cms-field textarea {
+    display: block;
+
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+
+    height: 44px;
+    min-height: 44px;
+    max-height: 44px;
+
+    margin: 0;
+    padding: 11px 12px;
+
+    border: 1px solid #cedbcd;
+    border-radius: 9px;
+
+    background: #ffffff;
+    color: #273d2d;
+
+    font-family: 'Poppins', Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 20px;
+
+    text-align: left !important;
+    text-align-last: left !important;
+    text-indent: 0 !important;
+    direction: ltr;
+
+    resize: none !important;
+    outline: none;
+
+    box-shadow: none;
+    appearance: none;
+}
+
+#editFields .cms-field input[type="text"]:focus,
+#slidesFields .cms-field input[type="text"]:focus,
+#editFields .cms-field textarea:focus,
+#slidesFields .cms-field textarea:focus {
+    border-color: #315b36;
+    box-shadow: 0 0 0 2px rgba(49, 91, 54, 0.08);
+}
+
+/* ==========================================
+   DESCRIPTION INPUT
+========================================== */
+
+#editFields .cms-field textarea.cms-description-input,
+#slidesFields .cms-field textarea.cms-description-input {
+    width: 100%;
+
+    height: 78px;
+    min-height: 78px;
+    max-height: 78px;
+
+    padding: 11px 12px;
+
+    border: 1px solid #cedbcd;
+    border-radius: 9px;
+
+    text-align: left !important;
+    text-align-last: left !important;
+    text-indent: 0 !important;
+
+    line-height: 20px;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+
+    resize: none !important;
+
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    scrollbar-width: thin;
+    scrollbar-color: #b9c7b7 transparent;
+}
+
+#editFields textarea::-webkit-resizer,
+#slidesFields textarea::-webkit-resizer {
+    display: none;
+}
+
+#editFields textarea.cms-description-input::-webkit-scrollbar,
+#slidesFields textarea.cms-description-input::-webkit-scrollbar {
+    width: 6px;
+}
+
+#editFields textarea.cms-description-input::-webkit-scrollbar-thumb,
+#slidesFields textarea.cms-description-input::-webkit-scrollbar-thumb {
+    background: #b9c7b7;
+    border-radius: 10px;
+}
+
+/* ==========================================
+   SLIDESHOW CARDS
+========================================== */
+
+.cms-slide-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+}
+
+.cms-slide-card {
+    min-width: 0;
+    padding: 13px;
+
+    border: 1px solid #e1e9e0;
+    border-radius: 12px;
+}
+
+.cms-slide-card h3 {
+    margin: 0 0 10px;
+    color: #315b36;
+    font-size: 16px;
+}
+
+.cms-slide-card > div {
+    margin-bottom: 9px;
+}
+
+.cms-slide-thumb {
+    width: 100%;
+    height: 120px;
+
+    margin-bottom: 10px;
+
+    background-size: cover;
+    background-position: center;
+
+    border-radius: 9px;
+}
+
+/* ==========================================
+   IMAGE PREVIEW
+========================================== */
+
+.cms-picture-area {
+    position: relative;
+
+    width: 100%;
+    max-width: 100%;
+
+    overflow: hidden;
+
+    border-radius: 9px;
+    background: #f0f5ec;
+}
+
+.cms-image-preview {
+    display: block;
+
+    width: 100%;
+    height: 165px;
+
+    object-fit: cover;
+    object-position: center;
+
+    border-radius: 9px;
+}
+
+.cms-picture-area.is-empty {
+    min-height: 90px;
+    border: 1px dashed #cedbcd;
+    background: #f6f9f5;
+}
+
+.cms-picture-area.is-empty::after {
+    content: "No picture selected";
+
+    position: absolute;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: #839183;
+    font-size: 12px;
+    pointer-events: none;
+}
+
+/* ==========================================
+   IMAGE ACTION BUTTONS
+========================================== */
+
+.cms-picture-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-wrap: wrap;
+    gap: 9px;
+
+    width: 100%;
+    margin-top: 9px;
+}
+
+.cms-picture-upload,
+.cms-picture-remove {
+    position: static;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: auto;
+    min-width: 0;
+    height: 29px;
+
+    margin: 0;
+    padding: 5px 11px;
+
+    border: 1px solid #315b36;
+    border-radius: 7px;
+
+    background: #ffffff;
+    color: #315b36;
+
+    font-family: 'Poppins', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+
+    text-align: center;
+    white-space: nowrap;
+
+    cursor: pointer;
+}
+
+.cms-picture-upload:hover {
+    background: #eef5ed;
+}
+
+.cms-picture-remove {
+    border-color: #e0c9c9;
+    color: #a63d3d;
+}
+
+.cms-picture-remove:hover:not(:disabled) {
+    background: #fff1f1;
+}
+
+.cms-picture-remove:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ==========================================
+   HIDDEN FILE INPUT
+========================================== */
+
+.cms-picture-file {
+    position: absolute;
+
+    width: 1px !important;
+    height: 1px !important;
+
+    padding: 0 !important;
+    margin: 0 !important;
+
+    opacity: 0;
+    overflow: hidden;
+}
+
+/* ==========================================
+   IMAGE UPLOAD HINT
+========================================== */
+
+.cms-upload-hint {
+    display: block;
+
+    margin-top: 6px;
+
+    color: #788579;
+    font-size: 10px;
+    text-align: center;
+}
+
+/* ==========================================
+   WIZARD NAVIGATION
+========================================== */
+
+#slidesModal .cms-wizard-progress {
+    display: none !important;
+}
+
+.cms-wizard-progress {
+    width: 100%;
+    margin-bottom: 16px;
+}
+
+.cms-wizard-progress span {
+    display: block;
+    margin-bottom: 8px;
+
+    color: #667566;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cms-progress-track {
+    width: 100%;
+    height: 5px;
+
+    background: #e8eee6;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.cms-progress-fill {
+    height: 100%;
+    width: 0;
+
+    background: #315b36;
+    border-radius: 10px;
+
+    transition: width 0.2s ease;
+}
+
+/* ==========================================
+   MODAL FOOTER ACTIONS
+========================================== */
+
+.cms-dialog-actions {
+    position: sticky;
+    bottom: -22px;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+
+    gap: 9px;
+
+    margin-top: 14px;
+    padding: 14px 0;
+
+    background: #ffffff;
+    border-top: 1px solid #edf0ed;
+}
+
+.cms-dialog-actions button {
+    min-width: 65px;
+    padding: 8px 13px;
+
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cms-dialog-actions button[type="submit"] {
+    background: #315b36;
+    color: #ffffff;
+    border-color: #315b36;
+}
+
+.cms-dialog-actions button[type="submit"]:hover {
+    background: #25492c;
+}
+
+/* ==========================================
+   TABLET
+========================================== */
+
+@media (max-width: 900px) {
+    .cms-main {
+        margin-left: 0;
+        padding: 12px;
+    }
+
+    .cms-toolbar {
+        align-items: flex-start;
+    }
+
+    .cms-editor iframe {
+        height: 70vh;
+        min-height: 420px;
+    }
+
+    .cms-dialog {
+        padding: 16px;
+    }
+
+    .cms-dialog-actions {
+        bottom: -16px;
+    }
+}
+
+/* ==========================================
+   MOBILE
+========================================== */
+
+@media (max-width: 600px) {
+    .settings-banner h1 {
+        font-size: 21px;
+    }
+
+    .cms-toolbar {
+        gap: 8px;
+        padding: 12px;
+    }
+
+    .cms-toolbar-group {
+        gap: 7px;
+    }
+
+    .cms-toolbar button {
+        padding: 8px 10px;
+        font-size: 11px;
+    }
+
+    .cms-overlay {
+        padding: 10px;
+    }
+
+    .cms-dialog,
+    .cms-slides-dialog {
+        width: 100%;
+        max-height: 90vh;
+        padding: 15px;
+        border-radius: 12px;
+    }
+
+    .cms-dialog-header h2 {
+        font-size: 18px;
+    }
+
+    #slidesModal .cms-dialog-header h2 {
+        font-size: 18px;
+    }
+
+    .cms-image-preview {
+        height: 135px;
+    }
+
+    .cms-picture-actions {
+        gap: 7px;
+    }
+
+    .cms-picture-upload,
+    .cms-picture-remove {
+        font-size: 10px;
+        padding: 5px 9px;
+    }
+
+    .cms-dialog-actions {
+        flex-wrap: wrap;
+        gap: 7px;
+        bottom: -15px;
+    }
+
+    .cms-dialog-actions button {
+        padding: 8px 11px;
+        font-size: 11px;
+    }
+}
+
+/* CMS PRODUCT SQUARE PREVIEW */
+#editModal:has(.cms-product-square) .cms-picture-area {
+    width: min(220px, 100%) !important;
+    aspect-ratio: 1 / 1;
+    margin-inline: auto;
+}
+
+#editModal:has(.cms-product-square) .cms-image-preview {
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: 1 / 1;
+    object-fit: contain !important;
+    object-position: center;
+}
+
+#editModal:has(.cms-product-square) .cms-field select {
+    width: 100%;
+    min-height: 38px;
+    padding: 9px 12px;
+    border: 1px solid #cedbcd;
+    border-radius: 7px;
+    background: #fff;
+    color: #34553b;
+    font: inherit;
+}
+
+/* CMS FINAL CLEAN TOOLBAR */
+
+.cms-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-height: 56px;
+    padding: 9px 16px;
+    margin: 0;
+    background: #ffffff;
+    border-bottom: 1px solid #e0e8df;
+}
+
+.cms-toolbar-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+.cms-toolbar-end {
+    margin-left: auto;
+}
+
+.cms-toolbar .cms-divider {
+    display: none;
+}
+
+.cms-toolbar button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 35px;
+    padding: 7px 11px;
+    margin: 0;
+    border: 1px solid #c9d8c8;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #315b36;
+    font-family: 'Poppins', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.cms-toolbar #undo,
+.cms-toolbar #redo {
+    background: #f5f8f4;
+}
+
+.cms-toolbar #undo::before {
+    content: "\21B6";
+    font-size: 16px;
+    line-height: 1;
+}
+
+.cms-toolbar #redo::before {
+    content: "\21B7";
+    font-size: 16px;
+    line-height: 1;
+}
+
+.cms-toolbar #previewMode::before {
+    content: "\25CE";
+    font-size: 15px;
+    line-height: 1;
+}
+
+.cms-toolbar #saveDraft::before {
+    content: "\25A3";
+    font-size: 14px;
+    line-height: 1;
+}
+
+.cms-toolbar #saveDraft {
+    background: #eef5ed;
+    border-color: #a3c1a5;
+}
+
+.cms-toolbar #publishAll {
+    background: #315b36;
+    color: #ffffff;
+    border-color: #315b36;
+}
+
+.cms-toolbar #publishAll:hover:not(:disabled) {
+    background: #25492c;
+    color: #ffffff;
+}
+
+.cms-toolbar button:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.cms-toolbar button:focus-visible {
+    outline: 2px solid #8dbb91;
+    outline-offset: 2px;
+}
+
+/* Live status in green header */
+
+.settings-banner {
+    position: relative;
+    padding-right: 160px !important;
+}
+
+.settings-banner #draftStatus {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px;
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px;
+    background: rgba(255,255,255,.12);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.settings-banner #draftStatus:empty {
+    display: none;
+}
+
+.settings-banner #draftStatus:not(:empty)::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #bce5b9;
+}
+
+@media (max-width: 700px) {
+    .cms-toolbar {
+        padding: 10px 12px;
+    }
+
+    .cms-toolbar-end {
+        margin-left: 0;
+    }
+
+    .settings-banner {
+        padding-right: 18px !important;
+    }
+
+    .settings-banner #draftStatus {
+        position: static;
+        transform: none;
+        margin-top: 12px;
+        width: fit-content;
+    }
+}
+/* Change History — isolated styles; existing toolbar sizing is unchanged. */
+#cmsHistoryButton::before { content: "\21BA"; font-size: 16px; line-height: 1; }
+.cms-history-dialog { width: min(940px, 100%); max-height: 88vh; }
+.cms-history-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; border-bottom: 1px solid #e4ece2; padding-bottom: 12px; }
+.cms-history-heading h2 { margin: 0; font-size: 19px; color: #315b36; }
+.cms-history-heading p { margin: 5px 0 0; color: #657767; font-size: 12px; }
+.cms-history-list { display: grid; gap: 9px; margin-top: 16px; }
+.cms-history-entry { border: 1px solid #e1e9e0; border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cms-history-entry-title { font-weight: 600; font-size: 12px; }
+.cms-history-entry-meta { font-size: 11px; color: #6c7c6d; flex: 1; }
+.cms-history-entry button { font-size: 11px; padding: 7px 10px; }
+.cms-history-details { border-top: 1px solid #e1e9e0; margin-top: 15px; padding-top: 12px; }
+.cms-history-details h3 { color: #315b36; font-size: 15px; }
+.cms-history-details p { color: #607363; font-size: 11px; }
+.cms-history-compare { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.cms-history-compare section { min-width: 0; }
+.cms-history-compare h4 { margin: 5px 0; font-size: 12px; }
+.cms-history-compare pre { font-family: 'Poppins', Arial, sans-serif; font-size: 11px; white-space: pre-wrap; overflow: auto; overflow-wrap: anywhere; max-height: 260px; background: #f5f8f4; border: 1px solid #dfe8dd; border-radius: 9px; padding: 10px; }
+.cms-history-restore { margin-top: 12px; background: #315b36; color: white; }
+@media (max-width: 700px) { .cms-history-compare { grid-template-columns: 1fr; } }
+/* Keep status readable inside green header. */
+.settings-banner #draftStatus { display: inline-flex; }
+
+/* Section-based history comparison */
+.cms-history-filter { width: 100%; max-width: 280px; padding: 9px 12px; border: 1px solid #dbe7da; border-radius: 9px; background: #fff; color: #315b36; font: 500 12px Poppins, sans-serif; margin: 4px 0 12px; }
+.cms-history-changes { display: grid; gap: 9px; max-height: 310px; overflow: auto; padding-right: 4px; }
+.cms-history-change-card { border: 1px solid #dce7dc; border-radius: 10px; background: #fff; overflow: hidden; }
+.cms-history-change-card summary { cursor: pointer; padding: 12px 14px; color: #315b36; font: 600 12px Poppins, sans-serif; }
+.cms-history-change-card[open] summary { background: #f3f8f2; border-bottom: 1px solid #e1e9e0; }
+.cms-history-field-label { font: 600 11px Poppins, sans-serif; color: #4d6850; padding: 10px 12px 0; }
+.cms-history-field-pair { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; padding: 7px 12px 12px; }
+.cms-history-field-pair > div { min-width: 0; padding: 9px; border-radius: 8px; background: #f6f8f5; border: 1px solid #e4ebe2; }
+.cms-history-field-pair > div:last-child { background: #eff7ee; }
+.cms-history-field-pair strong { font: 600 10px Poppins, sans-serif; color: #315b36; }
+.cms-history-field-pair p { margin: 5px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 125px; overflow: auto; }
+@media(max-width:600px) { .cms-history-field-pair { grid-template-columns: 1fr; } }

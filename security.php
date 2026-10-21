@@ -117,7 +117,8 @@ function app_url(string $file): string
 function send_security_email(
     string $to,
     string $subject,
-    string $body
+    string $body,
+    ?string $htmlBody = null
 ): bool {
 
     if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
@@ -207,11 +208,14 @@ function send_security_email(
 
         $mail->addAddress($to);
 
-        $mail->isHTML(false);
+        $mail->isHTML($htmlBody !== null);
 
         $mail->Subject = $subject;
 
-        $mail->Body = $body;
+        $mail->Body = $htmlBody ?? $body;
+        if ($htmlBody !== null) {
+            $mail->AltBody = $body;
+        }
 
         $mail->send();
 

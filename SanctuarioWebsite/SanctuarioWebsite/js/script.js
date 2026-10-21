@@ -49,30 +49,51 @@ document.addEventListener("DOMContentLoaded", () => {
         sections.forEach(section => observer.observe(section));
     }
 
-    // Hero slideshow controls.
+    // The arrows stop at the first and last slides; autoplay continues looping.
     const slides = [...document.querySelectorAll(".slide")];
     const dots = [...document.querySelectorAll(".dot")];
+    const previousArrow = document.querySelector(".arrow.prev");
+    const nextArrow = document.querySelector(".arrow.next");
     let slideIndex = 0;
     let slideTimer;
 
     if (slides.length) {
-        const showSlide = nextIndex => {
-            slideIndex = (nextIndex + slides.length) % slides.length;
+        const showSlide = (nextIndex, loop = false) => {
+            slideIndex = loop
+                ? (nextIndex + slides.length) % slides.length
+                : Math.max(0, Math.min(slides.length - 1, nextIndex));
             slides.forEach((slide, index) => slide.classList.toggle("active", index === slideIndex));
             dots.forEach((dot, index) => {
                 dot.classList.toggle("active", index === slideIndex);
                 dot.setAttribute("aria-pressed", String(index === slideIndex));
             });
+            if (previousArrow) {
+                previousArrow.disabled = slideIndex === 0;
+                previousArrow.setAttribute("aria-label", "Previous slide");
+            }
+            if (nextArrow) {
+                nextArrow.disabled = slideIndex === slides.length - 1;
+                nextArrow.setAttribute("aria-label", "Next slide");
+            }
         };
         const startTimer = () => {
             clearInterval(slideTimer);
             if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-                slideTimer = setInterval(() => showSlide(slideIndex + 1), 5000);
+                slideTimer = setInterval(() => showSlide(slideIndex + 1, true), 5000);
             }
         };
-        document.querySelector(".next")?.addEventListener("click", () => { showSlide(slideIndex + 1); startTimer(); });
-        document.querySelector(".prev")?.addEventListener("click", () => { showSlide(slideIndex - 1); startTimer(); });
-        dots.forEach((dot, index) => dot.addEventListener("click", () => { showSlide(index); startTimer(); }));
+        previousArrow?.addEventListener("click", () => {
+            if (slideIndex > 0) showSlide(slideIndex - 1);
+            startTimer();
+        });
+        nextArrow?.addEventListener("click", () => {
+            if (slideIndex < slides.length - 1) showSlide(slideIndex + 1);
+            startTimer();
+        });
+        dots.forEach((dot, index) => dot.addEventListener("click", () => {
+            showSlide(index);
+            startTimer();
+        }));
         showSlide(0);
         startTimer();
     }
@@ -93,6 +114,61 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
     });
+
+    // Product detail modal is informational only; values are editable on each product card.
+    const productModal = document.querySelector("#productModal");
+    if (productModal) {
+        const closeModal = () => {
+            productModal.classList.remove("open");
+            productModal.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("modal-open");
+        };
+        document.querySelectorAll(".product-details").forEach(button => {
+            button.addEventListener("click", () => {
+                const card = button.closest(".product");
+                const image = card.querySelector("img");
+                const name = card.querySelector("h3")?.textContent.trim() || "Product Details";
+                const category = card.querySelector(".tag")?.textContent.trim() || "Product";
+                const description = card.querySelector("p")?.textContent.trim() || "";
+                const stock = card.dataset.stock === "out" ? "🔴 No Stock" : "🟢 In Stock";
+                document.querySelector("#productModalTitle").textContent = name;
+                document.querySelector("#productModalCategory").textContent = category;
+                document.querySelector("#productModalDescription").textContent = description;
+                document.querySelector("#productModalStock").textContent = stock;
+                document.querySelector("#productModalQuantity").textContent = card.dataset.quantity || "0 pcs";
+                document.querySelector("#productModalPrice").textContent = card.dataset.price || "₱0";
+                const modalImage = document.querySelector("#productModalImage");
+                modalImage.src = image?.getAttribute("src") || "";
+                modalImage.alt = name;
+                modalImage.style.visibility = image && image.complete && image.naturalWidth ? "visible" : "hidden";
+                modalImage.onerror = () => { modalImage.style.visibility = "hidden"; };
+                productModal.classList.add("open");
+                productModal.setAttribute("aria-hidden", "false");
+                document.body.classList.add("modal-open");
+                productModal.querySelector(".product-modal-close")?.focus();
+            });
+        });
+        
+productModal.querySelector(".product-modal-close")?.addEventListener("click", closeModal);
+
+productModal.querySelector(".product-modal-close-action")?.addEventListener("click", () => {
+    closeModal();
+
+    const contactSection = document.querySelector("#contact");
+
+    if (contactSection) {
+        contactSection.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+
+        history.replaceState(null, "", "#contact");
+    }
+});
+
+        productModal.addEventListener("click", event => { if (event.target === productModal) closeModal(); });
+        document.addEventListener("keydown", event => { if (event.key === "Escape" && productModal.classList.contains("open")) closeModal(); });
+    }
 
     // Accessible accordion: one FAQ opens at a time.
     document.querySelectorAll(".faq-q").forEach(button => {
@@ -126,11 +202,11 @@ document.addEventListener("DOMContentLoaded", () => {
             event.preventDefault();
             const name = form.querySelector('[name="name"]')?.value.trim() || "there";
             if (toast) {
-                toast.textContent = `Thank you, ${name}! Your message is ready to be connected to the farm's inquiry system.`;
+                toast.textContent = `Thank you, ${name}! Your message is ready to be connected to the farm's inquiry .`;
                 toast.classList.add("show");
                 setTimeout(() => toast.classList.remove("show"), 4000);
             } else {
-                window.alert(`Thank you, ${name}! This demo form is not connected to a database or email service yet.`);
+                window.alert(`Thank you, ${name}! This message connected to the Sanctuario farm.`);
             }
             form.reset();
         });

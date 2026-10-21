@@ -11,7 +11,7 @@ if (preg_match('/^[a-f0-9]{64}$/D', $token)) {
         $stmt = $conn->prepare('SELECT id, user_id, pending_email FROM email_verification_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW() FOR UPDATE');
         $stmt->bind_param('s', $hash); $stmt->execute(); $record = $stmt->get_result()->fetch_assoc(); $stmt->close();
         if ($record) {
-            $stmt = $conn->prepare('UPDATE users SET email = ? WHERE user_id = ?');
+            $stmt = $conn->prepare('UPDATE users SET email = ?, email_verified_at = NOW() WHERE user_id = ?');
             $stmt->bind_param('si', $record['pending_email'], $record['user_id']); $stmt->execute(); $stmt->close();
             $stmt = $conn->prepare('UPDATE email_verification_tokens SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL');
             $stmt->bind_param('i', $record['user_id']); $stmt->execute(); $stmt->close();
@@ -60,7 +60,7 @@ if (preg_match('/^[a-f0-9]{64}$/D', $token)) {
         .login-button:focus-visible { outline: 3px solid #2e5129; outline-offset: 3px; }
     </style>
 <style id="sanctuario-responsive-refinement">
-/* Sanctuario responsive refinement — layout geometry only, no feature changes. */
+/* Sanctuario responsive refinement â€” layout geometry only, no feature changes. */
 @media (max-width: 1199px) {
   html { -webkit-text-size-adjust: 100%; }
   body { min-width: 0; }

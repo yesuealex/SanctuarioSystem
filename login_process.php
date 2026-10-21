@@ -2,59 +2,61 @@
 require_once __DIR__ . '/security.php';
 secure_session_start();
 require_once __DIR__ . '/db.php';
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header('Location: login.php'); exit; }
-if (!csrf_verify()) { header('Location: login.php?error=invalid_request'); exit; }
-$identifier = trim((string)($_POST['username'] ?? ''));
-$password = (string)($_POST['password'] ?? '');
-if ($identifier === '' || $password === '' || strlen($identifier) > 150 || strlen($password) > 1024) {
-    header('Location: login.php?error=invalid_credentials'); exit;
-}
+require_once __DIR__ . '/login_rate_limit.php';
+function login_reject(string $code='invalid_credentials'): void { header('Location: login.php?error='.$code); exit; }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') login_reject('invalid_request');
+if (!csrf_verify()) login_reject('invalid_request');
+$identifier=trim((string)($_POST['username']??''));
+$password=(string)($_POST['password']??'');
+if ($identifier==='' || $password==='' || strlen($identifier)>150 || strlen($password)>1024) login_reject();
 try {
-    $stmt = $conn->prepare('SELECT user_id, name, username, password, role, failed_login_attempts, account_locked, locked_at FROM users WHERE username = ? OR email = ? LIMIT 1');
-    $stmt->bind_param('ss', $identifier, $identifier);
-    $stmt->execute();
-    $user = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-    // Run password verification even for unknown users to reduce timing differences.
-    $dummyHash = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
-    $valid = password_verify($password, $user['password'] ?? $dummyHash);
-    if ($user && (int)$user['account_locked'] === 1) {
-        $lockedAt = strtotime((string)($user['locked_at'] ?? ''));
-        if ($lockedAt && time() - $lockedAt >= 900) {
-            $stmt = $conn->prepare('UPDATE users SET account_locked = 0, failed_login_attempts = 0, locked_at = NULL WHERE user_id = ?');
-            $stmt->bind_param('i', $user['user_id']); $stmt->execute(); $stmt->close();
-        } else {
-            header('Location: login.php?error=invalid_credentials'); exit;
+    if (!login_rate_check($conn,$identifier)) login_reject();
+    $s=$conn->prepare('SELECT user_id,name,username,email,email_verified_at,password,role,failed_login_attempts,account_locked,locked_at FROM users WHERE username=? OR email=? LIMIT 1');
+    $s->bind_param('ss',$identifier,$identifier);$s->execute();$user=$s->get_result()->fetch_assoc();$s->close();
+    $dummy='$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
+    $valid=password_verify($password,$user['password']??$dummy);
+    $locked=false;
+    if ($user && (int)$user['account_locked']===1) {
+        $lockedAt=strtotime((string)($user['locked_at']??''));
+        $locked=!$lockedAt || time()-$lockedAt<900;
+        if (!$locked) {
+            $s=$conn->prepare('UPDATE users SET account_locked=0,failed_login_attempts=0,locked_at=NULL WHERE user_id=?');
+            $s->bind_param('i',$user['user_id']);$s->execute();$s->close();
         }
     }
-    if (!$user || !$valid) {
-        if ($user) {
-            $stmt = $conn->prepare('UPDATE users SET failed_login_attempts = failed_login_attempts + 1, account_locked = IF(failed_login_attempts + 1 >= 5, 1, 0), locked_at = IF(failed_login_attempts + 1 >= 5, NOW(), NULL) WHERE user_id = ?');
-            $stmt->bind_param('i', $user['user_id']); $stmt->execute(); $stmt->close();
+    if (!$user || !$valid || $locked) {
+        login_rate_failure($conn,$identifier);
+        if ($user && !$locked) {
+            $s=$conn->prepare('UPDATE users SET failed_login_attempts=failed_login_attempts+1,account_locked=IF(failed_login_attempts+1>=5,1,0),locked_at=IF(failed_login_attempts+1>=5,NOW(),NULL) WHERE user_id=?');
+            $s->bind_param('i',$user['user_id']);$s->execute();$s->close();
         }
-        header('Location: login.php?error=invalid_credentials'); exit;
+        // Small progressive delay, in addition to persistent database rate limiting.
+        $failures=(int)($user['failed_login_attempts']??0);
+        usleep(min(1500000, 250000 + $failures*250000));
+        login_reject();
     }
-    if (!in_array($user['role'], ['admin','super admin','staff','crops staff','livestock staff','maintenance'], true)) {
-        header('Location: login.php?error=role_not_found'); exit;
-    }
-    $stmt = $conn->prepare('UPDATE users SET failed_login_attempts = 0, account_locked = 0, locked_at = NULL WHERE user_id = ?');
-    $stmt->bind_param('i', $user['user_id']); $stmt->execute(); $stmt->close();
-    if (password_needs_rehash($user['password'], PASSWORD_DEFAULT)) {
-        $hash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare('UPDATE users SET password = ? WHERE user_id = ?');
-        $stmt->bind_param('si', $hash, $user['user_id']); $stmt->execute(); $stmt->close();
+    if (!in_array($user['role'],['admin','super admin','staff','crops staff','livestock staff','maintenance'],true)) login_reject();
+    login_rate_success($conn,$identifier);
+    $s=$conn->prepare('UPDATE users SET failed_login_attempts=0,account_locked=0,locked_at=NULL WHERE user_id=?');
+    $s->bind_param('i',$user['user_id']);$s->execute();$s->close();
+    if (password_needs_rehash($user['password'],PASSWORD_DEFAULT)) {
+        $hash=password_hash($password,PASSWORD_DEFAULT);
+        $s=$conn->prepare('UPDATE users SET password=? WHERE user_id=?');$s->bind_param('si',$hash,$user['user_id']);$s->execute();$s->close();
     }
     session_regenerate_id(true);
-    $_SESSION['user_id'] = (int)$user['user_id'];
-    $_SESSION['name'] = $user['name'];
-    $_SESSION['username'] = $user['username'];
-    $_SESSION['role'] = $user['role'];
-    $_SESSION['authenticated_at'] = time();
-    $_SESSION['last_activity'] = time();
+    if (!$user['email_verified_at']) {
+        unset($_SESSION['user_id'],$_SESSION['role'],$_SESSION['username'],$_SESSION['name']);
+        $_SESSION['pending_verification_user_id']=(int)$user['user_id'];
+        $_SESSION['pending_verification_at']=time();
+        header('Location: complete_email_verification.php');exit;
+    }
+    unset($_SESSION['pending_verification_user_id'],$_SESSION['pending_verification_at']);
+    $_SESSION['user_id']=(int)$user['user_id'];$_SESSION['name']=$user['name'];
+    $_SESSION['username']=$user['username'];$_SESSION['role']=$user['role'];
+    $_SESSION['authenticated_at']=time();$_SESSION['last_activity']=time();
     unset($_SESSION['csrf_token']);
-    $dest = in_array($user['role'], ['admin','super admin'], true) ? 'adminDashboard.php' : (in_array($user['role'], ['crops staff','livestock staff'], true) ? 'staff/staffDashboard.php' : ($user['role'] === 'staff' ? 'staff_role_pending.php' : 'maintenanceDashboard.php'));
-    header('Location: ' . $dest); exit;
+    $dest=in_array($user['role'],['admin','super admin'],true)?'adminDashboard.php':(in_array($user['role'],['crops staff','livestock staff'],true)?'staff/staffDashboard.php':($user['role']==='staff'?'staff_role_pending.php':'maintenanceDashboard.php'));
+    header('Location: '.$dest);exit;
 } catch (Throwable $e) {
-    error_log('Login error: ' . $e->getMessage());
-    header('Location: login.php?error=system_error'); exit;
+    error_log('Login security error: '.$e->getMessage());login_reject('system_error');
 }
