@@ -10,7 +10,7 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: ../login.php");
     exit();
 }
-if (($_SESSION['role'] ?? '') !== 'admin') {
+if (!sanctuario_staff_can_access('livestock')) {
     header("Location: ../records.php?type=livestock");
     exit();
 }
@@ -156,6 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: archived_livestocks.php?restored=1&type=' . urlencode($returnType) . '&section=' . urlencode($returnSection));
                 exit();
             } elseif ($action === 'delete') {
+                if (!sanctuario_staff_is_admin()) { http_response_code(403); exit('Only admins may permanently delete archived livestock.'); }
                 permanentlyDeleteArchived($conn, 'livestocks', 'livestock_id', $livestockId);
                 foreach (['chicken_weight_records','chicken_egg_records','chicken_mortality_records','chicken_feed_ingredients','chicken_drinking_water','chicken_feeding_schedule','goat_monitoring_records','goat_forage_records'] as $table) {
                     if (archiveTableExists($conn, $table)) {
@@ -361,7 +362,7 @@ td{background:#fff;color:#344234;font-size:14px;font-weight:400}
 <td><?= htmlspecialchars((string)($row['number']??'-')) ?></td>
 <td><div class="action-buttons">
 <form method="post" onsubmit="return confirm('Restore this livestock and its archived monitoring records?')"><input type="hidden" name="archive_action" value="restore"><input type="hidden" name="livestock_id" value="<?= (int)$row['livestock_id'] ?>"><input type="hidden" name="return_type" value="<?= htmlspecialchars($selectedType,ENT_QUOTES) ?>"><input type="hidden" name="return_section" value="<?= htmlspecialchars($selectedSection,ENT_QUOTES) ?>"><button class="action-icon restore-icon" title="Restore"><span class="material-symbols-rounded">restore</span></button></form>
-<form method="post" onsubmit="return confirm('Permanently delete this livestock and its archived monitoring records? This cannot be undone.')"><input type="hidden" name="archive_action" value="delete"><input type="hidden" name="livestock_id" value="<?= (int)$row['livestock_id'] ?>"><input type="hidden" name="return_type" value="<?= htmlspecialchars($selectedType,ENT_QUOTES) ?>"><input type="hidden" name="return_section" value="<?= htmlspecialchars($selectedSection,ENT_QUOTES) ?>"><button class="action-icon delete-icon" title="Delete permanently"><span class="material-symbols-rounded">delete</span></button></form>
+<?php if (sanctuario_staff_is_admin()): ?><form method="post" onsubmit="return confirm('Permanently delete this livestock and its archived monitoring records? This cannot be undone.')"><input type="hidden" name="archive_action" value="delete"><input type="hidden" name="livestock_id" value="<?= (int)$row['livestock_id'] ?>"><input type="hidden" name="return_type" value="<?= htmlspecialchars($selectedType,ENT_QUOTES) ?>"><input type="hidden" name="return_section" value="<?= htmlspecialchars($selectedSection,ENT_QUOTES) ?>"><button class="action-icon delete-icon" title="Delete permanently"><span class="material-symbols-rounded">delete</span></button></form><?php endif; ?>
 </div></td></tr>
 <?php endforeach; else: ?><tr><td colspan="12" class="no-records">No archived <?= htmlspecialchars(strtolower($selectedType)) ?> records found.</td></tr><?php endif; ?>
 </tbody></table></div>

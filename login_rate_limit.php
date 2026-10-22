@@ -26,3 +26,14 @@ function login_rate_success(mysqli $conn, string $identifier): void {
     $key=login_limit_key($identifier);
     $s=$conn->prepare('DELETE FROM login_rate_limits WHERE rate_key = ?'); $s->bind_param('s',$key);$s->execute();$s->close();
 }
+
+/** IP-wide protection remains enforced even when an administrator unlocks an account. */
+function login_rate_ip_allowed(mysqli $conn): bool {
+    $key = login_ip_key();
+    $s = $conn->prepare('SELECT blocked_until FROM login_rate_limits WHERE rate_key = ?');
+    $s->bind_param('s', $key);
+    $s->execute();
+    $row = $s->get_result()->fetch_assoc();
+    $s->close();
+    return !$row || empty($row['blocked_until']) || strtotime($row['blocked_until']) <= time();
+}

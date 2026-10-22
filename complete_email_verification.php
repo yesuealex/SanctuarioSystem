@@ -49,12 +49,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (send_security_email($email, 'Your Sanctuario verification code', $plain, $html)) {
                         $_SESSION['verification_code_attempts'] = 0;
                         $_SESSION['verification_code_token_id'] = $tokenId;
-                        $notice = 'Verification code sent. Check your inbox and spam folder.';
+                        $notice = 'Gmail SMTP accepted the verification email for ' . $email . '. Delivery to your inbox is not guaranteed. Check the exact recipient address, Spam, All Mail, and Gmail search for subject: Your Sanctuario verification code.';
                         $success = true;
                     } else {
                         $stmt = $conn->prepare('DELETE FROM email_verification_tokens WHERE id = ? AND user_id = ?');
                         $stmt->bind_param('ii', $tokenId, $userId); $stmt->execute(); $stmt->close();
-                        $notice = 'Email could not be sent. Please try again later.';
+                        $notice = 'The email server did not accept this message. Check the PHP error log for Sanctuario SMTP Error and try again later.';
                     }
                 }
             } catch (Throwable $e) {

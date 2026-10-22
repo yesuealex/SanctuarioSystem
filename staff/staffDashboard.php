@@ -49,8 +49,7 @@ $queries = $section === 'crops' ? [
  'Active Crops' => "SELECT COUNT(*) FROM crops WHERE COALESCE(archived,0)=0 AND COALESCE(transferred_out,0)=0",
  'Farm Plots' => "SELECT COUNT(*) FROM plots WHERE COALESCE(archived,0)=0"
 ] : [
- 'Livestock Total' => "SELECT COALESCE(SUM(number),0) FROM livestocks WHERE COALESCE(archived,0)=0",
- 'Livestock Groups' => "SELECT COUNT(*) FROM livestocks WHERE COALESCE(archived,0)=0"
+ 'Registered Livestock Profiles' => "SELECT COUNT(*) FROM livestocks WHERE COALESCE(archived,0)=0"
 ];
 foreach ($queries as $label => $sql) {
     try { $res = $conn->query($sql); $summary[$label] = $res ? (int)($res->fetch_row()[0] ?? 0) : '—'; }
@@ -336,7 +335,7 @@ function staff_h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
  </div>
  <div class="hero-cards staff-hero-cards">
   <div class="hero-card"><div class="hero-icon green"><span class="material-symbols-rounded"><?= $section === 'crops' ? 'eco' : 'pets' ?></span></div>
-   <div class="hero-info"><span><?= $section === 'crops' ? 'Active Crops' : 'Total Livestock' ?></span><h3><?=staff_h($section === 'crops' ? ($summary['Active Crops'] ?? '—') : ($summary['Livestock Total'] ?? '—'))?></h3></div></div>
+   <div class="hero-info"><span><?= $section === 'crops' ? 'Active Crops' : 'Registered Livestock Profiles' ?></span><h3><?=staff_h($section === 'crops' ? ($summary['Active Crops'] ?? '—') : ($summary['Registered Livestock Profiles'] ?? '—'))?></h3></div></div>
   <div class="hero-card"><div class="hero-icon lime"><span class="material-symbols-rounded">task_alt</span></div>
    <div class="hero-info"><span>Tasks Completed</span><h3 id="heroTasksCompleted"><?=$completedToday?></h3></div></div>
  </div>

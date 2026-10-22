@@ -843,18 +843,19 @@ button {
 
 .stock-status.no-stock {
 
-    background: #fff0b9;
+    background: #f9d7d7;
 
-    color: #c29b20;
+
+    color: #c04c4c;
 
 }
 
 
 .stock-status.low-stock {
 
-    background: #f9d7d7;
+    background: #fff0b9 ;
 
-    color: #c04c4c;
+    color: #c29b20;
 
 }
 

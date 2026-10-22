@@ -842,3 +842,97 @@ body .dashboard .account-page .account-board {
     margin-bottom: 14px;
   }
 }
+
+/* Unified account settings card: individual forms remain independent. */
+body .dashboard .account-page .combined-settings-board,
+/* Combined Settings — editorial split-panel redesign (scoped only) */
+body .dashboard .account-page .combined-settings-board,
+.account-page .combined-settings-board {
+  display:grid; grid-template-columns:minmax(210px, 29%) minmax(0, 1fr);
+  align-items:stretch; overflow:hidden; border:1px solid #dbe6d9;
+  border-radius:18px; background:#fff; box-shadow:0 12px 35px rgba(30,70,37,.065);
+  font-family:'Poppins',sans-serif;
+}
+body .dashboard .account-page .combined-settings-board .board-header,
+.account-page .combined-settings-board .board-header {
+  display:flex; align-items:flex-start; flex-direction:column; gap:14px;
+  padding:29px 26px; margin:0; border:0; border-right:1px solid #e2ebe0;
+  background:#f4f8f2;
+}
+.account-page .combined-settings-board .board-header:nth-of-type(4) { background:#eef5ec; }
+.account-page .combined-settings-board .board-header:nth-of-type(6) { background:#f4f8f2; }
+.account-page .combined-settings-board .board-icon,
+.account-page .combined-settings-board .board-icon.security-icon {
+  display:flex; flex:0 0 40px; width:40px; height:40px;
+  border-radius:12px; background:#dfeee0; color:#326735;
+}
+.account-page .combined-settings-board .board-icon .material-symbols-rounded {font-size:21px;}
+.account-page .combined-settings-board .board-header h2 {font-size:16px;line-height:1.35;letter-spacing:-.02em;color:#234d2c;font-weight:700;}
+.account-page .combined-settings-board .board-header p {font-size:11px;line-height:1.65;color:#718274;margin-top:7px;}
+body .dashboard .account-page .combined-settings-board .account-form,
+.account-page .combined-settings-board .account-form {
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  align-content:center; gap:18px 20px; padding:27px 30px; margin:0; min-width:0;
+}
+body .dashboard .account-page .combined-settings-board .password-form,
+.account-page .combined-settings-board .password-form {padding:27px 30px;min-width:0;}
+.account-page .combined-settings-board .settings-divider {display:none;}
+.account-page .combined-settings-board .board-header:first-child {grid-column:1;grid-row:1;}
+.account-page .combined-settings-board .board-header:first-child + .account-form {grid-column:2;grid-row:1;}
+.account-page .combined-settings-board .board-header:nth-of-type(3) {grid-column:1;grid-row:2;border-top:1px solid #e0e9df;}
+.account-page .combined-settings-board > p {grid-column:2;grid-row:2;margin:20px 30px 0;font-size:11px;color:#778579;align-self:start;position:relative;z-index:1;}
+.account-page .combined-settings-board > p strong {font-size:12px;color:#2b6034;}
+.account-page .combined-settings-board > p + .account-form {grid-column:2;grid-row:2;padding-top:72px;align-content:start;}
+.account-page .combined-settings-board .board-header:nth-of-type(5) {grid-column:1;grid-row:3;border-top:1px solid #e0e9df;}
+.account-page .combined-settings-board .password-form {grid-column:2;grid-row:3;border-top:1px solid #e9eee7;}
+.account-page .combined-settings-board .board-header:first-child + .account-form {border-bottom:1px solid #e9eee7;}
+.account-page .combined-settings-board .form-group label {font-size:12px;font-weight:600;color:#3e5443;margin-bottom:7px;}
+body .dashboard .account-page .combined-settings-board .form-group input,
+.account-page .combined-settings-board .form-group input {
+  height:43px;border-radius:9px;border:1px solid #dbe5d9;background:#fafcf9;
+  font:500 12px 'Poppins',sans-serif;padding:0 13px;
+}
+.account-page .combined-settings-board .form-group input:focus {background:#fff;border-color:#4f8a50;box-shadow:0 0 0 3px rgba(79,138,80,.1);}
+.account-page .combined-settings-board .form-group small,
+.account-page .combined-settings-board .password-hint {font-size:10px;line-height:1.6;}
+.account-page .combined-settings-board .account-actions {justify-content:flex-end;}
+body .dashboard .account-page .combined-settings-board .save-btn,
+.account-page .combined-settings-board .save-btn {
+  min-height:39px;padding:0 17px;border-radius:9px;
+  background:#326735;font:600 11px 'Poppins',sans-serif;
+}
+.account-page .combined-settings-board .save-btn .material-symbols-rounded {font-size:17px;}
+.account-page .combined-settings-board .password-grid {gap:15px;}
+.account-page .combined-settings-board .password-footer {margin-top:20px;padding-top:17px;}
+@media (max-width:1100px) {
+  .account-page .combined-settings-board .password-grid {grid-template-columns:1fr;}
+}
+@media (max-width:700px) {
+  body .dashboard .account-page .combined-settings-board,
+  .account-page .combined-settings-board {display:flex;flex-direction:column;}
+  body .dashboard .account-page .combined-settings-board .board-header,
+  .account-page .combined-settings-board .board-header {flex-direction:row;align-items:center;gap:12px;padding:19px 18px;border-right:0;border-top:1px solid #e0e9df;}
+  .account-page .combined-settings-board .board-header:first-child {border-top:0;}
+  .account-page .combined-settings-board .board-header h2 {font-size:15px;}
+  .account-page .combined-settings-board .board-header p {font-size:10px;margin-top:3px;}
+  body .dashboard .account-page .combined-settings-board .account-form,
+  .account-page .combined-settings-board .account-form {grid-template-columns:1fr;padding:20px 18px 23px;gap:16px;}
+  .account-page .combined-settings-board > p {margin:18px 18px 0;}
+  .account-page .combined-settings-board > p + .account-form {padding-top:16px;}
+  body .dashboard .account-page .combined-settings-board .password-form,
+  .account-page .combined-settings-board .password-form {padding:20px 18px 23px;border-top:0;}
+  .account-page .combined-settings-board .password-footer {align-items:stretch;}
+}
+
+/* Recovery email: dedicated grid row prevents overlapping labels. */
+.account-page .combined-settings-board .current-email-display {
+  grid-column:1 / -1; font-size:11px; color:#778579;
+  padding:0 0 2px; overflow-wrap:anywhere;
+}
+.account-page .combined-settings-board .current-email-display strong {color:#2b6034;font-size:12px;}
+body .dashboard .account-page .combined-settings-board .account-form:has(.current-email-display),
+.account-page .combined-settings-board .account-form:has(.current-email-display) {padding-top:27px;align-content:center;}
+@media (max-width:700px) {
+ body .dashboard .account-page .combined-settings-board .account-form:has(.current-email-display),
+ .account-page .combined-settings-board .account-form:has(.current-email-display) {padding-top:20px;}
+}

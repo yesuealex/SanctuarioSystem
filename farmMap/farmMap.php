@@ -38,7 +38,7 @@ if ($result = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(a
     $result->free();
 }
 
-if ($result = $conn->query("SELECT COALESCE(SUM(number), 0) AS total FROM livestocks WHERE COALESCE(archived, 0) = 0")) {
+if ($result = $conn->query("SELECT COUNT(*) AS total FROM livestocks WHERE COALESCE(archived, 0) = 0")) {
     $totalActiveLivestock = (int)($result->fetch_assoc()['total'] ?? 0);
     $result->free();
 }

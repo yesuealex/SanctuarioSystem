@@ -271,7 +271,7 @@ $profileImageUrl = !empty($user['profile_picture']) ? '../' . e($user['profile_p
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="../sidebar.css">
-    <link rel="stylesheet" href="accountSettings.css?v=3">
+    <link rel="stylesheet" href="accountSettings.css?v=4">
 <style id="sanctuario-responsive-refinement">
 /* Sanctuario responsive refinement — layout geometry only, no feature changes. */
 @media (max-width: 1199px) {
@@ -361,7 +361,7 @@ $profileImageUrl = !empty($user['profile_picture']) ? '../' . e($user['profile_p
                             <input id="profile-picture-input" class="visually-hidden" type="file" name="profile_picture" accept="image/jpeg,image/png,image/webp" aria-label="Choose profile picture">
                             <div class="avatar-actions" role="group" aria-label="Profile picture actions">
                                 <label class="avatar-action" for="profile-picture-input" title="Choose picture" aria-label="Choose picture" tabindex="0"><span class="material-symbols-rounded" aria-hidden="true">add_photo_alternate</span></label>
-                                <button class="avatar-action avatar-upload" type="submit" title="Upload selected picture" aria-label="Upload selected picture" disabled><span class="material-symbols-rounded" aria-hidden="true">upload</span></button>
+                                
                                 <?php if ($profileImageUrl !== ''): ?>
                                 <button class="avatar-action avatar-remove" type="submit" name="action" value="remove_profile_picture" formnovalidate title="Remove profile picture" aria-label="Remove profile picture" onclick="return confirm('Remove your profile picture?');"><span class="material-symbols-rounded" aria-hidden="true">delete_outline</span></button>
                                 <?php endif; ?>
@@ -379,7 +379,7 @@ $profileImageUrl = !empty($user['profile_picture']) ? '../' . e($user['profile_p
                 </div>
             </section>
 
-            <section class="account-board">
+            <section class="account-board combined-settings-board">
                 <div class="board-header"><div class="board-icon"><span class="material-symbols-rounded">person</span></div><div><h2>Personal information</h2><p>Update the information used by your Sanctuario account.</p></div></div>
                 <form class="account-form" method="post" autocomplete="on">
                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
@@ -388,21 +388,17 @@ $profileImageUrl = !empty($user['profile_picture']) ? '../' . e($user['profile_p
                     <div class="form-group form-group-wide"><label for="username">Username</label><input id="username" type="text" name="username" value="<?= e($user['username']) ?>" maxlength="100" autocomplete="username" required><small>Your username is used when signing in.</small></div>
                     <div class="account-actions form-group-wide"><button type="submit" class="save-btn"><span class="material-symbols-rounded">save</span>Save profile</button></div>
                 </form>
-            </section>
-
-            <section class="account-board">
+                <div class="settings-divider" aria-hidden="true"></div>
                 <div class="board-header"><div class="board-icon"><span class="material-symbols-rounded">mail</span></div><div><h2>Recovery email</h2><p>Add a verified email to enable Forgot Password.</p></div></div>
-                <p>Current email: <strong><?= e($user['email'] ?: 'Not set') ?></strong></p>
                 <form class="account-form" method="post" autocomplete="off">
                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                     <input type="hidden" name="action" value="request_email_verification">
+                    <div class="current-email-display">Current email: <strong><?= e($user['email'] ?: 'Not set') ?></strong></div>
                     <div class="form-group form-group-wide"><label for="recovery_email">New recovery email</label><input id="recovery_email" name="email" type="email" maxlength="150" autocomplete="email" required></div>
                     <div class="form-group form-group-wide"><label for="email_current_password">Current password (to confirm)</label><input id="email_current_password" name="email_current_password" type="password" autocomplete="current-password" required></div>
                     <div class="account-actions form-group-wide"><button type="submit" class="save-btn"><span class="material-symbols-rounded">mark_email_read</span>Send verification email</button></div>
                 </form>
-            </section>
-
-            <section class="account-board security-board">
+                <div class="settings-divider" aria-hidden="true"></div>
                 <div class="board-header"><div class="board-icon security-icon"><span class="material-symbols-rounded">lock</span></div><div><h2>Security</h2><p>Change your password without leaving this page.</p></div></div>
                 <form class="password-form" method="post" autocomplete="off">
                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
@@ -431,10 +427,25 @@ $profileImageUrl = !empty($user['profile_picture']) ? '../' . e($user['profile_p
         });
     });
 
+    // Automatically dismiss feedback after three seconds.
+    document.querySelectorAll('.account-page .account-alert').forEach(alert => {
+        window.setTimeout(() => {
+            alert.style.transition = 'opacity 350ms ease, max-height 350ms ease, margin 350ms ease, padding 350ms ease';
+            alert.style.opacity = '0';
+            alert.style.maxHeight = '0';
+            alert.style.marginBottom = '0';
+            alert.style.paddingTop = '0';
+            alert.style.paddingBottom = '0';
+            alert.style.overflow = 'hidden';
+            window.setTimeout(() => alert.remove(), 350);
+        }, 3000);
+    });
+
     const pictureInput = document.getElementById('profile-picture-input');
     const profileAvatar = document.getElementById('profile-avatar');
     const pictureHint = document.getElementById('picture-hint');
-    const uploadButton = document.querySelector('.avatar-upload');
+    const avatarForm = document.getElementById('avatar-upload-form');
+    let uploadingPicture = false;
     document.querySelector('.avatar-action[for="profile-picture-input"]')?.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
@@ -443,15 +454,15 @@ $profileImageUrl = !empty($user['profile_picture']) ? '../' . e($user['profile_p
     });
     pictureInput?.addEventListener('change', () => {
         const file = pictureInput.files?.[0];
-        uploadButton.disabled = true;
+        if (uploadingPicture) return;
         if (!file) return;
         if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
             pictureHint.textContent = 'Choose a JPG, PNG or WEBP image under 2 MB.';
             pictureInput.value = '';
             return;
         }
-        pictureHint.textContent = file.name + ' · Ready to upload';
-        uploadButton.disabled = false;
+        pictureHint.textContent = 'Uploading ' + file.name + '...';
+        uploadingPicture = true;
         const reader = new FileReader();
         reader.onload = event => {
             const img = document.createElement('img');
@@ -459,7 +470,9 @@ $profileImageUrl = !empty($user['profile_picture']) ? '../' . e($user['profile_p
             img.alt = 'Selected profile picture preview';
             img.className = 'account-profile-image';
             profileAvatar.replaceChildren(img);
+            avatarForm.requestSubmit();
         };
+        reader.onerror = () => { uploadingPicture = false; pictureHint.textContent = 'Unable to preview image. Please try again.'; };
         reader.readAsDataURL(file);
     });
 </script>

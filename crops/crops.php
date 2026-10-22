@@ -387,8 +387,9 @@ if (!$isPlotView && $selectedLocationKey === 'NURSERY') {
                     <!-- LOCATION BUTTONS -->
 
                     <div class="crop-location-buttons" id="cropLocationButtons">
+                        <a class="crop-location-btn <?= $selectedLocationKey === 'ALL' ? 'active' : '' ?>" href="crops.php?location=all" data-filter="all">All</a>
                         <?php foreach ($locationLabels as $locationValue => $locationLabel): ?>
-                            <a class="crop-location-btn <?= $selectedLocationKey === strtoupper($locationValue) ? 'active' : '' ?>" href="crops.php?location=<?= rawurlencode($locationValue) ?>">
+                            <a class="crop-location-btn <?= $selectedLocationKey === strtoupper($locationValue) ? 'active' : '' ?>" href="crops.php?location=<?= rawurlencode($locationValue) ?>" data-filter="<?= htmlspecialchars(strtolower($locationValue), ENT_QUOTES) ?>">
                                 <?= htmlspecialchars($locationLabel) ?>
                             </a>
                         <?php endforeach; ?>
@@ -1196,8 +1197,11 @@ function confirmArchive() {
 
     if (archiveUrl) {
 
-        window.location.href =
-            archiveUrl;
+        // Preserve the currently selected crops section after archiving.
+        const target = new URL(archiveUrl, window.location.href);
+        const currentSection = new URLSearchParams(window.location.search).get('location') || 'all';
+        target.searchParams.set('location', currentSection);
+        window.location.href = target.href;
 
     }
 

@@ -413,6 +413,14 @@ $accountSettingsActive = (
                  ACCOUNT SETTINGS
             ================================================== -->
 
+            <?php if (in_array($role, ['admin', 'super admin'], true)): ?>
+            <li class="<?= $page === 'userManagement.php' ? 'active' : '' ?>"
+                onclick="location.href='<?= $basePath ?>userManagement.php'">
+                <span class="material-symbols-rounded">manage_accounts</span>
+                <span class="menu-text">User Management</span>
+            </li>
+            <?php endif; ?>
+
             <li
                 class="<?= $accountSettingsActive ? 'active' : '' ?>"
                 onclick="location.href='<?= $basePath ?>accountSettings/accountSettings.php'"

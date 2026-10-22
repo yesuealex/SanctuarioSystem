@@ -18,7 +18,9 @@ $errorMessages = [
     'invalid_request' => 'Your session expired. Refresh and try again.',
     'user_not_found' => 'Invalid username/email or password. Please try again.',
     'wrong_password' => 'Invalid username/email or password. Please try again.',
-    'account_locked' => 'Invalid username/email or password. Please try again.',
+    'account_locked' => 'This account is temporarily locked. Please wait 15 minutes or contact your administrator to unlock it.',
+    'account_locked_generic' => 'Too many unsuccessful login attempts. Please wait 15 minutes or contact your administrator.',
+    'rate_limited' => 'Too many login attempts. Please wait up to 15 minutes before trying again.',
     'role_not_found' => 'Your account role is not configured correctly. Please contact an administrator.',
     'system_error' => 'Unable to process your login right now. Please try again.',
 ];
@@ -294,6 +296,25 @@ if (false && $error === 'wrong_password' && $remaining > 0) {
         <a class="back-link" href="SanctuarioWebsite/SanctuarioWebsite/index.php">&larr; Back to Home</a>
     </main>
 
+    <?php if (in_array($error, ['invalid_credentials', 'wrong_password', 'user_not_found'], true)): ?>
+    <script>
+        (function () {
+            const errorBox = document.querySelector('.error-box');
+            const dismissError = () => {
+                if (errorBox) errorBox.remove();
+            };
+            window.setTimeout(dismissError, 5000);
+            document.querySelectorAll('#username, #password').forEach((field) => {
+                field.addEventListener('input', dismissError, { once: true });
+            });
+            // Prevent the previous invalid-credentials message from reappearing on refresh.
+            const url = new URL(window.location.href);
+            url.searchParams.delete('error');
+            url.searchParams.delete('remaining');
+            window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+        })();
+    </script>
+    <?php endif; ?>
     <script>
         (function () {
             var btn = document.getElementById('togglePass');

@@ -4,7 +4,7 @@ sanctuario_staff_guard('crops');
 
 if (session_status() !== PHP_SESSION_ACTIVE) session_start(); include '../db.php'; require_once '../archive/archive_functions.php';
 if(!isset($_SESSION['user_id'])){header('Location: ../login.php');exit();}
-if(($_SESSION['role']??'')!=='admin'){header('Location: ../records.php?type=crops');exit();}
+if(!in_array(($_SESSION['role']??''),['admin','super admin','crops staff'],true)){http_response_code(403);exit('Access denied.');}
 $id=(int)($_GET['id']??0);
 try{restoreRecord($conn,'crops','crop_id',$id);header('Location: archived_crops.php?restored=1');exit();}catch(Throwable $e){http_response_code(500);exit('Could not restore crop: '.htmlspecialchars($e->getMessage()));}
 ?>

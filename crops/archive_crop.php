@@ -16,9 +16,21 @@ if (!in_array(($_SESSION['role'] ?? ''), ['admin','super admin','crops staff'], 
     exit();
 }
 
+// Only use known crop sections for the return URL (prevents unsafe redirects).
+$returnLocation = trim((string)($_GET['location'] ?? 'all'));
+$allowedReturnLocations = ['all', 'Nursery', 'Plot A', 'Plot B', 'Plot C', 'MNO', 'Hydro', 'Tent House'];
+$matchedLocation = 'all';
+foreach ($allowedReturnLocations as $allowedLocation) {
+    if (strcasecmp($returnLocation, $allowedLocation) === 0) {
+        $matchedLocation = $allowedLocation;
+        break;
+    }
+}
+$returnUrl = 'crops.php?location=' . rawurlencode($matchedLocation);
+
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) {
-    header('Location: crops.php');
+    header('Location: ' . $returnUrl);
     exit();
 }
 
@@ -73,7 +85,7 @@ try {
     $delete->close();
 
     $conn->commit();
-    header('Location: crops.php?archived=1');
+    header('Location: ' . $returnUrl . '&archived=1');
     exit();
 
 } catch (Throwable $e) {

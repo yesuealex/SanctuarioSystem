@@ -10,7 +10,10 @@ $identifier=trim((string)($_POST['username']??''));
 $password=(string)($_POST['password']??'');
 if ($identifier==='' || $password==='' || strlen($identifier)>150 || strlen($password)>1024) login_reject();
 try {
-    if (!login_rate_check($conn,$identifier)) login_reject();
+    // Keep IP-wide throttling, but permit a correctly authenticated, admin-unlocked
+    // account to clear its old identifier-specific rate-limit entry.
+    if (!login_rate_ip_allowed($conn)) login_reject('rate_limited');
+    $identifierRateAllowed = login_rate_check($conn, $identifier);
     $s=$conn->prepare('SELECT user_id,name,username,email,email_verified_at,password,role,failed_login_attempts,account_locked,locked_at FROM users WHERE username=? OR email=? LIMIT 1');
     $s->bind_param('ss',$identifier,$identifier);$s->execute();$user=$s->get_result()->fetch_assoc();$s->close();
     $dummy='$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
@@ -25,6 +28,9 @@ try {
         }
     }
     if (!$user || !$valid || $locked) {
+        // Avoid extending an existing identifier cooldown on every blocked request.
+        if (!$identifierRateAllowed) login_reject('rate_limited');
+        if ($locked && $valid) login_reject('account_locked');
         login_rate_failure($conn,$identifier);
         if ($user && !$locked) {
             $s=$conn->prepare('UPDATE users SET failed_login_attempts=failed_login_attempts+1,account_locked=IF(failed_login_attempts+1>=5,1,0),locked_at=IF(failed_login_attempts+1>=5,NOW(),NULL) WHERE user_id=?');
@@ -33,7 +39,8 @@ try {
         // Small progressive delay, in addition to persistent database rate limiting.
         $failures=(int)($user['failed_login_attempts']??0);
         usleep(min(1500000, 250000 + $failures*250000));
-        login_reject();
+        // Only show the lock message after a valid password, to avoid account enumeration.
+        login_reject('invalid_credentials');
     }
     if (!in_array($user['role'],['admin','super admin','staff','crops staff','livestock staff','maintenance'],true)) login_reject();
     login_rate_success($conn,$identifier);
@@ -44,13 +51,14 @@ try {
         $s=$conn->prepare('UPDATE users SET password=? WHERE user_id=?');$s->bind_param('si',$hash,$user['user_id']);$s->execute();$s->close();
     }
     session_regenerate_id(true);
-    if (!$user['email_verified_at']) {
-        unset($_SESSION['user_id'],$_SESSION['role'],$_SESSION['username'],$_SESSION['name']);
-        $_SESSION['pending_verification_user_id']=(int)$user['user_id'];
-        $_SESSION['pending_verification_at']=time();
-        header('Location: complete_email_verification.php');exit;
-    }
-    unset($_SESSION['pending_verification_user_id'],$_SESSION['pending_verification_at']);
+    // Email code verification is no longer required during login.
+    // Keep the verified-email database field unchanged for other account workflows.
+    unset(
+        $_SESSION['pending_verification_user_id'],
+        $_SESSION['pending_verification_at'],
+        $_SESSION['verification_code_attempts'],
+        $_SESSION['verification_code_token_id']
+    );
     $_SESSION['user_id']=(int)$user['user_id'];$_SESSION['name']=$user['name'];
     $_SESSION['username']=$user['username'];$_SESSION['role']=$user['role'];
     $_SESSION['authenticated_at']=time();$_SESSION['last_activity']=time();

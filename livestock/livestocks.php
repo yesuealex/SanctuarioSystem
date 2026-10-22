@@ -22,6 +22,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $role = $_SESSION['role'] ?? 'staff';
+$canManageLivestock = sanctuario_staff_can_access('livestock');
 
 /* Keep livestock archive physical: migrate any legacy soft-archived rows once. */
 try { ensureArchiveTable($conn, 'livestocks'); } catch (Throwable $e) { /* page remains usable */ }
@@ -52,7 +53,7 @@ foreach ($monitoringTables as $monitoringTable) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['monitoring_action'])) {
 
-    if ($role !== 'admin') {
+    if (!$canManageLivestock) {
         http_response_code(403);
         exit('Unauthorized');
     }
@@ -241,7 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['monitoring_action']))
 // =========================================================
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive_livestock_id'])) {
-    if ($role !== 'admin') {
+    if (!$canManageLivestock) {
         http_response_code(403);
         exit('Unauthorized');
     }
@@ -374,7 +375,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive_livestock_id'
 // UPDATE LIVESTOCK PROFILE (same form and layout as Add Profile)
 // =========================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_livestock_profile'])) {
-    if ($role !== 'admin') { http_response_code(403); exit('Unauthorized'); }
+    if (!$canManageLivestock) { http_response_code(403); exit('Unauthorized'); }
 
     $type = trim((string)($_POST['profile_type'] ?? ''));
     $allowedTypes = ['Chicken', 'Goat', 'Pig', 'Rabbit'];
@@ -451,7 +452,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_livestock_prof
 // =========================================================
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_livestock_profile'])) {
-    if ($role !== 'admin') {
+    if (!$canManageLivestock) {
         http_response_code(403);
         exit('Unauthorized');
     }
@@ -913,7 +914,11 @@ unset($_SESSION['livestock_profile_error']);
 .monitoring-heading h2{margin:0;color:#2f6b2f;font-size:1.2rem;font-weight:700}
 .monitoring-heading p{margin:3px 0 0;color:#777;font-size:.82rem}
 .monitoring-add-btn{border:0;border-radius:20px;background:#2f6b2f;color:#fff;padding:9px 14px;font-family:Poppins,sans-serif;font-size:.75rem;font-weight:600;display:flex;gap:6px;align-items:center;cursor:pointer}
-.monitoring-tabs{display:flex;gap:7px;overflow-x:auto;padding-bottom:8px}
+/* Keep monitoring filters and header tools on one aligned row. */
+.monitoring-tabs{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding-bottom:8px}
+.monitoring-tabs .livestock-header-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:850px){.monitoring-tabs .livestock-header-right{margin-left:0;width:100%;justify-content:flex-start}}
+
 .monitoring-tab{border:1px solid #d8e2d3;background:#fff;color:#55704f;border-radius:20px;padding:9px 13px;font-family:Poppins,sans-serif;font-size:.72rem;font-weight:600;white-space:nowrap;cursor:pointer}
 .monitoring-tab.active{background:#4f7d3a;color:#fff;border-color:#4f7d3a}
 .monitoring-table-card{background:#fff;border-radius:10px;box-shadow:0 2px 7px rgba(0,0,0,.06);overflow:hidden}
@@ -1205,7 +1210,7 @@ unset($_SESSION['livestock_profile_error']);
 
                 <!-- ARCHIVED -->
 
-                <?php if ($role === 'admin'): ?>
+                <?php if ($canManageLivestock): ?>
 
                     <button
                         type="button"
@@ -1253,7 +1258,7 @@ unset($_SESSION['livestock_profile_error']);
                     </h2>
 
 
-                    <?php if ($role === 'admin'): ?>
+                    <?php if ($canManageLivestock): ?>
                         <div class="profile-header-actions">
 
                             <button type="button" class="edit-profile-btn add-livestock-profile-btn" onclick="openAddLivestockModal()">
@@ -1501,7 +1506,7 @@ unset($_SESSION['livestock_profile_error']);
                         <a href="../export_records.php?report=livestock&amp;format=pdf" title="Download PDF">Download PDF</a>
                     </div>
                 <?php endif; ?>
-                <?php if ($role === 'admin' && $selectedLivestockId > 0): ?>
+                <?php if ($canManageLivestock && $selectedLivestockId > 0): ?>
                     <button type="button"
                             class="monitoring-add-btn"
                             onclick="openMonitoringModal()">
@@ -1591,7 +1596,7 @@ unset($_SESSION['livestock_profile_error']);
                                     <thead><tr>
                                         <th>Date</th><th>Rooster Banaba</th><th>Rooster Paraokan</th>
                                         <th>Hen Banaba</th><th>Hen Paraokan</th><th>Average</th>
-                                        <?php if ($role === 'admin'): ?><th>Action</th><?php endif; ?>
+                                        <?php if ($canManageLivestock): ?><th>Action</th><?php endif; ?>
                                     </tr></thead>
                                     <tbody>
                                                                         <?php if ($weightRows): foreach ($weightRows as $r): ?>                                        <tr data-record-row="1" data-search="<?= htmlspecialchars(strtolower(implode(' ', array_map('strval', $r))), ENT_QUOTES) ?>" data-month="<?= htmlspecialchars(substr((string)($r['record_date'] ?? $r['month_year'] ?? ''),0,7), ENT_QUOTES) ?>" data-month-label="<?= htmlspecialchars((string)($r['record_date'] ?? $r['month_year'] ?? ''), ENT_QUOTES) ?>">
@@ -1601,7 +1606,7 @@ unset($_SESSION['livestock_profile_error']);
                                             <td><?= htmlspecialchars($r['hen_banaba'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($r['hen_paraokan'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($r['average_weight'] ?? '-') ?></td>
-                                            <?php if ($role === 'admin'): ?>
+                                            <?php if ($canManageLivestock): ?>
                                                 <td class="monitor-action-cell">
                                                     <button type="button" class="monitor-action edit" title="Edit record" aria-label="Edit record" onclick='editMonitoringRecord("chicken_weight", <?= json_encode($r, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP) ?>)'>
                                                         <span class="material-symbols-rounded">edit</span>
@@ -1613,7 +1618,7 @@ unset($_SESSION['livestock_profile_error']);
                                             <?php endif; ?>
                                         </tr>
                                     <?php endforeach; else: ?>
-                                        <tr><td colspan="<?= $role === 'admin' ? 7 : 6 ?>" class="monitor-empty">No weight records yet.</td></tr>
+                                        <tr><td colspan="<?= $canManageLivestock ? 7 : 6 ?>" class="monitor-empty">No weight records yet.</td></tr>
                                     <?php endif; ?>
                                     </tbody>
                                 </table>
@@ -1639,7 +1644,7 @@ unset($_SESSION['livestock_profile_error']);
                                     <thead><tr>
                                         <th>Date</th><th>Days</th><th>Feed Formula</th><th># of Eggs</th>
                                         <th>Lightest Weight</th><th>Heaviest Weight</th><th>Hatching</th>
-                                        <?php if ($role === 'admin'): ?><th>Action</th><?php endif; ?>
+                                        <?php if ($canManageLivestock): ?><th>Action</th><?php endif; ?>
                                     </tr></thead>
                                     <tbody>
                                                                         <?php if ($eggRows): foreach ($eggRows as $r): ?>                                        <tr data-record-row="1" data-search="<?= htmlspecialchars(strtolower(implode(' ', array_map('strval', $r))), ENT_QUOTES) ?>" data-month="<?= htmlspecialchars(substr((string)($r['record_date'] ?? $r['month_year'] ?? ''),0,7), ENT_QUOTES) ?>" data-month-label="<?= htmlspecialchars((string)($r['record_date'] ?? $r['month_year'] ?? ''), ENT_QUOTES) ?>">
@@ -1647,7 +1652,7 @@ unset($_SESSION['livestock_profile_error']);
                                             <td><?= htmlspecialchars($r['feed_formula'] ?? '-') ?></td><td><?= htmlspecialchars($r['egg_count'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($r['lightest_weight'] ?? '-') ?></td><td><?= htmlspecialchars($r['heaviest_weight'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($r['hatching'] ?? '-') ?></td>
-                                            <?php if ($role === 'admin'): ?><td class="monitor-action-cell">
+                                            <?php if ($canManageLivestock): ?><td class="monitor-action-cell">
                                                     <button type="button" class="monitor-action edit" title="Edit record" aria-label="Edit record" onclick='editMonitoringRecord("chicken_eggs", <?= json_encode($r, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP) ?>)'>
                                                         <span class="material-symbols-rounded">edit</span>
                                                     </button>
@@ -1657,7 +1662,7 @@ unset($_SESSION['livestock_profile_error']);
                                                 </td><?php endif; ?>
                                         </tr>
                                     <?php endforeach; else: ?>
-                                        <tr><td colspan="<?= $role === 'admin' ? 8 : 7 ?>" class="monitor-empty">No egg records yet.</td></tr>
+                                        <tr><td colspan="<?= $canManageLivestock ? 8 : 7 ?>" class="monitor-empty">No egg records yet.</td></tr>
                                     <?php endif; ?>
                                     </tbody>
                                 </table>
@@ -1680,13 +1685,13 @@ unset($_SESSION['livestock_profile_error']);
                             ?>
                             <div class="monitoring-scroll">
                                 <table class="monitoring-table">
-                                    <thead><tr><th>Date</th><th>No.</th><th>Type Chicken</th><th>Breed</th><th>Cause of Death</th><?php if ($role === 'admin'): ?><th>Action</th><?php endif; ?></tr></thead>
+                                    <thead><tr><th>Date</th><th>No.</th><th>Type Chicken</th><th>Breed</th><th>Cause of Death</th><?php if ($canManageLivestock): ?><th>Action</th><?php endif; ?></tr></thead>
                                     <tbody>
                                                                         <?php if ($mortalityRows): foreach ($mortalityRows as $r): ?>                                        <tr data-record-row="1" data-search="<?= htmlspecialchars(strtolower(implode(' ', array_map('strval', $r))), ENT_QUOTES) ?>" data-month="<?= htmlspecialchars(substr((string)($r['record_date'] ?? $r['month_year'] ?? ''),0,7), ENT_QUOTES) ?>" data-month-label="<?= htmlspecialchars((string)($r['record_date'] ?? $r['month_year'] ?? ''), ENT_QUOTES) ?>">
                                             <td><?= htmlspecialchars($r['record_date']) ?></td><td><?= htmlspecialchars($r['quantity'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($r['chicken_type'] ?? '-') ?></td><td><?= htmlspecialchars($r['breed'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($r['cause_of_death'] ?? '-') ?></td>
-                                            <?php if ($role === 'admin'): ?><td class="monitor-action-cell">
+                                            <?php if ($canManageLivestock): ?><td class="monitor-action-cell">
                                                     <button type="button" class="monitor-action edit" title="Edit record" aria-label="Edit record" onclick='editMonitoringRecord("chicken_mortality", <?= json_encode($r, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP) ?>)'>
                                                         <span class="material-symbols-rounded">edit</span>
                                                     </button>
@@ -1696,7 +1701,7 @@ unset($_SESSION['livestock_profile_error']);
                                                 </td><?php endif; ?>
                                         </tr>
                                     <?php endforeach; else: ?>
-                                        <tr><td colspan="<?= $role === 'admin' ? 6 : 5 ?>" class="monitor-empty">No mortality records yet.</td></tr>
+                                        <tr><td colspan="<?= $canManageLivestock ? 6 : 5 ?>" class="monitor-empty">No mortality records yet.</td></tr>
                                     <?php endif; ?>
                                     </tbody>
                                 </table>
@@ -1719,10 +1724,10 @@ unset($_SESSION['livestock_profile_error']);
                             ?>
                             <div class="monitoring-scroll">
                                 <table class="monitoring-table">
-                                    <thead><tr><th>Formulation Code</th><th>Feed Ingredients</th><th>Quantity</th><?php if ($role === 'admin'): ?><th>Action</th><?php endif; ?></tr></thead>
+                                    <thead><tr><th>Formulation Code</th><th>Feed Ingredients</th><th>Quantity</th><?php if ($canManageLivestock): ?><th>Action</th><?php endif; ?></tr></thead>
                                     <tbody>
                                                                         <?php if ($feedRows): foreach ($feedRows as $r): ?>                                        <tr><td><?= htmlspecialchars($r['formulation_code'] ?? '-') ?></td><td><?= htmlspecialchars($r['feed_ingredients'] ?? '-') ?></td><td><?= htmlspecialchars($r['quantity'] ?? '-') ?></td>
-                                        <?php if ($role === 'admin'): ?><td class="monitor-action-cell">
+                                        <?php if ($canManageLivestock): ?><td class="monitor-action-cell">
                                                     <button type="button" class="monitor-action edit" title="Edit record" aria-label="Edit record" onclick='editMonitoringRecord("chicken_feed", <?= json_encode($r, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP) ?>)'>
                                                         <span class="material-symbols-rounded">edit</span>
                                                     </button>
@@ -1730,7 +1735,7 @@ unset($_SESSION['livestock_profile_error']);
                                                         <span class="material-symbols-rounded">archive</span>
                                                     </button>
                                                 </td><?php endif; ?></tr>
-                                    <?php endforeach; else: ?><tr><td colspan="<?= $role === 'admin' ? 4 : 3 ?>" class="monitor-empty">No feed ingredient records yet.</td></tr><?php endif; ?>
+                                    <?php endforeach; else: ?><tr><td colspan="<?= $canManageLivestock ? 4 : 3 ?>" class="monitor-empty">No feed ingredient records yet.</td></tr><?php endif; ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -1752,10 +1757,10 @@ unset($_SESSION['livestock_profile_error']);
                             ?>
                             <div class="monitoring-scroll">
                                 <table class="monitoring-table">
-                                    <thead><tr><th>Date</th><th>Water Code</th><th>Number of Waterers</th><th>ML per 16-liter Water</th><?php if ($role === 'admin'): ?><th>Action</th><?php endif; ?></tr></thead>
+                                    <thead><tr><th>Date</th><th>Water Code</th><th>Number of Waterers</th><th>ML per 16-liter Water</th><?php if ($canManageLivestock): ?><th>Action</th><?php endif; ?></tr></thead>
                                     <tbody>
                                                                         <?php if ($waterRows): foreach ($waterRows as $r): ?>                                        <tr data-record-row="1" data-search="<?= htmlspecialchars(strtolower(implode(' ', array_map('strval', $r))), ENT_QUOTES) ?>" data-month="<?= htmlspecialchars(substr((string)($r['record_date'] ?? $r['month_year'] ?? ''),0,7), ENT_QUOTES) ?>" data-month-label="<?= htmlspecialchars((string)($r['record_date'] ?? $r['month_year'] ?? ''), ENT_QUOTES) ?>"><td><?= htmlspecialchars($r['record_date']) ?></td><td><?= htmlspecialchars($r['water_code'] ?? '-') ?></td><td><?= htmlspecialchars($r['number_of_waterers'] ?? '-') ?></td><td><?= htmlspecialchars($r['ml_per_16_liter'] ?? '-') ?></td>
-                                        <?php if ($role === 'admin'): ?><td class="monitor-action-cell">
+                                        <?php if ($canManageLivestock): ?><td class="monitor-action-cell">
                                                     <button type="button" class="monitor-action edit" title="Edit record" aria-label="Edit record" onclick='editMonitoringRecord("chicken_water", <?= json_encode($r, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP) ?>)'>
                                                         <span class="material-symbols-rounded">edit</span>
                                                     </button>
@@ -1763,7 +1768,7 @@ unset($_SESSION['livestock_profile_error']);
                                                         <span class="material-symbols-rounded">archive</span>
                                                     </button>
                                                 </td><?php endif; ?></tr>
-                                    <?php endforeach; else: ?><tr><td colspan="<?= $role === 'admin' ? 5 : 4 ?>" class="monitor-empty">No drinking-water records yet.</td></tr><?php endif; ?>
+                                    <?php endforeach; else: ?><tr><td colspan="<?= $canManageLivestock ? 5 : 4 ?>" class="monitor-empty">No drinking-water records yet.</td></tr><?php endif; ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -1789,7 +1794,7 @@ unset($_SESSION['livestock_profile_error']);
                                         <th>Month</th><th>Feeding Code</th><th>Morning</th><th>Afternoon</th><th>Snacks</th><th>Evening</th><th>Night Visit</th>
                                         <th>Eggs Collected</th><th>Avg Egg Weight</th><th>Avg Layer Weight</th><th>Avg Rooster Weight</th>
                                         <th>Housing/Nest Disinfection</th><th>General Cleaning</th><th>Chicken Bath</th>
-                                        <?php if ($role === 'admin'): ?><th>Action</th><?php endif; ?>
+                                        <?php if ($canManageLivestock): ?><th>Action</th><?php endif; ?>
                                     </tr></thead>
                                     <tbody>
                                                                         <?php if ($feedingRows): foreach ($feedingRows as $r): ?>                                        <tr data-record-row="1" data-search="<?= htmlspecialchars(strtolower(implode(' ', array_map('strval', $r))), ENT_QUOTES) ?>" data-month="<?= htmlspecialchars(substr((string)($r['record_date'] ?? $r['month_year'] ?? ''),0,7), ENT_QUOTES) ?>" data-month-label="<?= htmlspecialchars((string)($r['record_date'] ?? $r['month_year'] ?? ''), ENT_QUOTES) ?>">
@@ -1798,7 +1803,7 @@ unset($_SESSION['livestock_profile_error']);
                                             <td><?= htmlspecialchars($r['evening'] ?? '-') ?></td><td><?= htmlspecialchars($r['night_visit'] ?? '-') ?></td><td><?= htmlspecialchars($r['eggs_collected'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($r['average_egg_weight'] ?? '-') ?></td><td><?= htmlspecialchars($r['average_layer_weight'] ?? '-') ?></td><td><?= htmlspecialchars($r['average_rooster_weight'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($r['housing_nest_disinfection'] ?? '-') ?></td><td><?= htmlspecialchars($r['general_cleaning'] ?? '-') ?></td><td><?= htmlspecialchars($r['chicken_bath'] ?? '-') ?></td>
-                                            <?php if ($role === 'admin'): ?><td class="monitor-action-cell">
+                                            <?php if ($canManageLivestock): ?><td class="monitor-action-cell">
                                                     <button type="button" class="monitor-action edit" title="Edit record" aria-label="Edit record" onclick='editMonitoringRecord("chicken_feeding", <?= json_encode($r, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP) ?>)'>
                                                         <span class="material-symbols-rounded">edit</span>
                                                     </button>
@@ -1808,7 +1813,7 @@ unset($_SESSION['livestock_profile_error']);
                                                 </td><?php endif; ?>
                                         </tr>
                                     <?php endforeach; else: ?>
-                                        <tr><td colspan="<?= $role === 'admin' ? 15 : 14 ?>" class="monitor-empty">No feeding schedule records yet.</td></tr>
+                                        <tr><td colspan="<?= $canManageLivestock ? 15 : 14 ?>" class="monitor-empty">No feeding schedule records yet.</td></tr>
                                     <?php endif; ?>
                                     </tbody>
                                 </table>
@@ -1833,12 +1838,12 @@ unset($_SESSION['livestock_profile_error']);
                             ?>
                             <div class="monitoring-scroll">
                                 <table class="monitoring-table">
-                                    <thead><tr><th>Date</th><th>Status</th><th>Free Range Schedule</th><th>Type of Drink</th><th>Disinfect / Cleaning</th><th>Notes / Observation</th><?php if ($role === 'admin'): ?><th>Action</th><?php endif; ?></tr></thead>
+                                    <thead><tr><th>Date</th><th>Status</th><th>Free Range Schedule</th><th>Type of Drink</th><th>Disinfect / Cleaning</th><th>Notes / Observation</th><?php if ($canManageLivestock): ?><th>Action</th><?php endif; ?></tr></thead>
                                     <tbody>
                                                                         <?php if ($goatRows): foreach ($goatRows as $r): ?>                                        <tr data-record-row="1" data-search="<?= htmlspecialchars(strtolower(implode(' ', array_map('strval', $r))), ENT_QUOTES) ?>" data-month="<?= htmlspecialchars(substr((string)($r['record_date'] ?? $r['month_year'] ?? ''),0,7), ENT_QUOTES) ?>" data-month-label="<?= htmlspecialchars((string)($r['record_date'] ?? $r['month_year'] ?? ''), ENT_QUOTES) ?>">
                                             <td><?= htmlspecialchars($r['record_date']) ?></td><td><?= htmlspecialchars($r['status'] ?? '-') ?></td><td><?= htmlspecialchars($r['free_range_schedule'] ?? '-') ?></td>
                                             <td><?= htmlspecialchars($r['drink_type'] ?? '-') ?></td><td><?= htmlspecialchars($r['disinfect_cleaning'] ?? '-') ?></td><td><?= htmlspecialchars($r['notes'] ?? '-') ?></td>
-                                            <?php if ($role === 'admin'): ?><td class="monitor-action-cell">
+                                            <?php if ($canManageLivestock): ?><td class="monitor-action-cell">
                                                     <button type="button" class="monitor-action edit" title="Edit record" aria-label="Edit record" onclick='editMonitoringRecord("goat_daily", <?= json_encode($r, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP) ?>)'>
                                                         <span class="material-symbols-rounded">edit</span>
                                                     </button>
@@ -1847,7 +1852,7 @@ unset($_SESSION['livestock_profile_error']);
                                                     </button>
                                                 </td><?php endif; ?>
                                         </tr>
-                                    <?php endforeach; else: ?><tr><td colspan="<?= $role === 'admin' ? 7 : 6 ?>" class="monitor-empty">No goat monitoring records yet.</td></tr><?php endif; ?>
+                                    <?php endforeach; else: ?><tr><td colspan="<?= $canManageLivestock ? 7 : 6 ?>" class="monitor-empty">No goat monitoring records yet.</td></tr><?php endif; ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -1869,10 +1874,10 @@ unset($_SESSION['livestock_profile_error']);
                             ?>
                             <div class="monitoring-scroll">
                                 <table class="monitoring-table">
-                                    <thead><tr><th>Date</th><th>Forage</th><th>Quantity</th><th>Notes</th><?php if ($role === 'admin'): ?><th>Action</th><?php endif; ?></tr></thead>
+                                    <thead><tr><th>Date</th><th>Forage</th><th>Quantity</th><th>Notes</th><?php if ($canManageLivestock): ?><th>Action</th><?php endif; ?></tr></thead>
                                     <tbody>
                                                                         <?php if ($forageRows): foreach ($forageRows as $r): ?>                                        <tr data-record-row="1" data-search="<?= htmlspecialchars(strtolower(implode(' ', array_map('strval', $r))), ENT_QUOTES) ?>" data-month="<?= htmlspecialchars(substr((string)($r['record_date'] ?? $r['month_year'] ?? ''),0,7), ENT_QUOTES) ?>" data-month-label="<?= htmlspecialchars((string)($r['record_date'] ?? $r['month_year'] ?? ''), ENT_QUOTES) ?>"><td><?= htmlspecialchars($r['record_date']) ?></td><td><?= htmlspecialchars($r['forage_name'] ?? '-') ?></td><td><?= htmlspecialchars($r['quantity'] ?? '-') ?></td><td><?= htmlspecialchars($r['notes'] ?? '-') ?></td>
-                                        <?php if ($role === 'admin'): ?><td class="monitor-action-cell">
+                                        <?php if ($canManageLivestock): ?><td class="monitor-action-cell">
                                                     <button type="button" class="monitor-action edit" title="Edit record" aria-label="Edit record" onclick='editMonitoringRecord("goat_forage", <?= json_encode($r, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP) ?>)'>
                                                         <span class="material-symbols-rounded">edit</span>
                                                     </button>
@@ -1880,7 +1885,7 @@ unset($_SESSION['livestock_profile_error']);
                                                         <span class="material-symbols-rounded">archive</span>
                                                     </button>
                                                 </td><?php endif; ?></tr>
-                                    <?php endforeach; else: ?><tr><td colspan="<?= $role === 'admin' ? 5 : 4 ?>" class="monitor-empty">No forage records yet.</td></tr><?php endif; ?>
+                                    <?php endforeach; else: ?><tr><td colspan="<?= $canManageLivestock ? 5 : 4 ?>" class="monitor-empty">No forage records yet.</td></tr><?php endif; ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -2155,6 +2160,13 @@ function resetLivestockProfileModal(){
     document.getElementById('livestockProfileSubmitButton').textContent='Save Profile';
     toggleAddProfileFields();
 }
+document.addEventListener('DOMContentLoaded', function () {
+    const monitoringTabs = document.querySelector('.monitoring-tabs');
+    const headerTools = document.querySelector('.livestock-header-right');
+    if (monitoringTabs && headerTools) {
+        monitoringTabs.appendChild(headerTools);
+    }
+});
 document.addEventListener('DOMContentLoaded',function(){
     toggleAddProfileFields();
     const addModal=document.getElementById('addLivestockProfileModal');

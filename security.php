@@ -219,6 +219,10 @@ function send_security_email(
 
         $mail->send();
 
+        // SMTP acceptance does not guarantee inbox delivery. Do not log codes or credentials.
+        error_log('Sanctuario SMTP: message accepted by SMTP server; recipient=' . $to
+            . '; message_id=' . $mail->getLastMessageID());
+
         return true;
 
     } catch (\Throwable $e) {

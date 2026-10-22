@@ -13,11 +13,62 @@ if (!isset($_SESSION['user_id'])) {
 include 'db.php';
 include 'map_special_plots.php';
 
+/* Dashboard livestock popup: read live registered profiles from the same
+   livestocks / livestock_houses tables used by Livestock Management. */
+if (isset($_GET['dashboard_livestock_house'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $requested = strtolower(trim((string)$_GET['dashboard_livestock_house']));
+    $requested = str_replace(['-', ' '], '_', $requested);
+    $aliases = [
+        'poultry_house' => ['poultry_house', 'chicken_house'],
+        'swine_house' => ['swine_house', 'pig_house'],
+        'rabbit_house' => ['rabbit_house'],
+        'goat_house' => ['goat_house'],
+        'goat_house_2' => ['goat_house_2']
+    ];
+    if (!isset($aliases[$requested])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Unknown livestock house.']);
+        exit;
+    }
+    $houses = $conn->query("SELECT house_id, house_name, house_code FROM livestock_houses WHERE COALESCE(archived,0)=0");
+    $matched = null;
+    if ($houses) {
+        while ($house = $houses->fetch_assoc()) {
+            $code = strtolower(trim((string)$house['house_code']));
+            $code = str_replace(['-', ' '], '_', $code);
+            if (in_array($code, $aliases[$requested], true)) {
+                $matched = $house;
+                break;
+            }
+        }
+    }
+    if (!$matched) {
+        echo json_encode(['type' => 'livestock', 'plot_house_name' => ucwords(str_replace('_', ' ', $requested)), 'number_of_livestock' => 0, 'livestock_records' => []]);
+        exit;
+    }
+    $houseId = (int)$matched['house_id'];
+    $stmt = $conn->prepare("SELECT livestock_id, type, name, breed, number FROM livestocks WHERE house_id=? AND COALESCE(archived,0)=0 ORDER BY livestock_id DESC");
+    if (!$stmt) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Unable to load livestock profiles.']);
+        exit;
+    }
+    $stmt->bind_param('i', $houseId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $profiles = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+    $stmt->close();
+    echo json_encode(['type' => 'livestock', 'plot_house_name' => $matched['house_name'], 'number_of_livestock' => count($profiles), 'livestock_records' => $profiles]);
+    exit;
+}
+
+
 /* TOTAL CROPS */
 $totalCrops = $conn->query("SELECT COUNT(*) AS total FROM crops WHERE COALESCE(archived,0) = 0")->fetch_assoc()['total'];
 
 /* TOTAL LIVESTOCKS */
-$totalLivestock = $conn->query("SELECT COALESCE(SUM(number),0) AS total FROM livestocks WHERE COALESCE(archived,0) = 0")->fetch_assoc()['total'];
+$totalLivestock = $conn->query("SELECT COUNT(*) AS total FROM livestocks WHERE COALESCE(archived,0) = 0")->fetch_assoc()['total'];
 
 /* ACTIVITY LOGS (FIXED) */
 $logs = $conn->query("
@@ -38,7 +89,7 @@ $livestockCounts = [
 
 $livestockRes = $conn->query("
     SELECT LOWER(TRIM(type)) AS livestock_type,
-           COALESCE(SUM(number), 0) AS total
+           COUNT(*) AS total
     FROM livestocks
     WHERE COALESCE(archived, 0) = 0
     GROUP BY LOWER(TRIM(type))
@@ -820,7 +871,7 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
 
                 const res = await fetch(
-                    `get_plot_data.php?plot=${encodeURIComponent(plot)}`
+                    `${["rabbit_house", "goat_house", "goat_house_2", "poultry_house", "swine_house"].includes(plot) ? `adminDashboard.php?dashboard_livestock_house=${encodeURIComponent(plot)}` : `get_plot_data.php?plot=${encodeURIComponent(plot)}`}`
                 );
 
                 if (!res.ok) {
@@ -896,7 +947,8 @@ document.addEventListener("DOMContentLoaded", () => {
                                     <strong>${safe(data.plot_house_name)}</strong>
                                 </div>
                                 <div class="map-popup-detail">
-                                    <p> NUMBER OF LIVESTOCKS </p>
+                                    <span>NUMBER OF LIVESTOCKS:</span>
+                                    <strong>${formatNumber(Array.isArray(data.livestock_records) ? data.livestock_records.length : data.number_of_livestock)}</strong>
                                 
                                 </div>
                             </div>
@@ -906,7 +958,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                     ? data.livestock_records.map((animal, index) => `
                                         <div class="map-popup-record-item">
                                             <strong>${safe(animal.name || animal.tag_number || `${animal.type || "Livestock"} ${index + 1}`)}</strong>
-                                            <span>${safe(animal.type || "Livestock")} · Qty ${formatNumber(animal.number || 1)}</span>
+                                            <span>${safe(animal.type || "Livestock")}${animal.breed ? ` · ${safe(animal.breed)}` : ""}</span>
                                         </div>
                                     `).join("")
                                     : '<div class="map-popup-empty">No active livestock records assigned to this house.</div>'}
@@ -1037,7 +1089,7 @@ const livestockChart = new Chart(livestockMonitoringCanvas, {
     data: {
         labels: livestockLabels,
         datasets: [{
-            label: 'Number of Livestock',
+            label: 'Registered Profiles',
             data: Object.values(livestockCounts),
             backgroundColor: [
                 '#96c08b',
@@ -1057,7 +1109,7 @@ const livestockChart = new Chart(livestockMonitoringCanvas, {
             tooltip: {
                 callbacks: {
                     label: function(context) {
-                        return ' ' + Number(context.raw || 0).toLocaleString() + ' livestock';
+                        return ' ' + Number(context.raw || 0).toLocaleString() + ' registered profiles';
                     }
                 }
             }

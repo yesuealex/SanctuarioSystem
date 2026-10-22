@@ -7,7 +7,8 @@ include '../db.php';
 require_once '../archive/archive_functions.php';
 
 if (!isset($_SESSION['user_id'])) { header("Location: ../login.php"); exit(); }
-if (($_SESSION['role'] ?? '') !== 'admin') { header("Location: ../records.php?type=crops"); exit(); }
+$role = (string)($_SESSION['role'] ?? '');
+$isArchiveAdmin = in_array($role, ['admin', 'super admin'], true);
 
 try { ensureArchiveTable($conn, 'crops'); } catch (Throwable $e) { $archiveError = $e->getMessage(); }
 $selectedCrop = trim((string)($_GET['crop'] ?? ''));
@@ -16,6 +17,7 @@ $archiveLocationOptions = [
     'NURSERY' => 'Nursery',
     'PLOT_A' => 'Plot A',
     'PLOT_B' => 'Plot B',
+    'PLOT_C' => 'Plot C',
     'MNO' => 'MNO',
     'HYDRO' => 'Hydro',
     'OTHER' => 'Other / Unassigned'
@@ -36,6 +38,7 @@ function archivedCropLocationKey(array $row): string {
     if (preg_match('/HYDRO/', $locationText) || preg_match('/^H[0-9]+$/', $area)) return 'HYDRO';
     if (preg_match('/PLOT[_ ]?A/', $locationText) || preg_match('/^A[0-9]*$/', $area)) return 'PLOT_A';
     if (preg_match('/PLOT[_ ]?B/', $locationText) || preg_match('/^B[0-9]*$/', $area)) return 'PLOT_B';
+    if (preg_match('/PLOT[_ ]?C/', $locationText) || preg_match('/^C[0-9]*$/', $area)) return 'PLOT_C';
 
     return 'OTHER';
 }
@@ -49,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 restoreRecord($conn, 'crops', 'crop_id', $cropId);
                 header("Location: archived_crops.php?restored=1" . ($selectedCrop !== '' ? '&crop=' . urlencode($selectedCrop) : '')); exit();
             }
-            if ($action === 'delete') {
+            if ($action === 'delete' && $isArchiveAdmin) {
                 permanentlyDeleteArchived($conn, 'crops', 'crop_id', $cropId);
                 header("Location: archived_crops.php?deleted=1" . ($selectedCrop !== '' ? '&crop=' . urlencode($selectedCrop) : '')); exit();
             }
@@ -491,7 +494,7 @@ td {
 <th>STATUS</th>
 <th>BED<br>PLOT</th>
 
-<?php if ($role === 'admin'): ?>
+<?php if (in_array($role, ['admin', 'super admin', 'crops staff'], true)): ?>
 <th>Action</th>
 <?php endif; ?>
 
@@ -566,7 +569,7 @@ td {
 
 
 
-<?php if ($role === 'admin'): ?>
+<?php if (in_array($role, ['admin', 'super admin', 'crops staff'], true)): ?>
 
 <td>
 
@@ -591,6 +594,7 @@ restore
 </button>
 
 
+<?php if ($isArchiveAdmin): ?>
 <!-- PERMANENT DELETE -->
 
 <button
@@ -607,6 +611,7 @@ delete
 </span>
 
 </button>
+<?php endif; ?>
 
 
 </div>
@@ -619,7 +624,7 @@ delete
 
 <?php endforeach; ?>
 <tr class="archive-empty-row">
-    <td colspan="<?= $role === 'admin' ? '15' : '14' ?>" class="no-records">No matching archived Nursery records found.</td>
+    <td colspan="<?= in_array($role, ['admin', 'super admin', 'crops staff'], true) ? '15' : '14' ?>" class="no-records">No matching archived Nursery records found.</td>
 </tr>
 
 </tbody>
